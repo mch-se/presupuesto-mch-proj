@@ -2,6 +2,9 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 
+import VerPresupuesto from "./pages/VerPresupuesto";
+import HistorialPresupuestos from "./pages/HistorialPresupuestos";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Presupuestos from "./pages/Presupuestos";
@@ -67,6 +70,14 @@ export default function App() {
         <Route
           path="/presupuestos"
           element={<Presupuestos />}
+        />
+         <Route
+          path="/historial"
+          element={<HistorialPresupuestos />}
+        />
+         <Route
+          path="/presupuesto/:id"
+          element={<VerPresupuesto />}
         />
 
         <Route

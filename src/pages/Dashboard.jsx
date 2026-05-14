@@ -1,23 +1,27 @@
 import React from "react";
-import { Link } from "react-router-dom";
-import logo from "../assets/logo.png";
 import { supabase } from "../lib/supabase";
+import { Link } from "react-router-dom";
 
-export default function Dashboard({ cerrarSesion }) {
-  const [horaActual, setHoraActual] = React.useState(
-    new Date()
-  );
+export default function Dashboard() {
+  const [hora, setHora] =
+    React.useState(
+      new Date().toLocaleTimeString()
+    );
 
-  const [alias, setAlias] = React.useState("");
+  const [alias, setAlias] =
+    React.useState("");
 
   React.useEffect(() => {
     obtenerAlias();
 
     const intervalo = setInterval(() => {
-      setHoraActual(new Date());
+      setHora(
+        new Date().toLocaleTimeString()
+      );
     }, 1000);
 
-    return () => clearInterval(intervalo);
+    return () =>
+      clearInterval(intervalo);
   }, []);
 
   async function obtenerAlias() {
@@ -38,115 +42,95 @@ export default function Dashboard({ cerrarSesion }) {
     }
   }
 
-  const fecha = horaActual.toLocaleDateString();
-
-  const hora = horaActual.toLocaleTimeString();
-
-  const cards = [
-    {
-      titulo: "Presupuestos",
-      descripcion: "Crear y administrar presupuestos",
-      ruta: "/presupuestos",
-    },
-    {
-      titulo: "Artículos",
-      descripcion: "Materiales y mano de obra",
-      ruta: "/articulos",
-    },
-    {
-      titulo: "Clientes",
-      descripcion: "Administración de clientes",
-      ruta: "/clientes",
-    },
-    {
-      titulo: "Data / Recursos",
-      descripcion: "Fotos, videos y documentación",
-      ruta: "/recursos",
-    },
-  ];
+  async function cerrarSesion() {
+    await supabase.auth.signOut();
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white p-6">
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto">
 
-        <div className="bg-zinc-900 rounded-3xl border border-zinc-800 p-6 shadow-2xl">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
 
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-6 border-b border-zinc-800 pb-6">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
 
-            <div className="flex items-center gap-5">
+            <div>
+              <h1 className="text-5xl font-bold text-orange-500">
+                MCH
+              </h1>
 
-              <img
-                src={logo}
-                alt="MCH"
-                className="h-28 object-contain"
-              />
-
-              <div>
-                <h1 className="text-4xl font-bold">
-                  Panel Principal
-                </h1>
-
-                <p className="text-zinc-400 mt-2">
-                  Bienvenido a MCH Presupuestos
-                </p>
-              </div>
+              <p className="text-zinc-400 mt-3 text-xl">
+                Panel principal
+              </p>
             </div>
 
             <div className="text-right">
-
               <p className="text-zinc-400">
-                {fecha}
+                Usuario
               </p>
 
-              <p className="text-zinc-400">
-                {hora}
-              </p>
-
-              <p className="mt-3 text-orange-500 font-semibold text-lg">
+              <p className="text-2xl font-bold">
                 {alias}
               </p>
 
-              <button
-                onClick={cerrarSesion}
-                className="mt-4 bg-orange-500 hover:bg-orange-600 transition px-5 py-3 rounded-xl font-bold"
-              >
-                Cerrar Sesión
-              </button>
+              <p className="text-orange-500 mt-2 text-xl">
+                {hora}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
 
-            {cards.map((card) => (
-              <Link
-                key={card.titulo}
-                to={card.ruta}
-                className="bg-zinc-950 border border-zinc-800 rounded-3xl p-10 hover:border-orange-500 hover:scale-[1.02] transition duration-300"
-              >
-                <h2 className="text-3xl font-bold text-orange-500 mb-4">
-                  {card.titulo}
-                </h2>
+            <Link
+              to="/presupuestos"
+              className="bg-orange-500 hover:bg-orange-600 rounded-3xl p-8 transition"
+            >
+              <h2 className="text-3xl font-bold">
+                Presupuestos
+              </h2>
 
-                <p className="text-zinc-400 text-lg">
-                  {card.descripcion}
-                </p>
-              </Link>
-            ))}
+              <p className="mt-4 text-lg">
+                Crear presupuestos
+              </p>
+            </Link>
+
+            <Link
+              to="/historial"
+              className="bg-zinc-800 hover:bg-zinc-700 rounded-3xl p-8 transition"
+            >
+              <h2 className="text-3xl font-bold">
+                Historial
+              </h2>
+
+              <p className="mt-4 text-lg text-zinc-400">
+                Administración de presupuestos
+              </p>
+            </Link>
+
+            <Link
+              to="/articulos"
+              className="bg-zinc-800 hover:bg-zinc-700 rounded-3xl p-8 transition"
+            >
+              <h2 className="text-3xl font-bold">
+                Artículos
+              </h2>
+
+              <p className="mt-4 text-lg text-zinc-400">
+                Biblioteca de materiales
+              </p>
+            </Link>
           </div>
 
-          <Link
-            to="/analiticas"
-            className="block mt-10 bg-orange-500 hover:bg-orange-600 transition rounded-3xl p-8 text-center"
-          >
-            <h2 className="text-3xl font-bold">
-              Analíticas
-            </h2>
+          <div className="mt-12">
 
-            <p className="mt-3 text-lg">
-              Estadísticas y métricas del negocio
-            </p>
-          </Link>
+            <button
+              onClick={cerrarSesion}
+              className="bg-red-500 hover:bg-red-600 px-6 py-4 rounded-2xl text-lg font-bold"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </div>
     </div>
