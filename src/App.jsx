@@ -1,3 +1,4 @@
+import logo from "./assets/logo.png";
 import React from "react";
 import { supabase } from "./lib/supabase";
 
@@ -30,35 +31,36 @@ export default function App() {
   }
 
   async function registrarse() {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-  });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  const user = data.user;
-
-  if (user) {
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert([
-        {
-          id: user.id,
-          email: user.email,
-          alias: alias,
-        },
-      ]);
-
-    if (profileError) {
-      alert(profileError.message);
+    if (error) {
+      alert(error.message);
       return;
     }
-  }
-     alert("Usuario registrado correctamente");
+
+    const user = data.user;
+
+    if (user) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert([
+          {
+            id: user.id,
+            email: user.email,
+            alias: alias,
+          },
+        ]);
+
+      if (profileError) {
+        alert(profileError.message);
+        return;
+      }
+    }
+
+    alert("Usuario registrado correctamente");
   }
 
   async function iniciarSesion() {
@@ -89,9 +91,14 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-200 flex items-center justify-center p-6">
         <div className="bg-white p-10 rounded shadow-xl w-full max-w-md">
-          <h1 className="text-3xl font-bold mb-8 text-center">
-            MCH Presupuestos
-          </h1>
+
+          <div className="flex justify-center mb-8">
+            <img
+              src={logo}
+              alt="MCH"
+              className="h-24 object-contain"
+            />
+          </div>
 
           <div className="space-y-4">
             <input
