@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase";
 export default function App() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [alias, setAlias] = React.useState("");
   const [user, setUser] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -29,17 +30,35 @@ export default function App() {
   }
 
   async function registrarse() {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-    if (error) {
-      alert(error.message);
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  const user = data.user;
+
+  if (user) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert([
+        {
+          id: user.id,
+          email: user.email,
+          alias: alias,
+        },
+      ]);
+
+    if (profileError) {
+      alert(profileError.message);
       return;
     }
-
-    alert("Usuario registrado correctamente");
+  }
+     alert("Usuario registrado correctamente");
   }
 
   async function iniciarSesion() {
@@ -80,6 +99,14 @@ export default function App() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full border p-3 rounded"
+            />
+
+            <input
+              type="text"
+              placeholder="Alias"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
               className="w-full border p-3 rounded"
             />
 
