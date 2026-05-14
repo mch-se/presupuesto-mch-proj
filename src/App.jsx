@@ -1,11 +1,16 @@
-import logo from "./assets/logo.png";
 import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Presupuestos from "./pages/Presupuestos";
+import Articulos from "./pages/Articulos";
+import Clientes from "./pages/Clientes";
+import Recursos from "./pages/Recursos";
+import Analiticas from "./pages/Analiticas";
+
 export default function App() {
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [alias, setAlias] = React.useState("");
   const [user, setUser] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -30,146 +35,60 @@ export default function App() {
     setLoading(false);
   }
 
-  async function registrarse() {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    const user = data.user;
-
-    if (user) {
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .insert([
-          {
-            id: user.id,
-            email: user.email,
-            alias: alias,
-          },
-        ]);
-
-      if (profileError) {
-        alert(profileError.message);
-        return;
-      }
-    }
-
-    alert("Usuario registrado correctamente");
-  }
-
-  async function iniciarSesion() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-  }
-
   async function cerrarSesion() {
     await supabase.auth.signOut();
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-2xl">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
       </div>
     );
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-200 flex items-center justify-center p-6">
-        <div className="bg-white p-10 rounded shadow-xl w-full max-w-md">
-
-          <div className="flex justify-center mb-8">
-            <img
-              src={logo}
-              alt="MCH"
-              className="h-24 object-contain"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border p-3 rounded"
-            />
-
-            <input
-              type="text"
-              placeholder="Alias"
-              value={alias}
-              onChange={(e) => setAlias(e.target.value)}
-              className="w-full border p-3 rounded"
-            />
-
-            <input
-              type="password"
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border p-3 rounded"
-            />
-
-            <button
-              onClick={iniciarSesion}
-              className="w-full bg-black text-white p-3 rounded"
-            >
-              Iniciar Sesión
-            </button>
-
-            <button
-              onClick={registrarse}
-              className="w-full bg-gray-700 text-white p-3 rounded"
-            >
-              Registrarse
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <Login />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-200 p-6">
-      <div className="max-w-5xl mx-auto bg-white p-10 shadow-xl rounded">
-        <div className="flex justify-between items-center mb-10">
-          <div>
-            <h1 className="text-3xl font-bold">
-              Presupuesto MCH
-            </h1>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Dashboard
+              user={user}
+              cerrarSesion={cerrarSesion}
+            />
+          }
+        />
 
-            <p className="text-gray-600 mt-2">
-              Usuario: {user.email}
-            </p>
-          </div>
+        <Route
+          path="/presupuestos"
+          element={<Presupuestos />}
+        />
 
-          <button
-            onClick={cerrarSesion}
-            className="bg-red-500 text-white px-5 py-3 rounded"
-          >
-            Cerrar Sesión
-          </button>
-        </div>
+        <Route
+          path="/articulos"
+          element={<Articulos />}
+        />
 
-        <div className="text-xl">
-          Sistema listo para continuar.
-        </div>
-      </div>
-    </div>
+        <Route
+          path="/clientes"
+          element={<Clientes />}
+        />
+
+        <Route
+          path="/recursos"
+          element={<Recursos />}
+        />
+
+        <Route
+          path="/analiticas"
+          element={<Analiticas />}
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
