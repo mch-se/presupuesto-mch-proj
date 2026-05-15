@@ -234,7 +234,9 @@ export default function VistaPreviaPresupuesto() {
                 {presupuesto.cliente_contacto && (
 
                   <p className="text-sm text-zinc-600 mt-2">
-                    Contacto: {presupuesto.cliente_contacto}
+                    Contacto:
+                    {" "}
+                    {presupuesto.cliente_contacto}
                   </p>
 
                 )}
@@ -244,53 +246,39 @@ export default function VistaPreviaPresupuesto() {
               <div>
 
                 <p className="text-sm font-bold">
-                  TRABAJO
+                  DATOS DE CONTACTO
                 </p>
 
-                <p className="mt-2 text-lg">
-                  {presupuesto.trabajo}
+                <p className="mt-2 text-zinc-700">
+                  Tel:
+                  {" "}
+                  {presupuesto.cliente_telefono || "-"}
+                </p>
+
+                <p className="mt-1 text-zinc-700 break-all">
+                  Email:
+                  {" "}
+                  {presupuesto.cliente_email || "-"}
+                </p>
+
+                <p className="mt-1 text-zinc-700">
+                  Dirección:
+                  {" "}
+                  {presupuesto.cliente_direccion || "-"}
                 </p>
 
               </div>
 
             </div>
 
-            <div className="grid grid-cols-3 gap-6 mt-6 text-sm">
+            <div className="mt-10">
 
-              <div>
+              <p className="text-2xl font-bold">
+                {presupuesto.descripcion_corta || "-"}
+              </p>
 
-                <p className="font-bold">
-                  Teléfono
-                </p>
-
-                <p className="mt-1 text-zinc-700">
-                  {presupuesto.cliente_telefono || "-"}
-                </p>
-
-              </div>
-
-              <div>
-
-                <p className="font-bold">
-                  Email
-                </p>
-
-                <p className="mt-1 text-zinc-700 break-all">
-                  {presupuesto.cliente_email || "-"}
-                </p>
-
-              </div>
-
-              <div>
-
-                <p className="font-bold">
-                  Dirección
-                </p>
-
-                <p className="mt-1 text-zinc-700">
-                  {presupuesto.cliente_direccion || "-"}
-                </p>
-
+              <div className="mt-5 whitespace-pre-wrap leading-relaxed text-zinc-700">
+                {presupuesto.descripcion_larga || "-"}
               </div>
 
             </div>
@@ -442,7 +430,9 @@ export default function VistaPreviaPresupuesto() {
             </p>
 
             <p className="mt-4 text-zinc-500">
-              Generado por: {alias}
+              Generado por:
+              {" "}
+              {alias}
             </p>
 
           </div>

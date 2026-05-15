@@ -1,4 +1,5 @@
 import React from "react";
+
 import { supabase } from "../lib/supabase";
 
 import {
@@ -7,6 +8,7 @@ import {
 } from "react-router-dom";
 
 export default function VerPresupuesto() {
+
   const { id } = useParams();
 
   const [presupuesto, setPresupuesto] =
@@ -23,6 +25,7 @@ export default function VerPresupuesto() {
   }, []);
 
   async function obtenerPresupuesto() {
+
     const { data, error } =
       await supabase
         .from("presupuestos")
@@ -37,12 +40,11 @@ export default function VerPresupuesto() {
 
     setPresupuesto(data);
 
-    const {
-      data: itemsData,
-    } = await supabase
-      .from("presupuesto_items")
-      .select("*")
-      .eq("presupuesto_id", id);
+    const { data: itemsData } =
+      await supabase
+        .from("presupuesto_items")
+        .select("*")
+        .eq("presupuesto_id", id);
 
     setItems(itemsData || []);
 
@@ -75,8 +77,9 @@ export default function VerPresupuesto() {
               Presupuesto
             </h1>
 
-            <p className="text-orange-500 mt-3 text-2xl font-bold">
-              #
+            <p className="text-zinc-400 mt-3">
+              N°
+              {" "}
               {presupuesto.numero}
             </p>
 
@@ -92,6 +95,13 @@ export default function VerPresupuesto() {
             </Link>
 
             <Link
+              to={`/presupuestos/${id}`}
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+            >
+              Editar
+            </Link>
+
+            <Link
               to="/historial"
               className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
             >
@@ -102,114 +112,144 @@ export default function VerPresupuesto() {
 
         </div>
 
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <div>
+
+              <p className="text-zinc-400 text-sm">
+                CLIENTE
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                {presupuesto.cliente_empresa || presupuesto.cliente}
+              </p>
+
+              {presupuesto.cliente_contacto && (
+
+                <p className="text-zinc-400 mt-3">
+                  Contacto:
+                  {" "}
+                  {presupuesto.cliente_contacto}
+                </p>
+
+              )}
+
+              <p className="text-zinc-400 mt-2">
+                Tel:
+                {" "}
+                {presupuesto.cliente_telefono || "-"}
+              </p>
+
+              <p className="text-zinc-400 mt-2">
+                Email:
+                {" "}
+                {presupuesto.cliente_email || "-"}
+              </p>
+
+              <p className="text-zinc-400 mt-2">
+                Dirección:
+                {" "}
+                {presupuesto.cliente_direccion || "-"}
+              </p>
+
+            </div>
+
+            <div>
+
+              <p className="text-zinc-400 text-sm">
+                DESCRIPCIÓN CORTA
+              </p>
+
+              <p className="text-2xl font-bold mt-2">
+                {presupuesto.descripcion_corta || "-"}
+              </p>
+
+              <p className="text-zinc-400 text-sm mt-8">
+                DESCRIPCIÓN LARGA
+              </p>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 mt-3 whitespace-pre-wrap leading-relaxed text-zinc-300">
+                {presupuesto.descripcion_larga || "-"}
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
 
-            <div>
-
-              <p className="text-zinc-400">
-                Cliente
-              </p>
-
-              <p className="text-2xl font-bold mt-2">
-                {presupuesto.cliente}
-              </p>
-
+            <div className="col-span-6">
+              Descripción
             </div>
 
-            <div>
-
-              <p className="text-zinc-400">
-                Trabajo
-              </p>
-
-              <p className="text-2xl font-bold mt-2">
-                {presupuesto.trabajo}
-              </p>
-
+            <div className="col-span-2">
+              Cantidad
             </div>
 
-            <div>
+            <div className="col-span-2">
+              Precio
+            </div>
 
-              <p className="text-zinc-400">
-                Estado
-              </p>
-
-              <p className="text-2xl font-bold mt-2 text-orange-500">
-                {presupuesto.estado}
-              </p>
-
+            <div className="col-span-2">
+              Subtotal
             </div>
 
           </div>
 
-          <div className="mt-12">
+          <div className="space-y-4">
 
-            <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
+            {items.map((item) => (
 
-              <div className="col-span-6">
-                Descripción
-              </div>
+              <div
+                key={item.id}
+                className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              >
 
-              <div className="col-span-2">
-                Cantidad
-              </div>
+                <div className="col-span-6">
+                  {item.descripcion}
+                </div>
 
-              <div className="col-span-2">
-                Precio
-              </div>
+                <div className="col-span-2">
+                  {item.cantidad}
+                </div>
 
-              <div className="col-span-2">
-                Subtotal
-              </div>
+                <div className="col-span-2">
 
-            </div>
+                  {simbolo}
 
-            <div className="space-y-4">
-
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                >
-
-                  <div className="col-span-6">
-                    {item.descripcion}
-                  </div>
-
-                  <div className="col-span-2">
-                    {item.cantidad}
-                  </div>
-
-                  <div className="col-span-2">
-
-                    {simbolo}
-
-                    {Number(
-                      item.precio
-                    ).toLocaleString()}
-
-                  </div>
-
-                  <div className="col-span-2 text-orange-500 font-bold">
-
-                    {simbolo}
-
-                    {Number(
-                      item.subtotal
-                    ).toLocaleString()}
-
-                  </div>
+                  {Number(
+                    item.precio
+                  ).toLocaleString()}
 
                 </div>
-              ))}
 
-            </div>
+                <div className="col-span-2 text-orange-500 font-bold">
+
+                  {simbolo}
+
+                  {Number(
+                    item.subtotal
+                  ).toLocaleString()}
+
+                </div>
+
+              </div>
+
+            ))}
 
           </div>
 
-          <div className="mt-12 bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+        </div>
+
+        <div className="mt-10 flex justify-end">
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md">
 
             <div className="space-y-4 text-2xl">
 
