@@ -70,9 +70,6 @@ export default function Presupuestos() {
       return;
     }
 
-    console.log("PRESUPUESTO CARGADO:");
-    console.log(data);
-
     setCliente(
       data.cliente || ""
     );
@@ -258,17 +255,7 @@ export default function Presupuestos() {
 
     if (modoEdicion) {
 
-      console.log("ACTUALIZANDO:");
-      console.log({
-        cliente,
-        trabajo,
-        subtotal,
-        iva,
-        total,
-        moneda,
-      });
-
-      const { data, error } =
+      const { error } =
         await supabase
 
           .from("presupuestos")
@@ -282,13 +269,7 @@ export default function Presupuestos() {
             moneda,
           })
 
-          .eq("id", id)
-
-          .select();
-
-      console.log("RESPUESTA UPDATE:");
-      console.log(data);
-      console.log(error);
+          .eq("id", id);
 
       if (error) {
         alert(error.message);
@@ -708,6 +689,115 @@ export default function Presupuestos() {
         </div>
 
       </div>
+
+      {/* MODAL BIBLIOTECA */}
+
+      {mostrarBiblioteca && (
+
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-auto p-8">
+
+            <div className="flex justify-between items-center mb-8">
+
+              <h2 className="text-4xl font-bold text-orange-500">
+                Biblioteca de Artículos
+              </h2>
+
+              <button
+                onClick={() =>
+                  setMostrarBiblioteca(
+                    false
+                  )
+                }
+
+                className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+              >
+                X
+              </button>
+
+            </div>
+
+            <input
+              type="text"
+              placeholder="Buscar artículo..."
+              value={
+                busquedaArticulo
+              }
+
+              onChange={(e) =>
+                setBusquedaArticulo(
+                  e.target.value
+                )
+              }
+
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-8"
+            />
+
+            <div className="space-y-4">
+
+              {articulos
+
+                .filter((articulo) =>
+                  articulo.descripcion
+                    ?.toLowerCase()
+
+                    .includes(
+                      busquedaArticulo.toLowerCase()
+                    )
+                )
+
+                .map((articulo) => (
+
+                  <div
+                    key={articulo.id}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex justify-between items-center"
+                  >
+
+                    <div>
+
+                      <p className="text-2xl font-bold">
+                        {
+                          articulo.descripcion
+                        }
+                      </p>
+
+                      <p className="text-zinc-400 mt-2">
+
+                        {articulo.moneda ===
+                        "USD"
+                          ? "USD $"
+                          : "$"}
+
+                        {Number(
+                          articulo.precio
+                        ).toLocaleString()}
+
+                      </p>
+
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        agregarArticuloAlPresupuesto(
+                          articulo
+                        )
+                      }
+
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Agregar
+                    </button>
+
+                  </div>
+                ))}
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   );

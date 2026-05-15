@@ -7,6 +7,8 @@ import {
   useParams,
 } from "react-router-dom";
 
+import html2pdf from "html2pdf.js";
+
 export default function VistaPreviaPresupuesto() {
 
   const { id } = useParams();
@@ -17,8 +19,14 @@ export default function VistaPreviaPresupuesto() {
   const [items, setItems] =
     React.useState([]);
 
+  const [alias, setAlias] =
+    React.useState("");
+
   const [loading, setLoading] =
     React.useState(true);
+
+  const hojaRef =
+    React.useRef(null);
 
   React.useEffect(() => {
     obtenerPresupuesto();
@@ -40,27 +48,72 @@ export default function VistaPreviaPresupuesto() {
 
     setPresupuesto(data);
 
-    const {
-      data: itemsData,
-      error: itemsError,
-    } = await supabase
-      .from("presupuesto_items")
-      .select("*")
-      .eq("presupuesto_id", id);
-
-    if (itemsError) {
-      alert(itemsError.message);
-      return;
-    }
+    const { data: itemsData } =
+      await supabase
+        .from("presupuesto_items")
+        .select("*")
+        .eq("presupuesto_id", id);
 
     setItems(itemsData || []);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: profile } =
+        await supabase
+          .from("profiles")
+          .select("alias")
+          .eq("id", user.id)
+          .single();
+
+      setAlias(
+        profile?.alias || user.email
+      );
+    }
 
     setLoading(false);
   }
 
+  function descargarPDF() {
+
+    const opciones = {
+      margin: 0.2,
+
+      filename:
+        `Presupuesto-${presupuesto.numero}.pdf`,
+
+      image: {
+        type: "jpeg",
+        quality: 1,
+      },
+
+      html2canvas: {
+        scale: 2,
+      },
+
+      jsPDF: {
+        unit: "in",
+        format: "a4",
+        orientation: "portrait",
+      },
+
+      pagebreak: {
+        mode: ["avoid-all", "css", "legacy"],
+        avoid: [".no-break"],
+      },
+    };
+
+    html2pdf()
+      .set(opciones)
+      .from(hojaRef.current)
+      .save();
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center text-3xl">
+      <div className="min-h-screen bg-zinc-300 flex items-center justify-center">
         Cargando...
       </div>
     );
@@ -71,77 +124,105 @@ export default function VistaPreviaPresupuesto() {
       ? "USD $"
       : "$";
 
+  const fecha =
+    new Date(
+      presupuesto.created_at
+    ).toLocaleDateString();
+
   return (
     <div className="min-h-screen bg-zinc-300 p-6">
 
       <div className="max-w-5xl mx-auto">
 
-        {/* BOTONES */}
-
-        <div className="flex justify-between mb-6">
+        <div className="flex justify-between mb-6 print:hidden">
 
           <Link
             to={`/presupuesto/${id}`}
-            className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold"
+            className="bg-black text-white px-5 py-3 rounded font-bold"
           >
             X Cerrar
           </Link>
 
-          <button
-            onClick={() => window.print()}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-xl font-bold"
-          >
-            Imprimir
-          </button>
+          <div className="flex gap-4">
+
+            <button
+              onClick={() =>
+                window.print()
+              }
+              className="bg-zinc-700 text-white px-5 py-3 rounded font-bold"
+            >
+              Imprimir
+            </button>
+
+            <button
+              onClick={
+                descargarPDF
+              }
+              className="bg-black text-white px-5 py-3 rounded font-bold"
+            >
+              Descargar PDF
+            </button>
+
+          </div>
 
         </div>
 
-        {/* HOJA */}
+        <div
+          ref={hojaRef}
+          className="bg-white text-black p-10 shadow-2xl"
+        >
 
-        <div className="bg-white text-black rounded-2xl shadow-2xl p-14">
-
-          {/* HEADER */}
-
-          <div className="flex justify-between items-start border-b pb-8">
+          <div className="flex justify-between border-b pb-6 no-break">
 
             <div>
 
-              <h1 className="text-5xl font-bold">
+              <h1 className="text-4xl font-black">
                 MCH
               </h1>
 
-              <p className="mt-3 text-zinc-600">
+              <p className="font-semibold mt-1">
                 Seguridad Electrónica
               </p>
+
+              <div className="mt-5 text-sm leading-6">
+
+                <p>Lomas de Zamora</p>
+                <p>Buenos Aires</p>
+                <p>Tel: 11 2667-0854</p>
+                <p>mchsolucioneselectronicas@hotmail.com</p>
+                <p>CUIT: 23-33915525-9</p>
+
+              </div>
 
             </div>
 
             <div className="text-right">
 
-              <p className="text-zinc-500">
-                Presupuesto
+              <p className="text-sm font-semibold">
+                PRESUPUESTO
               </p>
 
-              <p className="text-3xl font-bold mt-2">
-                #
+              <p className="text-3xl font-black mt-2">
                 {presupuesto.numero}
+              </p>
+
+              <p className="mt-4 text-sm">
+                Fecha: {fecha}
               </p>
 
             </div>
 
           </div>
 
-          {/* DATOS */}
-
-          <div className="grid grid-cols-2 gap-10 mt-10">
+          <div className="mt-8 grid grid-cols-2 gap-8 border-b pb-6 no-break">
 
             <div>
 
-              <p className="text-zinc-500">
-                Cliente
+              <p className="text-sm font-bold">
+                CLIENTE
               </p>
 
-              <p className="text-2xl font-bold mt-2">
+              <p className="mt-2 text-lg">
                 {presupuesto.cliente}
               </p>
 
@@ -149,11 +230,11 @@ export default function VistaPreviaPresupuesto() {
 
             <div>
 
-              <p className="text-zinc-500">
-                Trabajo
+              <p className="text-sm font-bold">
+                TRABAJO
               </p>
 
-              <p className="text-2xl font-bold mt-2">
+              <p className="mt-2 text-lg">
                 {presupuesto.trabajo}
               </p>
 
@@ -161,131 +242,126 @@ export default function VistaPreviaPresupuesto() {
 
           </div>
 
-          {/* ITEMS */}
+          <div className="mt-10">
 
-          <div className="mt-14">
+            <table className="w-full border-collapse">
 
-            <div className="grid grid-cols-12 border-b pb-4 font-bold text-zinc-600">
+              <thead>
 
-              <div className="col-span-6">
-                Descripción
-              </div>
+                <tr className="bg-zinc-100 border-y">
 
-              <div className="col-span-2 text-center">
-                Cantidad
-              </div>
+                  <th className="text-left p-3 text-sm">
+                    Descripción
+                  </th>
 
-              <div className="col-span-2 text-right">
-                Precio
-              </div>
+                  <th className="text-center p-3 text-sm w-24">
+                    Cant.
+                  </th>
 
-              <div className="col-span-2 text-right">
-                Subtotal
-              </div>
+                  <th className="text-right p-3 text-sm w-40">
+                    Precio
+                  </th>
 
-            </div>
+                  <th className="text-right p-3 text-sm w-40">
+                    Subtotal
+                  </th>
 
-            <div className="space-y-5 mt-6">
+                </tr>
 
-              {items.map((item) => (
+              </thead>
 
-                <div
-                  key={item.id}
-                  className="grid grid-cols-12 border-b pb-4"
-                >
+              <tbody>
 
-                  <div className="col-span-6">
-                    {item.descripcion}
-                  </div>
+                {items.map((item) => (
 
-                  <div className="col-span-2 text-center">
-                    {item.cantidad}
-                  </div>
+                  <tr
+                    key={item.id}
+                    className="border-b"
+                  >
 
-                  <div className="col-span-2 text-right">
+                    <td className="p-3 text-sm">
+                      {item.descripcion}
+                    </td>
 
-                    {simbolo}
+                    <td className="p-3 text-center text-sm">
+                      {item.cantidad}
+                    </td>
 
-                    {Number(
-                      item.precio
-                    ).toLocaleString()}
+                    <td className="p-3 text-right text-sm">
 
-                  </div>
+                      {simbolo}
 
-                  <div className="col-span-2 text-right font-bold">
+                      {Number(
+                        item.precio
+                      ).toLocaleString()}
 
-                    {simbolo}
+                    </td>
 
-                    {Number(
-                      item.subtotal
-                    ).toLocaleString()}
+                    <td className="p-3 text-right text-sm font-bold">
 
-                  </div>
+                      {simbolo}
 
-                </div>
+                      {Number(
+                        item.subtotal
+                      ).toLocaleString()}
 
-              ))}
+                    </td>
 
-            </div>
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
 
           </div>
 
-          {/* TOTALES */}
+          <div className="flex justify-end mt-10 no-break">
 
-          <div className="mt-16 flex justify-end">
+            <div className="w-80 border p-5">
 
-            <div className="w-96 space-y-4">
+              <div className="flex justify-between mb-3">
 
-              <div className="flex justify-between text-xl">
-
-                <span>
+                <span className="font-semibold">
                   Subtotal
                 </span>
 
                 <span>
-
                   {simbolo}
-
                   {Number(
                     presupuesto.subtotal
                   ).toLocaleString()}
-
                 </span>
 
               </div>
 
-              <div className="flex justify-between text-xl">
+              <div className="flex justify-between mb-3">
 
-                <span>
+                <span className="font-semibold">
                   IVA
                 </span>
 
                 <span>
-
                   {simbolo}
-
                   {Number(
                     presupuesto.iva
                   ).toLocaleString()}
-
                 </span>
 
               </div>
 
-              <div className="flex justify-between text-4xl font-bold border-t pt-6 text-orange-500">
+              <div className="flex justify-between border-t pt-4 text-2xl font-black">
 
                 <span>
                   TOTAL
                 </span>
 
                 <span>
-
                   {simbolo}
-
                   {Number(
                     presupuesto.total
                   ).toLocaleString()}
-
                 </span>
 
               </div>
@@ -294,12 +370,24 @@ export default function VistaPreviaPresupuesto() {
 
           </div>
 
-          {/* FOOTER */}
+          <div className="mt-10 text-xs leading-5 border-t pt-5 text-zinc-700 no-break">
 
-          <div className="mt-20 pt-10 border-t text-zinc-500 text-sm">
+            <p className="font-bold text-black mb-2">
+              Condiciones Comerciales
+            </p>
 
-            Presupuesto generado por
-            MCH Seguridad Electrónica
+            <p>
+              Los importes son válidos por 5 días debido a la inestabilidad monetaria. 
+              El pago debe estar acreditado al momento de finalizar el trabajo; de lo contrario, 
+              se aplicará mora del 3% por día hasta que se acredite el pago. 
+              Pago efectivo o transferencia. Otros medios de pago pueden incluir recargos. 
+              Incluye configuración y puesta en marcha salvo aclaración previa. 
+              No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.
+            </p>
+
+            <p className="mt-4 text-zinc-500">
+              Generado por: {alias}
+            </p>
 
           </div>
 
