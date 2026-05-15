@@ -1,66 +1,205 @@
 import React from "react";
+
 import { supabase } from "../lib/supabase";
-import { Link } from "react-router-dom";
+
+import {
+  Link,
+} from "react-router-dom";
 
 export default function Articulos() {
-  const [tipo, setTipo] = React.useState("Material");
-  const [categoria, setCategoria] = React.useState("");
-  const [descripcion, setDescripcion] = React.useState("");
-  const [sku, setSku] = React.useState("");
-  const [costo, setCosto] = React.useState("");
-  const [precio, setPrecio] = React.useState("");
 
-  const [articulos, setArticulos] = React.useState([]);
+  const [descripcion, setDescripcion] =
+    React.useState("");
+
+  const [precio, setPrecio] =
+    React.useState("");
+
+  const [costo, setCosto] =
+    React.useState("");
+
+  const [categoria, setCategoria] =
+    React.useState("");
+
+  const [proveedor, setProveedor] =
+    React.useState("");
+
+  const [moneda, setMoneda] =
+    React.useState("ARS");
+
+  const [articulos, setArticulos] =
+    React.useState([]);
+
+  const [busqueda, setBusqueda] =
+    React.useState("");
+
+  const [editandoId, setEditandoId] =
+    React.useState(null);
 
   React.useEffect(() => {
     obtenerArticulos();
   }, []);
 
   async function obtenerArticulos() {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from("articulos")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (!error) {
-      setArticulos(data);
-    }
-  }
-
-  async function guardarArticulo() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { error } = await supabase
-      .from("articulos")
-      .insert([
-        {
-          user_id: user.id,
-          tipo,
-          categoria,
-          descripcion,
-          sku,
-          costo,
-          precio,
-        },
-      ]);
+    const { data, error } =
+      await supabase
+        .from("articulos")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("descripcion");
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setCategoria("");
+    setArticulos(data || []);
+  }
+
+  function limpiarFormulario() {
+
     setDescripcion("");
-    setSku("");
-    setCosto("");
     setPrecio("");
+    setCosto("");
+    setCategoria("");
+    setProveedor("");
+    setMoneda("ARS");
+
+    setEditandoId(null);
+  }
+
+  async function guardarArticulo() {
+
+    if (!descripcion) {
+      alert(
+        "Ingresar descripción"
+      );
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (editandoId) {
+
+      const { error } =
+        await supabase
+          .from("articulos")
+          .update({
+            descripcion,
+            precio,
+            costo,
+            categoria,
+            proveedor,
+            moneda,
+          })
+
+          .eq(
+            "id",
+            editandoId
+          );
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      alert(
+        "Artículo actualizado"
+      );
+
+    } else {
+
+      const { error } =
+        await supabase
+          .from("articulos")
+          .insert([
+            {
+              descripcion,
+              precio,
+              costo,
+              categoria,
+              proveedor,
+              moneda,
+              user_id:
+                user.id,
+            },
+          ]);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      alert(
+        "Artículo creado"
+      );
+    }
+
+    limpiarFormulario();
+
+    obtenerArticulos();
+  }
+
+  function editarArticulo(
+    articulo
+  ) {
+
+    setDescripcion(
+      articulo.descripcion || ""
+    );
+
+    setPrecio(
+      articulo.precio || ""
+    );
+
+    setCosto(
+      articulo.costo || ""
+    );
+
+    setCategoria(
+      articulo.categoria || ""
+    );
+
+    setProveedor(
+      articulo.proveedor || ""
+    );
+
+    setMoneda(
+      articulo.moneda || "ARS"
+    );
+
+    setEditandoId(
+      articulo.id
+    );
+  }
+
+  async function eliminarArticulo(
+    id
+  ) {
+
+    const confirmar =
+      window.confirm(
+        "Eliminar artículo?"
+      );
+
+    if (!confirmar) return;
+
+    const { error } =
+      await supabase
+        .from("articulos")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     obtenerArticulos();
   }
@@ -70,183 +209,310 @@ export default function Articulos() {
 
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex justify-between items-center mb-8">
+        {/* HEADER */}
+
+        <div className="flex justify-between items-center mb-10">
 
           <div>
+
             <h1 className="text-5xl font-bold text-orange-500">
               Artículos
             </h1>
 
-            <p className="text-zinc-400 mt-2">
-              Materiales y mano de obra reutilizable
+            <p className="text-zinc-400 mt-3">
+              Biblioteca profesional
             </p>
+
           </div>
 
           <Link
             to="/"
-            className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
           >
             Volver
           </Link>
+
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+        {/* FORM */}
 
-          <h2 className="text-3xl font-bold mb-8">
-            Nuevo Artículo
-          </h2>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Tipo
-              </p>
+            <input
+              type="text"
+              placeholder="Descripción"
+              value={descripcion}
+              onChange={(e) =>
+                setDescripcion(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
 
-              <select
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              >
-                <option>Material</option>
-                <option>Mano de obra</option>
-              </select>
-            </div>
+            <input
+              type="text"
+              placeholder="Categoría"
+              value={categoria}
+              onChange={(e) =>
+                setCategoria(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
 
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Categoría
-              </p>
+            <input
+              type="text"
+              placeholder="Proveedor"
+              value={proveedor}
+              onChange={(e) =>
+                setProveedor(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
 
-              <input
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Ej: CCTV"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
+            <input
+              type="number"
+              placeholder="Costo"
+              value={costo}
+              onChange={(e) =>
+                setCosto(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
 
-            <div className="md:col-span-2">
-              <p className="mb-2 text-zinc-400">
-                Descripción
-              </p>
+            <input
+              type="number"
+              placeholder="Precio Venta"
+              value={precio}
+              onChange={(e) =>
+                setPrecio(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
 
-              <input
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Descripción"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
+            <select
+              value={moneda}
+              onChange={(e) =>
+                setMoneda(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            >
 
-            <div>
-              <p className="mb-2 text-zinc-400">
-                SKU
-              </p>
+              <option value="ARS">
+                ARS $
+              </option>
 
-              <input
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="Código/SKU"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
+              <option value="USD">
+                USD $
+              </option>
 
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Costo
-              </p>
+            </select>
 
-              <input
-                type="number"
-                value={costo}
-                onChange={(e) => setCosto(e.target.value)}
-                placeholder="Costo"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Precio Venta
-              </p>
-
-              <input
-                type="number"
-                value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
-                placeholder="Precio"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
           </div>
 
-          <button
-            onClick={guardarArticulo}
-            className="mt-8 bg-orange-500 hover:bg-orange-600 px-8 py-4 rounded-xl text-xl font-bold"
-          >
-            Guardar Artículo
-          </button>
+          <div className="flex gap-4 mt-8">
+
+            <button
+              onClick={
+                guardarArticulo
+              }
+              className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
+            >
+
+              {editandoId
+                ? "Actualizar"
+                : "Guardar"}
+
+            </button>
+
+            <button
+              onClick={
+                limpiarFormulario
+              }
+              className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+            >
+              Limpiar
+            </button>
+
+          </div>
+
         </div>
 
-        <div className="mt-10 bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+        {/* BUSCADOR */}
 
-          <h2 className="text-3xl font-bold mb-8">
-            Biblioteca de Artículos
-          </h2>
+        <div className="mb-8">
 
-          <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Buscar artículo..."
+            value={busqueda}
+            onChange={(e) =>
+              setBusqueda(
+                e.target.value
+              )
+            }
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
+          />
 
-            {articulos.map((articulo) => (
+        </div>
+
+        {/* TABLA */}
+
+        <div className="space-y-4">
+
+          {articulos
+
+            .filter((articulo) =>
+              articulo.descripcion
+                ?.toLowerCase()
+
+                .includes(
+                  busqueda.toLowerCase()
+                )
+            )
+
+            .map((articulo) => (
+
               <div
                 key={articulo.id}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6"
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex justify-between items-center"
               >
-                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+
+                <div className="grid grid-cols-5 gap-6 w-full">
 
                   <div>
-                    <p className="text-orange-500 font-bold text-xl">
-                      {articulo.descripcion}
+
+                    <p className="text-zinc-500 text-sm">
+                      Descripción
                     </p>
 
-                    <p className="text-zinc-400 mt-2">
-                      {articulo.tipo} · {articulo.categoria}
+                    <p className="text-xl font-bold mt-2">
+                      {
+                        articulo.descripcion
+                      }
                     </p>
 
-                    <p className="text-zinc-500 mt-1">
-                      SKU: {articulo.sku || "-"}
-                    </p>
                   </div>
 
-                  <div className="text-right">
-                    <p className="text-zinc-400">
+                  <div>
+
+                    <p className="text-zinc-500 text-sm">
+                      Categoría
+                    </p>
+
+                    <p className="mt-2">
+                      {
+                        articulo.categoria
+                      }
+                    </p>
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-zinc-500 text-sm">
+                      Proveedor
+                    </p>
+
+                    <p className="mt-2">
+                      {
+                        articulo.proveedor
+                      }
+                    </p>
+
+                  </div>
+
+                  <div>
+
+                    <p className="text-zinc-500 text-sm">
                       Costo
                     </p>
 
-                    <p className="text-xl">
-                      $ {Number(articulo.costo).toLocaleString()}
+                    <p className="mt-2">
+
+                      {articulo.moneda ===
+                      "USD"
+                        ? "USD $"
+                        : "$"}
+
+                      {Number(
+                        articulo.costo
+                      ).toLocaleString()}
+
                     </p>
 
-                    <p className="text-zinc-400 mt-3">
+                  </div>
+
+                  <div>
+
+                    <p className="text-zinc-500 text-sm">
                       Venta
                     </p>
 
-                    <p className="text-2xl font-bold text-orange-500">
-                      $ {Number(articulo.precio).toLocaleString()}
+                    <p className="mt-2 text-orange-500 font-bold">
+
+                      {articulo.moneda ===
+                      "USD"
+                        ? "USD $"
+                        : "$"}
+
+                      {Number(
+                        articulo.precio
+                      ).toLocaleString()}
+
                     </p>
+
                   </div>
+
                 </div>
+
+                <div className="flex gap-4 ml-8">
+
+                  <button
+                    onClick={() =>
+                      editarArticulo(
+                        articulo
+                      )
+                    }
+
+                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                  >
+                    Editar
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      eliminarArticulo(
+                        articulo.id
+                      )
+                    }
+
+                    className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                  >
+                    Eliminar
+                  </button>
+
+                </div>
+
               </div>
             ))}
 
-            {articulos.length === 0 && (
-              <p className="text-zinc-500">
-                No hay artículos cargados.
-              </p>
-            )}
-          </div>
         </div>
+
       </div>
+
     </div>
   );
 }

@@ -80,6 +80,11 @@ export default function App() {
         />
 
         <Route
+        path="/presupuestos/:id"
+        element={<Presupuestos />}
+        />
+
+        <Route
           path="/historial"
           element={<HistorialPresupuestos />}
         />

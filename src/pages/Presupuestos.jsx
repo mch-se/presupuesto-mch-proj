@@ -1,37 +1,124 @@
 import React from "react";
+
 import { supabase } from "../lib/supabase";
-import { Link } from "react-router-dom";
+
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 export default function Presupuestos() {
-  const [cliente, setCliente] = React.useState("");
-  const [trabajo, setTrabajo] = React.useState("");
-  const [moneda, setMoneda] = React.useState("ARS");
+
+  const navigate = useNavigate();
+
+  const { id } = useParams();
+
+  const modoEdicion = !!id;
+
+  const [cliente, setCliente] =
+    React.useState("");
+
+  const [trabajo, setTrabajo] =
+    React.useState("");
+
+  const [moneda, setMoneda] =
+    React.useState("ARS");
+
+  const [items, setItems] =
+    React.useState([]);
 
   const [numeroPresupuesto, setNumeroPresupuesto] =
     React.useState("");
 
-  const [items, setItems] = React.useState([
-    {
-      descripcion: "",
-      cantidad: "",
-      precio: "",
-    },
-  ]);
+  const [mostrarBiblioteca, setMostrarBiblioteca] =
+    React.useState(false);
+
+  const [articulos, setArticulos] =
+    React.useState([]);
+
+  const [busquedaArticulo, setBusquedaArticulo] =
+    React.useState("");
 
   React.useEffect(() => {
-    generarNumeroPresupuesto();
+
+    obtenerArticulos();
+
+    if (modoEdicion) {
+      cargarPresupuesto();
+    } else {
+      generarNumeroPresupuesto();
+    }
+
   }, []);
 
+  async function cargarPresupuesto() {
+
+    const { data, error } =
+      await supabase
+
+        .from("presupuestos")
+
+        .select("*")
+
+        .eq("id", id)
+
+        .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    console.log("PRESUPUESTO CARGADO:");
+    console.log(data);
+
+    setCliente(
+      data.cliente || ""
+    );
+
+    setTrabajo(
+      data.trabajo || ""
+    );
+
+    setMoneda(
+      data.moneda || "ARS"
+    );
+
+    setNumeroPresupuesto(
+      data.numero || ""
+    );
+
+    const {
+      data: itemsData,
+    } = await supabase
+
+      .from("presupuesto_items")
+
+      .select("*")
+
+      .eq(
+        "presupuesto_id",
+        id
+      );
+
+    setItems(itemsData || []);
+  }
+
   async function generarNumeroPresupuesto() {
+
     const hoy = new Date();
 
-    const dia = String(hoy.getDate()).padStart(2, "0");
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, "0");
 
     const mes = String(
       hoy.getMonth() + 1
     ).padStart(2, "0");
 
-    const anio = hoy.getFullYear();
+    const anio =
+      hoy.getFullYear();
 
     const fechaTexto =
       `${dia}-${mes}-${anio}`;
@@ -42,7 +129,9 @@ export default function Presupuestos() {
 
     const presupuestosHoy =
       data?.filter((p) =>
-        p.numero?.includes(fechaTexto)
+        p.numero?.includes(
+          fechaTexto
+        )
       ) || [];
 
     const numero =
@@ -53,9 +142,32 @@ export default function Presupuestos() {
     );
   }
 
+  async function obtenerArticulos() {
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data, error } =
+      await supabase
+        .from("articulos")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("descripcion");
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setArticulos(data || []);
+  }
+
   function agregarItemManual() {
+
     setItems([
       ...items,
+
       {
         descripcion: "",
         cantidad: "",
@@ -69,109 +181,255 @@ export default function Presupuestos() {
     campo,
     valor
   ) {
-    const nuevos = [...items];
 
-    nuevos[index][campo] =
-      campo === "descripcion"
-        ? valor
-        : valor;
+    const nuevosItems = [
+      ...items,
+    ];
 
-    setItems(nuevos);
+    nuevosItems[index][campo] =
+      valor;
+
+    setItems(nuevosItems);
   }
 
   function eliminarItem(index) {
-    const nuevos = items.filter(
-      (_, i) => i !== index
-    );
 
-    setItems(nuevos);
+    const nuevosItems =
+      items.filter(
+        (_, i) => i !== index
+      );
+
+    setItems(nuevosItems);
   }
 
-  const subtotal = items.reduce(
-    (acc, item) =>
-      acc +
-      Number(item.cantidad || 0) *
-        Number(item.precio || 0),
-    0
-  );
-
-  const iva = subtotal * 0.21;
-
-  const total = subtotal + iva;
-
-  async function guardarPresupuesto() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data, error } =
-      await supabase
-        .from("presupuestos")
-        .insert([
-          {
-            numero: numeroPresupuesto,
-            user_id: user.id,
-            cliente,
-            trabajo,
-            moneda,
-            estado: "Pendiente",
-            subtotal,
-            iva,
-            total,
-          },
-        ])
-        .select()
-        .single();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    const presupuestoId = data.id;
-
-    const itemsGuardar = items.map(
-      (item) => ({
-        presupuesto_id: presupuestoId,
-        descripcion: item.descripcion,
-        cantidad: Number(
-          item.cantidad || 0
-        ),
-        precio: Number(
-          item.precio || 0
-        ),
-        subtotal:
-          Number(item.cantidad || 0) *
-          Number(item.precio || 0),
-      })
-    );
-
-    const {
-      error: errorItems,
-    } = await supabase
-      .from("presupuesto_items")
-      .insert(itemsGuardar);
-
-    if (errorItems) {
-      alert(errorItems.message);
-      return;
-    }
-
-    alert("Presupuesto guardado");
-
-    setCliente("");
-    setTrabajo("");
-    setMoneda("ARS");
+  function agregarArticuloAlPresupuesto(
+    articulo
+  ) {
 
     setItems([
+      ...items,
+
       {
-        descripcion: "",
-        cantidad: "",
-        precio: "",
+        descripcion:
+          articulo.descripcion,
+
+        cantidad: 1,
+
+        precio:
+          articulo.precio || 0,
       },
     ]);
 
-    generarNumeroPresupuesto();
+    setMostrarBiblioteca(false);
+  }
+
+  const subtotal = items.reduce(
+    (acc, item) => {
+
+      const cantidad =
+        Number(item.cantidad) || 0;
+
+      const precio =
+        Number(item.precio) || 0;
+
+      return (
+        acc +
+        cantidad * precio
+      );
+    },
+
+    0
+  );
+
+  const iva =
+    subtotal * 0.21;
+
+  const total =
+    subtotal + iva;
+
+  async function guardarPresupuesto() {
+
+    if (!cliente) {
+      alert(
+        "Ingresar cliente"
+      );
+      return;
+    }
+
+    if (modoEdicion) {
+
+      console.log("ACTUALIZANDO:");
+      console.log({
+        cliente,
+        trabajo,
+        subtotal,
+        iva,
+        total,
+        moneda,
+      });
+
+      const { data, error } =
+        await supabase
+
+          .from("presupuestos")
+
+          .update({
+            cliente: cliente || "",
+            trabajo: trabajo || "",
+            subtotal,
+            iva,
+            total,
+            moneda,
+          })
+
+          .eq("id", id)
+
+          .select();
+
+      console.log("RESPUESTA UPDATE:");
+      console.log(data);
+      console.log(error);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      await supabase
+        .from("presupuesto_items")
+        .delete()
+        .eq(
+          "presupuesto_id",
+          id
+        );
+
+      const nuevosItems =
+        items.map((item) => ({
+
+          presupuesto_id:
+            id,
+
+          descripcion:
+            item.descripcion,
+
+          cantidad:
+            Number(
+              item.cantidad
+            ) || 0,
+
+          precio:
+            Number(
+              item.precio
+            ) || 0,
+
+          subtotal:
+            (Number(
+              item.cantidad
+            ) || 0) *
+
+            (Number(
+              item.precio
+            ) || 0),
+        }));
+
+      await supabase
+        .from("presupuesto_items")
+        .insert(
+          nuevosItems
+        );
+
+      alert(
+        "Presupuesto actualizado"
+      );
+
+    } else {
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const {
+        data: presupuesto,
+        error,
+      } = await supabase
+
+        .from("presupuestos")
+
+        .insert([
+          {
+            numero:
+              numeroPresupuesto,
+
+            cliente,
+
+            trabajo,
+
+            subtotal,
+
+            iva,
+
+            total,
+
+            estado:
+              "Pendiente",
+
+            moneda,
+
+            user_id:
+              user.id,
+          },
+        ])
+
+        .select()
+
+        .single();
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      const itemsInsertar =
+        items.map((item) => ({
+
+          presupuesto_id:
+            presupuesto.id,
+
+          descripcion:
+            item.descripcion,
+
+          cantidad:
+            Number(
+              item.cantidad
+            ) || 0,
+
+          precio:
+            Number(
+              item.precio
+            ) || 0,
+
+          subtotal:
+            (Number(
+              item.cantidad
+            ) || 0) *
+
+            (Number(
+              item.precio
+            ) || 0),
+        }));
+
+      await supabase
+        .from("presupuesto_items")
+        .insert(
+          itemsInsertar
+        );
+
+      alert(
+        "Presupuesto guardado"
+      );
+    }
+
+    navigate("/historial");
   }
 
   return (
@@ -179,159 +437,186 @@ export default function Presupuestos() {
 
       <div className="max-w-7xl mx-auto">
 
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-10">
 
           <div>
+
             <h1 className="text-5xl font-bold text-orange-500">
-              Presupuestos
+
+              {modoEdicion
+                ? "Editar Presupuesto"
+                : "Nuevo Presupuesto"}
+
             </h1>
 
-            <p className="text-zinc-400 mt-2">
-              Crear presupuestos MCH
-            </p>
-
-            <p className="text-orange-500 mt-3 text-xl font-bold">
-              Presupuesto #
-              {numeroPresupuesto}
-            </p>
           </div>
 
-          <Link
-            to="/"
-            className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-          >
-            Volver
-          </Link>
+          <div className="flex gap-4">
+
+            <button
+              onClick={
+                guardarPresupuesto
+              }
+              className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+            >
+
+              {modoEdicion
+                ? "Actualizar"
+                : "Guardar"}
+
+            </button>
+
+            <Link
+              to="/historial"
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+            >
+              Volver
+            </Link>
+
+          </div>
+
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <input
+              type="text"
+              value={
+                numeroPresupuesto
+              }
+              disabled
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <input
+              type="text"
+              placeholder="Cliente"
+              value={cliente}
+              onChange={(e) =>
+                setCliente(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <input
+              type="text"
+              placeholder="Trabajo"
+              value={trabajo}
+              onChange={(e) =>
+                setTrabajo(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <select
+              value={moneda}
+              onChange={(e) =>
+                setMoneda(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            >
+
+              <option value="ARS">
+                ARS $
+              </option>
+
+              <option value="USD">
+                USD $
+              </option>
+
+            </select>
+
+          </div>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex justify-between items-center mb-8">
 
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Cliente
-              </p>
+            <div className="flex gap-4">
 
-              <input
-                value={cliente}
-                onChange={(e) =>
-                  setCliente(
-                    e.target.value
+              <button
+                onClick={() =>
+                  setMostrarBiblioteca(
+                    true
                   )
                 }
-                placeholder="Cliente"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Trabajo
-              </p>
-
-              <input
-                value={trabajo}
-                onChange={(e) =>
-                  setTrabajo(
-                    e.target.value
-                  )
-                }
-                placeholder="Trabajo"
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
-              />
-            </div>
-
-            <div>
-              <p className="mb-2 text-zinc-400">
-                Moneda
-              </p>
-
-              <select
-                value={moneda}
-                onChange={(e) =>
-                  setMoneda(
-                    e.target.value
-                  )
-                }
-                className="w-full bg-zinc-950 border border-zinc-700 p-4 rounded-xl"
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
               >
-                <option value="ARS">
-                  ARS $
-                </option>
+                Biblioteca de Artículos
+              </button>
 
-                <option value="USD">
-                  USD $
-                </option>
-              </select>
+              <button
+                onClick={
+                  agregarItemManual
+                }
+                className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+              >
+                Agregar Item Manual
+              </button>
+
             </div>
+
           </div>
 
-          <div className="mt-10">
+          <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
 
-            <div className="flex justify-between items-center mb-6">
-
-              <h2 className="text-3xl font-bold">
-                Items
-              </h2>
-
-              <div className="flex gap-4">
-
-                <Link
-                  to="/articulos"
-                  className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-                >
-                  Biblioteca de Artículos
-                </Link>
-
-                <button
-                  onClick={
-                    agregarItemManual
-                  }
-                  className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                >
-                  Agregar Item Manual
-                </button>
-              </div>
+            <div className="col-span-6">
+              Descripción
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
-
-              <div className="md:col-span-5">
-                Descripción
-              </div>
-
-              <div className="md:col-span-2">
-                Cantidad
-              </div>
-
-              <div className="md:col-span-2">
-                Precio
-              </div>
-
-              <div className="md:col-span-2">
-                Subtotal
-              </div>
-
-              <div className="md:col-span-1">
-              </div>
+            <div className="col-span-2">
+              Cantidad
             </div>
 
-            <div className="space-y-4">
+            <div className="col-span-2">
+              Precio
+            </div>
 
-              {items.map(
-                (item, index) => (
+            <div className="col-span-2">
+              Subtotal
+            </div>
+
+          </div>
+
+          <div className="space-y-4">
+
+            {items.map(
+              (item, index) => {
+
+                const subtotalItem =
+                  (Number(
+                    item.cantidad
+                  ) || 0) *
+
+                  (Number(
+                    item.precio
+                  ) || 0);
+
+                return (
+
                   <div
                     key={index}
-                    className="grid grid-cols-1 md:grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                    className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   >
 
-                    <div className="md:col-span-5">
+                    <div className="col-span-6">
 
                       <input
+                        type="text"
                         value={
                           item.descripcion
                         }
+
                         onChange={(e) =>
                           actualizarItem(
                             index,
@@ -339,18 +624,20 @@ export default function Presupuestos() {
                             e.target.value
                           )
                         }
-                        placeholder="Descripción"
-                        className="w-full bg-zinc-900 border border-zinc-700 p-4 rounded-xl"
+
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
                       />
+
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div className="col-span-2">
 
                       <input
                         type="number"
                         value={
                           item.cantidad
                         }
+
                         onChange={(e) =>
                           actualizarItem(
                             index,
@@ -358,18 +645,20 @@ export default function Presupuestos() {
                             e.target.value
                           )
                         }
-                        placeholder="0"
-                        className="w-full bg-zinc-900 border border-zinc-700 p-4 rounded-xl"
+
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
                       />
+
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div className="col-span-2">
 
                       <input
                         type="number"
                         value={
                           item.precio
                         }
+
                         onChange={(e) =>
                           actualizarItem(
                             index,
@@ -377,30 +666,23 @@ export default function Presupuestos() {
                             e.target.value
                           )
                         }
-                        placeholder="0"
-                        className="w-full bg-zinc-900 border border-zinc-700 p-4 rounded-xl"
+
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
                       />
+
                     </div>
 
-                    <div className="md:col-span-2 flex items-center text-xl font-bold text-orange-500">
+                    <div className="col-span-1 flex items-center text-orange-500 font-bold">
 
                       {moneda === "USD"
                         ? "USD $"
                         : "$"}
 
-                      {(
-                        Number(
-                          item.cantidad ||
-                            0
-                        ) *
-                        Number(
-                          item.precio ||
-                            0
-                        )
-                      ).toLocaleString()}
+                      {subtotalItem.toLocaleString()}
+
                     </div>
 
-                    <div className="md:col-span-1">
+                    <div className="col-span-1 flex justify-end">
 
                       <button
                         onClick={() =>
@@ -408,81 +690,25 @@ export default function Presupuestos() {
                             index
                           )
                         }
-                        className="w-full bg-red-500 hover:bg-red-600 p-4 rounded-xl font-bold"
+
+                        className="bg-red-500 hover:bg-red-600 px-4 rounded-xl font-bold"
                       >
                         X
                       </button>
+
                     </div>
+
                   </div>
-                )
-              )}
-            </div>
-          </div>
-
-          <div className="mt-12 bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
-
-            <div className="space-y-4 text-2xl">
-
-              <div className="flex justify-between">
-
-                <span>
-                  Subtotal
-                </span>
-
-                <span>
-
-                  {moneda === "USD"
-                    ? "USD $"
-                    : "$"}
-
-                  {subtotal.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-
-                <span>
-                  IVA
-                </span>
-
-                <span>
-
-                  {moneda === "USD"
-                    ? "USD $"
-                    : "$"}
-
-                  {iva.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-4xl font-bold text-orange-500 pt-6 border-t border-zinc-800">
-
-                <span>
-                  Total
-                </span>
-
-                <span>
-
-                  {moneda === "USD"
-                    ? "USD $"
-                    : "$"}
-
-                  {total.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={
-                guardarPresupuesto
+                );
               }
-              className="mt-10 w-full bg-orange-500 hover:bg-orange-600 p-5 rounded-2xl text-2xl font-bold"
-            >
-              Guardar Presupuesto
-            </button>
+            )}
+
           </div>
+
         </div>
+
       </div>
+
     </div>
   );
 }
