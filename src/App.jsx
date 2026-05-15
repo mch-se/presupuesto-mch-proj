@@ -5,6 +5,7 @@ import {
   Routes,
   Route,
 } from "react-router-dom";
+import ImportarDatos from "./pages/ImportarDatos";
 
 import { supabase } from "./lib/supabase";
 
@@ -107,6 +108,10 @@ export default function App() {
         <Route
           path="/clientes"
           element={<Clientes />}
+        />
+        <Route
+          path="/importar"
+          element={<ImportarDatos />}
         />
 
       </Routes>
