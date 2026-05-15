@@ -52,6 +52,148 @@ export default function HistorialPresupuestos() {
     }
   }
 
+  async function generarNumeroPresupuesto() {
+    const hoy = new Date();
+
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, "0");
+
+    const mes = String(
+      hoy.getMonth() + 1
+    ).padStart(2, "0");
+
+    const anio =
+      hoy.getFullYear();
+
+    const fechaTexto =
+      `${dia}-${mes}-${anio}`;
+
+    const { data } = await supabase
+      .from("presupuestos")
+      .select("numero");
+
+    const presupuestosHoy =
+      data?.filter((p) =>
+        p.numero?.includes(
+          fechaTexto
+        )
+      ) || [];
+
+    const numero =
+      presupuestosHoy.length + 1;
+
+    return `${numero}-${fechaTexto}`;
+  }
+
+  async function duplicarPresupuesto(
+    presupuesto
+  ) {
+    const nuevoNumero =
+      await generarNumeroPresupuesto();
+
+    const {
+      data: nuevoPresupuesto,
+      error,
+    } = await supabase
+      .from("presupuestos")
+      .insert([
+        {
+          numero: nuevoNumero,
+          user_id:
+            presupuesto.user_id,
+          cliente:
+            presupuesto.cliente,
+          trabajo:
+            presupuesto.trabajo,
+          moneda:
+            presupuesto.moneda,
+          estado: "Pendiente",
+          subtotal:
+            presupuesto.subtotal,
+          iva: presupuesto.iva,
+          total:
+            presupuesto.total,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const {
+      data: itemsOriginales,
+    } = await supabase
+      .from("presupuesto_items")
+      .select("*")
+      .eq(
+        "presupuesto_id",
+        presupuesto.id
+      );
+
+    const nuevosItems =
+      itemsOriginales.map(
+        (item) => ({
+          presupuesto_id:
+            nuevoPresupuesto.id,
+
+          descripcion:
+            item.descripcion,
+
+          cantidad:
+            item.cantidad,
+
+          precio: item.precio,
+
+          subtotal:
+            item.subtotal,
+        })
+      );
+
+    const {
+      error: errorItems,
+    } = await supabase
+      .from("presupuesto_items")
+      .insert(nuevosItems);
+
+    if (errorItems) {
+      alert(errorItems.message);
+      return;
+    }
+
+    alert(
+      "Presupuesto duplicado"
+    );
+
+    obtenerPresupuestos();
+  }
+
+  async function eliminarPresupuesto(
+    id
+  ) {
+    const confirmar = confirm(
+      "¿Eliminar presupuesto?"
+    );
+
+    if (!confirmar) return;
+
+    const { error } =
+      await supabase
+        .from("presupuestos")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    obtenerPresupuestos();
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
@@ -95,7 +237,8 @@ export default function HistorialPresupuestos() {
           </div>
         </div>
 
-        {presupuestos.length === 0 ? (
+        {presupuestos.length ===
+        0 ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-20 text-center">
 
             <p className="text-3xl text-zinc-400">
@@ -108,7 +251,9 @@ export default function HistorialPresupuestos() {
             {presupuestos.map(
               (presupuesto) => (
                 <div
-                  key={presupuesto.id}
+                  key={
+                    presupuesto.id
+                  }
                   className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
                 >
 
@@ -176,19 +321,29 @@ export default function HistorialPresupuestos() {
                       <div className="flex gap-3 mt-6 justify-end flex-wrap">
 
                         <Link
-                        to={`/presupuesto/${presupuesto.id}`}
-                        className="bg-blue-500 hover:bg-blue-600 px-4 py-3 rounded-xl font-bold"
+                          to={`/presupuesto/${presupuesto.id}`}
+                          className="bg-blue-500 hover:bg-blue-600 px-4 py-3 rounded-xl font-bold"
                         >
-                        Abrir
-                       </Link>
+                          Abrir
+                        </Link>
 
                         <button
+                          onClick={() =>
+                            duplicarPresupuesto(
+                              presupuesto
+                            )
+                          }
                           className="bg-zinc-700 hover:bg-zinc-600 px-4 py-3 rounded-xl font-bold"
                         >
                           Duplicar
                         </button>
 
                         <button
+                          onClick={() =>
+                            eliminarPresupuesto(
+                              presupuesto.id
+                            )
+                          }
                           className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
                         >
                           Eliminar

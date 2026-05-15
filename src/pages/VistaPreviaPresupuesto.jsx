@@ -1,4 +1,5 @@
 import React from "react";
+
 import { supabase } from "../lib/supabase";
 
 import {
@@ -6,7 +7,8 @@ import {
   useParams,
 } from "react-router-dom";
 
-export default function VerPresupuesto() {
+export default function VistaPreviaPresupuesto() {
+
   const { id } = useParams();
 
   const [presupuesto, setPresupuesto] =
@@ -23,6 +25,7 @@ export default function VerPresupuesto() {
   }, []);
 
   async function obtenerPresupuesto() {
+
     const { data, error } =
       await supabase
         .from("presupuestos")
@@ -39,10 +42,16 @@ export default function VerPresupuesto() {
 
     const {
       data: itemsData,
+      error: itemsError,
     } = await supabase
       .from("presupuesto_items")
       .select("*")
       .eq("presupuesto_id", id);
+
+    if (itemsError) {
+      alert(itemsError.message);
+      return;
+    }
 
     setItems(itemsData || []);
 
@@ -51,7 +60,7 @@ export default function VerPresupuesto() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
+      <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center text-3xl">
         Cargando...
       </div>
     );
@@ -63,52 +72,72 @@ export default function VerPresupuesto() {
       : "$";
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen bg-zinc-300 p-6">
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
-        <div className="flex justify-between items-center mb-10">
+        {/* BOTONES */}
 
-          <div>
+        <div className="flex justify-between mb-6">
 
-            <h1 className="text-5xl font-bold text-orange-500">
-              Presupuesto
-            </h1>
+          <Link
+            to={`/presupuesto/${id}`}
+            className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl font-bold"
+          >
+            X Cerrar
+          </Link>
 
-            <p className="text-orange-500 mt-3 text-2xl font-bold">
-              #
-              {presupuesto.numero}
-            </p>
-
-          </div>
-
-          <div className="flex gap-4">
-
-            <Link
-              to={`/presupuesto-preview/${id}`}
-              className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-            >
-              Vista Previa PDF
-            </Link>
-
-            <Link
-              to="/historial"
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-            >
-              Volver
-            </Link>
-
-          </div>
+          <button
+            onClick={() => window.print()}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-xl font-bold"
+          >
+            Imprimir
+          </button>
 
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+        {/* HOJA */}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white text-black rounded-2xl shadow-2xl p-14">
+
+          {/* HEADER */}
+
+          <div className="flex justify-between items-start border-b pb-8">
 
             <div>
 
-              <p className="text-zinc-400">
+              <h1 className="text-5xl font-bold">
+                MCH
+              </h1>
+
+              <p className="mt-3 text-zinc-600">
+                Seguridad Electrónica
+              </p>
+
+            </div>
+
+            <div className="text-right">
+
+              <p className="text-zinc-500">
+                Presupuesto
+              </p>
+
+              <p className="text-3xl font-bold mt-2">
+                #
+                {presupuesto.numero}
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* DATOS */}
+
+          <div className="grid grid-cols-2 gap-10 mt-10">
+
+            <div>
+
+              <p className="text-zinc-500">
                 Cliente
               </p>
 
@@ -120,7 +149,7 @@ export default function VerPresupuesto() {
 
             <div>
 
-              <p className="text-zinc-400">
+              <p className="text-zinc-500">
                 Trabajo
               </p>
 
@@ -130,59 +159,50 @@ export default function VerPresupuesto() {
 
             </div>
 
-            <div>
-
-              <p className="text-zinc-400">
-                Estado
-              </p>
-
-              <p className="text-2xl font-bold mt-2 text-orange-500">
-                {presupuesto.estado}
-              </p>
-
-            </div>
-
           </div>
 
-          <div className="mt-12">
+          {/* ITEMS */}
 
-            <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
+          <div className="mt-14">
+
+            <div className="grid grid-cols-12 border-b pb-4 font-bold text-zinc-600">
 
               <div className="col-span-6">
                 Descripción
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 text-center">
                 Cantidad
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 text-right">
                 Precio
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 text-right">
                 Subtotal
               </div>
 
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5 mt-6">
 
               {items.map((item) => (
+
                 <div
                   key={item.id}
-                  className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  className="grid grid-cols-12 border-b pb-4"
                 >
 
                   <div className="col-span-6">
                     {item.descripcion}
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-2 text-center">
                     {item.cantidad}
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="col-span-2 text-right">
 
                     {simbolo}
 
@@ -192,7 +212,7 @@ export default function VerPresupuesto() {
 
                   </div>
 
-                  <div className="col-span-2 text-orange-500 font-bold">
+                  <div className="col-span-2 text-right font-bold">
 
                     {simbolo}
 
@@ -203,17 +223,20 @@ export default function VerPresupuesto() {
                   </div>
 
                 </div>
+
               ))}
 
             </div>
 
           </div>
 
-          <div className="mt-12 bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+          {/* TOTALES */}
 
-            <div className="space-y-4 text-2xl">
+          <div className="mt-16 flex justify-end">
 
-              <div className="flex justify-between">
+            <div className="w-96 space-y-4">
+
+              <div className="flex justify-between text-xl">
 
                 <span>
                   Subtotal
@@ -231,7 +254,7 @@ export default function VerPresupuesto() {
 
               </div>
 
-              <div className="flex justify-between">
+              <div className="flex justify-between text-xl">
 
                 <span>
                   IVA
@@ -249,10 +272,10 @@ export default function VerPresupuesto() {
 
               </div>
 
-              <div className="flex justify-between text-4xl font-bold text-orange-500 pt-6 border-t border-zinc-800">
+              <div className="flex justify-between text-4xl font-bold border-t pt-6 text-orange-500">
 
                 <span>
-                  Total
+                  TOTAL
                 </span>
 
                 <span>
@@ -268,6 +291,15 @@ export default function VerPresupuesto() {
               </div>
 
             </div>
+
+          </div>
+
+          {/* FOOTER */}
+
+          <div className="mt-20 pt-10 border-t text-zinc-500 text-sm">
+
+            Presupuesto generado por
+            MCH Seguridad Electrónica
 
           </div>
 
