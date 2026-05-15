@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Presupuestos from "./pages/Presupuestos";
 import Articulos from "./pages/Articulos";
+import Clientes from "./pages/Clientes";
 import HistorialPresupuestos from "./pages/HistorialPresupuestos";
 import VerPresupuesto from "./pages/VerPresupuesto";
 import VistaPreviaPresupuesto from "./pages/VistaPreviaPresupuesto";
@@ -102,6 +103,10 @@ export default function App() {
         <Route
           path="/articulos"
           element={<Articulos />}
+        />
+        <Route
+          path="/clientes"
+          element={<Clientes />}
         />
 
       </Routes>

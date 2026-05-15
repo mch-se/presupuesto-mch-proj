@@ -1,27 +1,19 @@
 import React from "react";
-import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
 export default function Dashboard() {
-  const [hora, setHora] =
-    React.useState(
-      new Date().toLocaleTimeString()
-    );
-
-  const [alias, setAlias] =
-    React.useState("");
+  const [hora, setHora] = React.useState(new Date().toLocaleTimeString());
+  const [alias, setAlias] = React.useState("");
 
   React.useEffect(() => {
     obtenerAlias();
 
     const intervalo = setInterval(() => {
-      setHora(
-        new Date().toLocaleTimeString()
-      );
+      setHora(new Date().toLocaleTimeString());
     }, 1000);
 
-    return () =>
-      clearInterval(intervalo);
+    return () => clearInterval(intervalo);
   }, []);
 
   async function obtenerAlias() {
@@ -48,13 +40,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-
       <div className="max-w-7xl mx-auto">
-
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-6">
-
             <div>
               <h1 className="text-5xl font-bold text-orange-500">
                 MCH
@@ -80,8 +68,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-12">
             <Link
               to="/presupuestos"
               className="bg-orange-500 hover:bg-orange-600 rounded-3xl p-8 transition"
@@ -99,7 +86,7 @@ export default function Dashboard() {
               to="/historial"
               className="bg-zinc-800 hover:bg-zinc-700 rounded-3xl p-8 transition"
             >
-              <h2 className="text-3xl font-bold">
+              <h2 className="text-3xl font-bold text-orange-500">
                 Historial
               </h2>
 
@@ -112,7 +99,7 @@ export default function Dashboard() {
               to="/articulos"
               className="bg-zinc-800 hover:bg-zinc-700 rounded-3xl p-8 transition"
             >
-              <h2 className="text-3xl font-bold">
+              <h2 className="text-3xl font-bold text-orange-500">
                 Artículos
               </h2>
 
@@ -120,10 +107,22 @@ export default function Dashboard() {
                 Biblioteca de materiales
               </p>
             </Link>
+
+            <Link
+              to="/clientes"
+              className="bg-zinc-800 hover:bg-zinc-700 rounded-3xl p-8 transition"
+            >
+              <h2 className="text-3xl font-bold text-orange-500">
+                Clientes
+              </h2>
+
+              <p className="mt-4 text-lg text-zinc-400">
+                Empresas, contactos y particulares
+              </p>
+            </Link>
           </div>
 
           <div className="mt-12">
-
             <button
               onClick={cerrarSesion}
               className="bg-red-500 hover:bg-red-600 px-6 py-4 rounded-2xl text-lg font-bold"

@@ -61,15 +61,18 @@ export default function VistaPreviaPresupuesto() {
     } = await supabase.auth.getUser();
 
     if (user) {
-      const { data: profile } =
-        await supabase
-          .from("profiles")
-          .select("alias")
-          .eq("id", user.id)
-          .single();
+
+      const {
+        data: profile,
+      } = await supabase
+        .from("profiles")
+        .select("alias")
+        .eq("id", user.id)
+        .single();
 
       setAlias(
-        profile?.alias || user.email
+        profile?.alias ||
+        user.email
       );
     }
 
@@ -214,29 +217,81 @@ export default function VistaPreviaPresupuesto() {
 
           </div>
 
-          <div className="mt-8 grid grid-cols-2 gap-8 border-b pb-6 no-break">
+          <div className="mt-8 border-b pb-6 no-break">
 
-            <div>
+            <div className="grid grid-cols-2 gap-8">
 
-              <p className="text-sm font-bold">
-                CLIENTE
-              </p>
+              <div>
 
-              <p className="mt-2 text-lg">
-                {presupuesto.cliente}
-              </p>
+                <p className="text-sm font-bold">
+                  CLIENTE
+                </p>
+
+                <p className="mt-2 text-lg font-semibold">
+                  {presupuesto.cliente_empresa || "-"}
+                </p>
+
+                {presupuesto.cliente_contacto && (
+
+                  <p className="text-sm text-zinc-600 mt-2">
+                    Contacto: {presupuesto.cliente_contacto}
+                  </p>
+
+                )}
+
+              </div>
+
+              <div>
+
+                <p className="text-sm font-bold">
+                  TRABAJO
+                </p>
+
+                <p className="mt-2 text-lg">
+                  {presupuesto.trabajo}
+                </p>
+
+              </div>
 
             </div>
 
-            <div>
+            <div className="grid grid-cols-3 gap-6 mt-6 text-sm">
 
-              <p className="text-sm font-bold">
-                TRABAJO
-              </p>
+              <div>
 
-              <p className="mt-2 text-lg">
-                {presupuesto.trabajo}
-              </p>
+                <p className="font-bold">
+                  Teléfono
+                </p>
+
+                <p className="mt-1 text-zinc-700">
+                  {presupuesto.cliente_telefono || "-"}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="font-bold">
+                  Email
+                </p>
+
+                <p className="mt-1 text-zinc-700 break-all">
+                  {presupuesto.cliente_email || "-"}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="font-bold">
+                  Dirección
+                </p>
+
+                <p className="mt-1 text-zinc-700">
+                  {presupuesto.cliente_direccion || "-"}
+                </p>
+
+              </div>
 
             </div>
 
@@ -377,11 +432,12 @@ export default function VistaPreviaPresupuesto() {
             </p>
 
             <p>
-              Los importes son válidos por 5 días debido a la inestabilidad monetaria. 
-              El pago debe estar acreditado al momento de finalizar el trabajo; de lo contrario, 
-              se aplicará mora del 3% por día hasta que se acredite el pago. 
-              Pago efectivo o transferencia. Otros medios de pago pueden incluir recargos. 
-              Incluye configuración y puesta en marcha salvo aclaración previa. 
+              Los importes son válidos por 5 días debido a la inestabilidad monetaria.
+              El pago debe estar acreditado al momento de finalizar el trabajo;
+              de lo contrario, se aplicará mora del 3% por día hasta que se acredite el pago.
+              Pago efectivo o transferencia.
+              Otros medios de pago pueden incluir recargos.
+              Incluye configuración y puesta en marcha salvo aclaración previa.
               No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.
             </p>
 
