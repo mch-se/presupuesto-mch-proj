@@ -17,6 +17,9 @@ export default function HistorialPresupuestos() {
   const [menuAbierto, setMenuAbierto] =
     React.useState(null);
 
+  const [rol, setRol] =
+    React.useState(null);
+
   React.useEffect(() => {
     obtenerPresupuestos();
   }, []);
@@ -27,15 +30,40 @@ export default function HistorialPresupuestos() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { data, error } =
-      await supabase
+    if (!user) return;
+
+    const {
+      data: perfil,
+    } = await supabase
+      .from("profiles")
+      .select("rol")
+      .eq("id", user.id)
+      .single();
+
+    const rolUsuario =
+      perfil?.rol || "pendiente";
+
+    setRol(rolUsuario);
+
+    let query =
+      supabase
         .from("presupuestos")
-        .select("*")
-        .eq("user_id", user.id)
-        .order(
-          "created_at",
-          { ascending: false }
+        .select("*");
+
+    if (rolUsuario === "vendedor") {
+
+      query =
+        query.eq(
+          "user_id",
+          user.id
         );
+    }
+
+    const { data, error } =
+      await query.order(
+        "created_at",
+        { ascending: false }
+      );
 
     if (error) {
       alert(error.message);
@@ -43,6 +71,7 @@ export default function HistorialPresupuestos() {
     }
 
     setPresupuestos(data || []);
+
     setLoading(false);
   }
 
@@ -207,6 +236,9 @@ export default function HistorialPresupuestos() {
 
           user_id:
             presupuesto.user_id,
+
+          generado_por_alias:
+            presupuesto.generado_por_alias || "",
         },
       ])
       .select()
@@ -251,6 +283,7 @@ export default function HistorialPresupuestos() {
       }));
 
     if (nuevosItems.length > 0) {
+
       await supabase
         .from("presupuesto_items")
         .insert(nuevosItems);
@@ -266,10 +299,12 @@ export default function HistorialPresupuestos() {
       estado === "Aprobado" ||
       estado === "Finalizado"
     ) {
+
       return "bg-green-600 text-white";
     }
 
     if (estado === "Cerrado") {
+
       return "bg-red-600 text-white";
     }
 
@@ -278,7 +313,11 @@ export default function HistorialPresupuestos() {
 
   function textoEstado(estado) {
 
-    if (!estado || estado === "Edición") {
+    if (
+      !estado ||
+      estado === "Edición"
+    ) {
+
       return "Pendiente";
     }
 
@@ -350,6 +389,15 @@ export default function HistorialPresupuestos() {
                       "-"}
                   </p>
 
+                  <p className="text-xs text-orange-400 mt-3 uppercase">
+
+                    Generado por:
+                    {" "}
+                    {presupuesto.generado_por_alias ||
+                      "Administrador"}
+
+                  </p>
+
                 </div>
 
                 <div className="lg:col-span-2 flex lg:justify-center">
@@ -365,9 +413,11 @@ export default function HistorialPresupuestos() {
                         presupuesto.estado
                       )} inline-block px-4 py-2 rounded-2xl font-bold`}
                     >
+
                       {textoEstado(
                         presupuesto.estado
                       )}
+
                     </span>
 
                   </div>
@@ -463,7 +513,9 @@ export default function HistorialPresupuestos() {
           {presupuestos.length === 0 && (
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+
               No hay presupuestos guardados.
+
             </div>
 
           )}
