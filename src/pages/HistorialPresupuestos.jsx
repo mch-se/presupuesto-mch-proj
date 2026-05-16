@@ -14,6 +14,9 @@ export default function HistorialPresupuestos() {
   const [loading, setLoading] =
     React.useState(true);
 
+  const [menuAbierto, setMenuAbierto] =
+    React.useState(null);
+
   React.useEffect(() => {
     obtenerPresupuestos();
   }, []);
@@ -26,13 +29,9 @@ export default function HistorialPresupuestos() {
 
     const { data, error } =
       await supabase
-
         .from("presupuestos")
-
         .select("*")
-
         .eq("user_id", user.id)
-
         .order(
           "created_at",
           { ascending: false }
@@ -44,17 +43,57 @@ export default function HistorialPresupuestos() {
     }
 
     setPresupuestos(data || []);
-
     setLoading(false);
   }
 
-  async function eliminarPresupuesto(
-    id
-  ) {
+  async function generarNumeroNuevo() {
+
+    const hoy = new Date();
+
+    const dia = String(
+      hoy.getDate()
+    ).padStart(2, "0");
+
+    const mes = String(
+      hoy.getMonth() + 1
+    ).padStart(2, "0");
+
+    const anio =
+      hoy.getFullYear();
+
+    const fechaTexto =
+      `${dia}-${mes}-${anio}`;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data } =
+      await supabase
+        .from("presupuestos")
+        .select("numero")
+        .eq("user_id", user.id);
+
+    const presupuestosHoy =
+      data?.filter((p) =>
+        p.numero?.includes(
+          fechaTexto
+        )
+      ) || [];
+
+    const numero =
+      presupuestosHoy.length + 1;
+
+    return `${numero}-${fechaTexto}`;
+  }
+
+  async function eliminarPresupuesto(id) {
+
+    setMenuAbierto(null);
 
     const confirmar =
       window.confirm(
-        "Eliminar presupuesto?"
+        "¿Eliminar presupuesto?"
       );
 
     if (!confirmar) return;
@@ -85,46 +124,92 @@ export default function HistorialPresupuestos() {
     presupuesto
   ) {
 
+    setMenuAbierto(null);
+
+    const numeroNuevo =
+      await generarNumeroNuevo();
+
     const {
       data: nuevo,
       error,
     } = await supabase
-
       .from("presupuestos")
-
       .insert([
         {
           numero:
-            `${presupuesto.numero}-COPIA`,
+            numeroNuevo,
 
           cliente:
             presupuesto.cliente,
 
-          trabajo:
-            presupuesto.trabajo,
+          cliente_id:
+            presupuesto.cliente_id || null,
+
+          cliente_empresa:
+            presupuesto.cliente_empresa || presupuesto.cliente || "",
+
+          cliente_contacto:
+            presupuesto.cliente_contacto || "",
+
+          cliente_telefono:
+            presupuesto.cliente_telefono || "",
+
+          cliente_email:
+            presupuesto.cliente_email || "",
+
+          cliente_direccion:
+            presupuesto.cliente_direccion || "",
+
+          descripcion_corta:
+            presupuesto.descripcion_corta || "",
+
+          descripcion_larga:
+            presupuesto.descripcion_larga || "",
 
           subtotal:
             presupuesto.subtotal,
 
           iva:
-            presupuesto.iva,
+            0,
 
           total:
             presupuesto.total,
 
           estado:
-            presupuesto.estado,
+            "Edición",
+
+          cerrado:
+            false,
+
+          enviado_whatsapp:
+            false,
+
+          fecha_cerrado:
+            null,
+
+          fecha_enviado:
+            null,
+
+          fecha_aprobado:
+            null,
+
+          fecha_finalizado:
+            null,
 
           moneda:
             presupuesto.moneda,
+
+          tipo_factura:
+            "C",
+
+          aplica_iva:
+            false,
 
           user_id:
             presupuesto.user_id,
         },
       ])
-
       .select()
-
       .single();
 
     if (error) {
@@ -134,23 +219,23 @@ export default function HistorialPresupuestos() {
 
     const { data: items } =
       await supabase
-
         .from("presupuesto_items")
-
         .select("*")
-
         .eq(
           "presupuesto_id",
           presupuesto.id
         );
 
     const nuevosItems =
-      items.map((item) => ({
+      (items || []).map((item) => ({
         presupuesto_id:
           nuevo.id,
 
         descripcion:
           item.descripcion,
+
+        detalle:
+          item.detalle || "",
 
         cantidad:
           item.cantidad,
@@ -160,13 +245,44 @@ export default function HistorialPresupuestos() {
 
         subtotal:
           item.subtotal,
+
+        tipo:
+          item.tipo || "",
       }));
 
-    await supabase
-      .from("presupuesto_items")
-      .insert(nuevosItems);
+    if (nuevosItems.length > 0) {
+      await supabase
+        .from("presupuesto_items")
+        .insert(nuevosItems);
+    }
 
     obtenerPresupuestos();
+  }
+
+  function colorEstado(estado) {
+
+    if (
+      estado === "Enviado" ||
+      estado === "Aprobado" ||
+      estado === "Finalizado"
+    ) {
+      return "bg-green-600 text-white";
+    }
+
+    if (estado === "Cerrado") {
+      return "bg-red-600 text-white";
+    }
+
+    return "bg-orange-500 text-white";
+  }
+
+  function textoEstado(estado) {
+
+    if (!estado || estado === "Edición") {
+      return "Pendiente";
+    }
+
+    return estado;
   }
 
   if (loading) {
@@ -179,21 +295,19 @@ export default function HistorialPresupuestos() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen bg-black text-white p-4 md:p-6">
 
       <div className="max-w-7xl mx-auto">
 
-        {/* HEADER */}
-
-        <div className="flex justify-between items-center mb-10">
+        <div className="flex justify-between items-center mb-8">
 
           <div>
 
-            <h1 className="text-5xl font-bold text-orange-500">
+            <h1 className="text-4xl md:text-5xl font-black text-orange-500">
               Historial
             </h1>
 
-            <p className="text-zinc-400 mt-3">
+            <p className="text-zinc-400 mt-2">
               Administración de presupuestos
             </p>
 
@@ -201,57 +315,74 @@ export default function HistorialPresupuestos() {
 
           <Link
             to="/"
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
           >
             Volver
           </Link>
 
         </div>
 
-        {/* LISTADO */}
+        <div className="space-y-4">
 
-        <div className="space-y-6">
+          {presupuestos.map((presupuesto) => (
 
-          {presupuestos.map(
-            (presupuesto) => (
+            <div
+              key={presupuesto.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6"
+            >
 
-              <div
-                key={presupuesto.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex justify-between items-center"
-              >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
 
-                <div>
+                <div className="lg:col-span-4">
 
-                  <h2 className="text-3xl font-bold">
-                    {
-                      presupuesto.numero
-                    }
+                  <h2 className="text-2xl md:text-3xl font-black">
+                    {presupuesto.numero}
                   </h2>
 
-                  <p className="text-zinc-400 mt-3 text-xl">
-                    {
-                      presupuesto.cliente
-                    }
+                  <p className="text-zinc-400 mt-2 text-lg">
+                    {presupuesto.cliente_empresa ||
+                      presupuesto.cliente}
                   </p>
 
-                  <p className="text-zinc-500 mt-2">
-                    {
-                      presupuesto.trabajo
-                    }
+                  <p className="text-zinc-500 mt-1">
+                    {presupuesto.descripcion_corta ||
+                      presupuesto.trabajo ||
+                      "-"}
                   </p>
 
                 </div>
 
-                <div className="text-right">
+                <div className="lg:col-span-2 flex lg:justify-center">
 
-                  <p className="text-zinc-500">
+                  <div>
+
+                    <p className="text-zinc-500 text-sm mb-2">
+                      Estado
+                    </p>
+
+                    <span
+                      className={`${colorEstado(
+                        presupuesto.estado
+                      )} inline-block px-4 py-2 rounded-2xl font-bold`}
+                    >
+                      {textoEstado(
+                        presupuesto.estado
+                      )}
+                    </span>
+
+                  </div>
+
+                </div>
+
+                <div className="lg:col-span-3 lg:text-right">
+
+                  <p className="text-zinc-500 text-sm">
                     Total
                   </p>
 
-                  <p className="text-4xl font-bold text-orange-500">
+                  <p className="text-3xl md:text-4xl font-black text-orange-500">
 
-                    {presupuesto.moneda ===
-                    "USD"
+                    {presupuesto.moneda === "USD"
                       ? "USD $"
                       : "$"}
 
@@ -261,52 +392,80 @@ export default function HistorialPresupuestos() {
 
                   </p>
 
-                  <div className="flex gap-4 mt-6">
+                </div>
 
-                    <Link
-                      to={`/presupuesto/${presupuesto.id}`}
-                      className="bg-blue-500 hover:bg-blue-600 px-4 py-3 rounded-xl font-bold"
-                    >
-                      Abrir
-                    </Link>
+                <div className="lg:col-span-3 flex gap-3 lg:justify-end relative">
 
-                    <Link
-                      to={`/presupuestos/${presupuesto.id}`}
-                      className="bg-yellow-500 hover:bg-yellow-600 px-4 py-3 rounded-xl font-bold"
-                    >
-                      Editar
-                    </Link>
+                  <Link
+                    to={`/presupuesto/${presupuesto.id}`}
+                    className="bg-blue-500 hover:bg-blue-600 px-5 py-3 rounded-2xl font-bold"
+                  >
+                    Abrir
+                  </Link>
 
-                    <button
-                      onClick={() =>
-                        duplicarPresupuesto(
-                          presupuesto
-                        )
-                      }
+                  <button
+                    onClick={() =>
+                      setMenuAbierto(
+                        menuAbierto === presupuesto.id
+                          ? null
+                          : presupuesto.id
+                      )
+                    }
+                    className="bg-green-600 hover:bg-green-700 px-5 py-3 rounded-2xl font-bold"
+                  >
+                    Opciones
+                  </button>
 
-                      className="bg-orange-500 hover:bg-orange-600 px-4 py-3 rounded-xl font-bold"
-                    >
-                      Duplicar
-                    </button>
+                  {menuAbierto === presupuesto.id && (
 
-                    <button
-                      onClick={() =>
-                        eliminarPresupuesto(
-                          presupuesto.id
-                        )
-                      }
+                    <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[180px] z-50 shadow-2xl">
 
-                      className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                    >
-                      Eliminar
-                    </button>
+                      <Link
+                        to={`/presupuestos/${presupuesto.id}`}
+                        className="bg-yellow-500 hover:bg-yellow-600 px-4 py-3 rounded-xl font-bold text-center"
+                      >
+                        Editar
+                      </Link>
 
-                  </div>
+                      <button
+                        onClick={() =>
+                          duplicarPresupuesto(
+                            presupuesto
+                          )
+                        }
+                        className="bg-orange-500 hover:bg-orange-600 px-4 py-3 rounded-xl font-bold"
+                      >
+                        Duplicar
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          eliminarPresupuesto(
+                            presupuesto.id
+                          )
+                        }
+                        className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                      >
+                        Eliminar
+                      </button>
+
+                    </div>
+
+                  )}
 
                 </div>
 
               </div>
-            )
+
+            </div>
+          ))}
+
+          {presupuestos.length === 0 && (
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+              No hay presupuestos guardados.
+            </div>
+
           )}
 
         </div>
