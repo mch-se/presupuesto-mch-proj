@@ -4,46 +4,30 @@ import { supabase } from "../lib/supabase";
 import { obtenerDolarBNA } from "../lib/dolar";
 
 export default function Dashboard() {
-
-  const [hora, setHora] =
-    React.useState(new Date());
-
-  const [alias, setAlias] =
-    React.useState("");
-
-  const [dolar, setDolar] =
-    React.useState(null);
+  const [hora, setHora] = React.useState(new Date());
+  const [alias, setAlias] = React.useState("");
+  const [dolar, setDolar] = React.useState(null);
 
   React.useEffect(() => {
-
     obtenerAlias();
-
     cargarDolar();
 
-    const intervaloHora =
-      setInterval(() => {
-        setHora(new Date());
-      }, 1000);
+    const intervaloHora = setInterval(() => {
+      setHora(new Date());
+    }, 1000);
 
-    const intervaloDolar =
-      setInterval(() => {
-        cargarDolar();
-      }, 3600000);
+    const intervaloDolar = setInterval(() => {
+      cargarDolar();
+    }, 3600000);
 
     return () => {
-
       clearInterval(intervaloHora);
-
       clearInterval(intervaloDolar);
-
     };
-
   }, []);
 
   async function cargarDolar() {
-
-    const data =
-      await obtenerDolarBNA();
+    const data = await obtenerDolarBNA();
 
     if (data) {
       setDolar(data);
@@ -51,24 +35,19 @@ export default function Dashboard() {
   }
 
   async function obtenerAlias() {
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) return;
 
-    const { data } =
-      await supabase
-        .from("profiles")
-        .select("alias")
-        .eq("id", user.id)
-        .single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("alias")
+      .eq("id", user.id)
+      .single();
 
-    setAlias(
-      data?.alias ||
-      user.email
-    );
+    setAlias(data?.alias || user.email);
   }
 
   async function cerrarSesion() {
@@ -76,50 +55,43 @@ export default function Dashboard() {
   }
 
   const cards = [
-
     {
       titulo: "Nuevo",
       subtitulo: "Presupuesto",
       link: "/presupuestos",
-      color:
-        "bg-orange-500 hover:bg-orange-600",
+      color: "bg-orange-500 hover:bg-orange-600",
     },
-
     {
       titulo: "Historial",
       subtitulo: "Presupuestos",
       link: "/historial",
-      color:
-        "bg-zinc-800 hover:bg-zinc-700",
+      color: "bg-zinc-800 hover:bg-zinc-700",
     },
-
     {
       titulo: "Clientes",
       subtitulo: "Base de datos",
       link: "/clientes",
-      color:
-        "bg-zinc-800 hover:bg-zinc-700",
+      color: "bg-zinc-800 hover:bg-zinc-700",
     },
-
     {
       titulo: "Artículos",
       subtitulo: "Biblioteca",
       link: "/articulos",
-      color:
-        "bg-zinc-800 hover:bg-zinc-700",
+      color: "bg-zinc-800 hover:bg-zinc-700",
     },
-
+    {
+      titulo: "Plantillas",
+      subtitulo: "Presupuestos rápidos",
+      link: "/plantillas",
+      color: "bg-zinc-800 hover:bg-zinc-700",
+    },
   ];
 
   return (
     <div className="min-h-screen bg-black text-white">
-
       <div className="max-w-7xl mx-auto p-4 md:p-6">
-
         <div className="flex flex-col lg:flex-row lg:justify-between gap-6 mb-8">
-
           <div>
-
             <h1 className="text-4xl md:text-6xl font-black text-orange-500">
               MCH
             </h1>
@@ -129,46 +101,25 @@ export default function Dashboard() {
             </p>
 
             {dolar && (
-
               <p className="text-sm md:text-base text-green-400 mt-2">
-
-                Dólar BNA:
-                {" "}
-
-                Compra $
-                {dolar.compra}
-
-                {" / "}
-
-                Venta $
-                {dolar.venta}
-
-                {" "}
-
+                Dólar BNA: Compra ${dolar.compra} / Venta ${dolar.venta}{" "}
                 <span className="text-zinc-500">
-
                   (
-                  Actualizado
-                  {" "}
-
+                  Actualizado{" "}
                   {dolar.fecha.toLocaleString("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-})}                  )
-
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                  )
                 </span>
-
               </p>
-
             )}
-
           </div>
 
           <div className="flex flex-wrap gap-3 items-stretch lg:items-center">
-
             <Link
               to="/importar"
               className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-center"
@@ -180,7 +131,6 @@ export default function Dashboard() {
               to="/micuenta"
               className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[180px] transition-all"
             >
-
               <p className="text-zinc-500 text-xs">
                 Usuario
               </p>
@@ -188,11 +138,9 @@ export default function Dashboard() {
               <p className="font-bold text-lg">
                 {alias}
               </p>
-
             </Link>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[160px] flex flex-col justify-center">
-
               <p className="text-zinc-400 text-sm">
                 {hora.toLocaleDateString()}
               </p>
@@ -200,34 +148,25 @@ export default function Dashboard() {
               <p className="text-orange-500 font-bold">
                 {hora.toLocaleTimeString()}
               </p>
-
             </div>
 
             <button
-              onClick={
-                cerrarSesion
-              }
+              onClick={cerrarSesion}
               className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-2xl font-bold"
             >
               Salir
             </button>
-
           </div>
-
         </div>
 
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 md:gap-6">
           {cards.map((card) => (
-
             <Link
               key={card.titulo}
               to={card.link}
               className={`${card.color} rounded-3xl p-5 md:p-8 min-h-[150px] md:min-h-[220px] flex flex-col justify-between transition-all active:scale-[0.98]`}
             >
-
               <div>
-
                 <h2 className="text-2xl md:text-4xl font-black leading-tight">
                   {card.titulo}
                 </h2>
@@ -235,23 +174,15 @@ export default function Dashboard() {
                 <p className="mt-2 text-sm md:text-lg opacity-80">
                   {card.subtitulo}
                 </p>
-
               </div>
 
               <div className="mt-6">
-
                 <div className="w-10 h-1 bg-white/50 rounded-full" />
-
               </div>
-
             </Link>
-
           ))}
-
         </div>
-
       </div>
-
     </div>
   );
 }

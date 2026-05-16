@@ -17,6 +17,7 @@ import Clientes from "./pages/Clientes";
 import HistorialPresupuestos from "./pages/HistorialPresupuestos";
 import VerPresupuesto from "./pages/VerPresupuesto";
 import VistaPreviaPresupuesto from "./pages/VistaPreviaPresupuesto";
+import Plantillas from "./pages/Plantillas";
 
 export default function App() {
 
@@ -117,6 +118,10 @@ export default function App() {
          path="/micuenta"
          element={<MiCuenta />}
         />
+<Route
+  path="/plantillas"
+  element={<Plantillas />}
+/>
 
       </Routes>
 

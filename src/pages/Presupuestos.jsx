@@ -27,9 +27,14 @@ export default function Presupuestos() {
   const [articulos, setArticulos] = React.useState([]);
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
 
+  const [mostrarPlantillas, setMostrarPlantillas] = React.useState(false);
+  const [plantillas, setPlantillas] = React.useState([]);
+  const [busquedaPlantilla, setBusquedaPlantilla] = React.useState("");
+
   React.useEffect(() => {
     obtenerArticulos();
     obtenerClientes();
+    obtenerPlantillas();
 
     if (modoEdicion) {
       cargarPresupuesto();
@@ -136,6 +141,25 @@ export default function Presupuestos() {
     setClientes(data || []);
   }
 
+  async function obtenerPlantillas() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data, error } = await supabase
+      .from("plantillas")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("nombre");
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setPlantillas(data || []);
+  }
+
   function seleccionarCliente(clienteElegido) {
     setClienteSeleccionado(clienteElegido);
     setCliente(clienteElegido.empresa || "");
@@ -187,14 +211,39 @@ export default function Presupuestos() {
     setMostrarBiblioteca(false);
   }
 
+  async function agregarPlantillaAlPresupuesto(plantilla) {
+    const { data, error } = await supabase
+      .from("plantilla_items")
+      .select("*")
+      .eq("plantilla_id", plantilla.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const nuevosItems = (data || []).map((item) => ({
+      descripcion: item.descripcion,
+      cantidad: item.cantidad || 1,
+      precio: item.precio || 0,
+    }));
+
+    setItems([...items, ...nuevosItems]);
+    setMostrarPlantillas(false);
+  }
+
   const subtotal = items.reduce((acc, item) => {
     const cantidad = Number(item.cantidad) || 0;
     const precio = Number(item.precio) || 0;
     return acc + cantidad * precio;
   }, 0);
 
-  const iva = subtotal * 0.21;
-  const total = subtotal + iva;
+  const aplicaIva = false;
+
+const iva = 0;
+
+const total = subtotal;
 
   async function guardarPresupuesto() {
     if (!cliente) {
@@ -212,17 +261,18 @@ export default function Presupuestos() {
     };
 
     const datosPresupuesto = {
-      cliente,
-      descripcion_corta: descripcionCorta,
-      descripcion_larga: descripcionLarga,
-      subtotal,
-      iva,
-      total,
-      estado: "Pendiente",
-      moneda,
-      ...datosCliente,
-    };
-
+  cliente,
+  descripcion_corta: descripcionCorta,
+  descripcion_larga: descripcionLarga,
+  subtotal,
+  iva,
+  total,
+  estado: "Pendiente",
+  moneda,
+  tipo_factura: "C",
+  aplica_iva: false,
+  ...datosCliente,
+};
     if (modoEdicion) {
       const { error } = await supabase
         .from("presupuestos")
@@ -307,386 +357,547 @@ export default function Presupuestos() {
       .includes(busquedaArticulo.toLowerCase())
   );
 
+  const plantillasFiltradas = plantillas.filter((plantilla) =>
+    `${plantilla.nombre || ""} ${plantilla.descripcion || ""}`
+      .toLowerCase()
+      .includes(busquedaPlantilla.toLowerCase())
+  );
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <div className="min-h-screen bg-black text-white p-4 md:p-6">
+
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-10">
+
+        <div className="flex justify-between items-center mb-8">
+
           <div>
-            <h1 className="text-5xl font-bold text-orange-500">
-              {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
+
+            <h1 className="text-4xl md:text-5xl font-black text-orange-500">
+              {modoEdicion
+                ? "Editar Presupuesto"
+                : "Nuevo Presupuesto"}
             </h1>
+
+            <p className="text-zinc-400 mt-2">
+              Presupuesto N°
+              {" "}
+              {numeroPresupuesto}
+            </p>
+
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
+
             <button
               onClick={guardarPresupuesto}
-              className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+              className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-2xl font-bold"
             >
-              {modoEdicion ? "Actualizar" : "Guardar"}
+              Guardar
             </button>
 
             <Link
-              to="/historial"
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+              to="/"
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
             >
               Volver
             </Link>
+
           </div>
+
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <input
-              type="text"
-              value={numeroPresupuesto}
-              disabled
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
 
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <div className="space-y-3">
+
               <div className="flex gap-3">
+
                 <input
                   type="text"
                   placeholder="Cliente"
                   value={cliente}
-                  onChange={(e) => setCliente(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  onChange={(e) => {
+                    setCliente(e.target.value);
+                    setClienteSeleccionado(null);
+                  }}
+                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 />
 
                 <button
-                  onClick={() => setMostrarClientes(true)}
+                  onClick={() =>
+                    setMostrarClientes(!mostrarClientes)
+                  }
                   className="bg-zinc-700 hover:bg-zinc-600 px-5 rounded-2xl font-bold"
                 >
                   Buscar
                 </button>
+
               </div>
-            </div>
 
-            <select
-              value={moneda}
-              onChange={(e) => setMoneda(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            >
-              <option value="ARS">ARS $</option>
-              <option value="USD">USD $</option>
-            </select>
+              {clienteSeleccionado && (
 
-            <input
-              type="text"
-              placeholder="Descripción corta"
-              value={descripcionCorta}
-              onChange={(e) => setDescripcionCorta(e.target.value)}
-              className="md:col-span-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
 
-            <textarea
-              placeholder="Descripción larga"
-              value={descripcionLarga}
-              onChange={(e) => setDescripcionLarga(e.target.value)}
-              className="md:col-span-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-36"
-            />
-
-            {(clienteTelefono ||
-              clienteEmail ||
-              clienteDireccion ||
-              clienteSeleccionado) && (
-              <div className="md:col-span-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                <div className="flex justify-between gap-4">
-                  <div>
-                    <p className="text-orange-500 font-bold">
-                      Cliente seleccionado
-                    </p>
-
-                    <p className="text-zinc-400 mt-2">
-                      Contacto: {clienteSeleccionado?.contacto || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Teléfono: {clienteTelefono || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Email: {clienteEmail || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Dirección: {clienteDireccion || "-"}
-                    </p>
-                  </div>
+                  <p className="text-green-400 font-bold">
+                    Cliente seleccionado
+                  </p>
 
                   <button
                     onClick={limpiarClienteSeleccionado}
-                    className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl font-bold self-start"
+                    className="mt-3 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl font-bold"
                   >
-                    Quitar
+                    Limpiar cliente
                   </button>
+
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex gap-4">
-              <button
-                onClick={() => setMostrarBiblioteca(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-              >
-                Biblioteca de Artículos
-              </button>
+              )}
 
-              <button
-                onClick={agregarItemManual}
-                className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-              >
-                Agregar Item Manual
-              </button>
-            </div>
-          </div>
+              {mostrarClientes && (
 
-          <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
-            <div className="col-span-6">Descripción</div>
-            <div className="col-span-2">Cantidad</div>
-            <div className="col-span-2">Precio</div>
-            <div className="col-span-2">Subtotal</div>
-          </div>
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
 
-          <div className="space-y-4">
-            {items.map((item, index) => {
-              const subtotalItem =
-                (Number(item.cantidad) || 0) * (Number(item.precio) || 0);
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={busquedaCliente}
+                    onChange={(e) =>
+                      setBusquedaCliente(e.target.value)
+                    }
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4"
+                  />
 
-              return (
-                <div
-                  key={index}
-                  className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                >
-                  <div className="col-span-6">
-                    <input
-                      type="text"
-                      value={item.descripcion}
-                      onChange={(e) =>
-                        actualizarItem(index, "descripcion", e.target.value)
-                      }
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
-                    />
+                  <div className="max-h-72 overflow-auto space-y-2">
+
+                    {clientesFiltrados.map((clienteItem) => (
+
+                      <button
+                        key={clienteItem.id}
+                        onClick={() =>
+                          seleccionarCliente(clienteItem)
+                        }
+                        className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl p-4"
+                      >
+
+                        <p className="font-bold">
+                          {clienteItem.empresa}
+                        </p>
+
+                        {clienteItem.contacto && (
+
+                          <p className="text-zinc-400 text-sm mt-1">
+                            {clienteItem.contacto}
+                          </p>
+
+                        )}
+
+                      </button>
+
+                    ))}
+
                   </div>
 
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      value={item.cantidad}
-                      onChange={(e) =>
-                        actualizarItem(index, "cantidad", e.target.value)
-                      }
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      value={item.precio}
-                      onChange={(e) =>
-                        actualizarItem(index, "precio", e.target.value)
-                      }
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
-                    />
-                  </div>
-
-                  <div className="col-span-1 flex items-center text-orange-500 font-bold">
-                    {moneda === "USD" ? "USD $" : "$"}
-                    {subtotalItem.toLocaleString()}
-                  </div>
-
-                  <div className="col-span-1 flex justify-end">
-                    <button
-                      onClick={() => eliminarItem(index)}
-                      className="bg-red-500 hover:bg-red-600 px-4 rounded-xl font-bold"
-                    >
-                      X
-                    </button>
-                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        <div className="mt-10 flex justify-end">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 w-full max-w-md">
-            <div className="space-y-4 text-2xl">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {subtotal.toLocaleString()}
-                </span>
-              </div>
+              )}
 
-              <div className="flex justify-between">
-                <span>IVA</span>
-                <span>
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {iva.toLocaleString()}
-                </span>
-              </div>
+              <input
+                type="text"
+                placeholder="Teléfono"
+                value={clienteTelefono}
+                onChange={(e) =>
+                  setClienteTelefono(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
 
-              <div className="flex justify-between text-4xl font-bold text-orange-500 pt-6 border-t border-zinc-800">
-                <span>Total</span>
-                <span>
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {total.toLocaleString()}
-                </span>
-              </div>
+              <input
+                type="text"
+                placeholder="Email"
+                value={clienteEmail}
+                onChange={(e) =>
+                  setClienteEmail(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                type="text"
+                placeholder="Dirección"
+                value={clienteDireccion}
+                onChange={(e) =>
+                  setClienteDireccion(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
             </div>
-          </div>
-        </div>
-      </div>
 
-      {mostrarClientes && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-auto p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-4xl font-bold text-orange-500">
-                Seleccionar Cliente
-              </h2>
+            <div className="space-y-4">
 
-              <button
-                onClick={() => setMostrarClientes(false)}
-                className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+              <input
+                type="text"
+                placeholder="Descripción corta"
+                value={descripcionCorta}
+                onChange={(e) =>
+                  setDescripcionCorta(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <textarea
+                placeholder="Descripción larga"
+                value={descripcionLarga}
+                onChange={(e) =>
+                  setDescripcionLarga(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[220px]"
+              />
+
+              <select
+                value={moneda}
+                onChange={(e) =>
+                  setMoneda(e.target.value)
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               >
-                X
-              </button>
+                <option value="ARS">
+                  Pesos Argentinos
+                </option>
+
+                <option value="USD">
+                  Dólares
+                </option>
+
+              </select>
+
             </div>
+
+          </div>
+
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-6">
+
+          <button
+            onClick={() =>
+              setMostrarBiblioteca(!mostrarBiblioteca)
+            }
+            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+          >
+            Biblioteca de artículos
+          </button>
+
+          <button
+            onClick={agregarItemManual}
+            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+          >
+            Agregar ítem manual
+          </button>
+
+          <button
+            onClick={() =>
+              setMostrarPlantillas(!mostrarPlantillas)
+            }
+            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+          >
+            Agregar plantilla
+          </button>
+
+        </div>
+
+        {mostrarPlantillas && (
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
 
             <input
               type="text"
-              placeholder="Buscar cliente..."
-              value={busquedaCliente}
-              onChange={(e) => setBusquedaCliente(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-8"
+              placeholder="Buscar plantilla..."
+              value={busquedaPlantilla}
+              onChange={(e) =>
+                setBusquedaPlantilla(e.target.value)
+              }
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
             />
 
-            <div className="space-y-4">
-              {clientesFiltrados.map((clienteItem) => (
+            <div className="space-y-3">
+
+              {plantillasFiltradas.map((plantilla) => (
+
                 <div
-                  key={clienteItem.id}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex justify-between items-center gap-6"
+                  key={plantilla.id}
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center gap-4"
                 >
+
                   <div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="bg-orange-500 px-3 py-1 rounded-xl text-sm font-bold">
-                        {clienteItem.tipo}
-                      </span>
 
-                      <p className="text-2xl font-bold">
-                        {clienteItem.empresa}
-                      </p>
-                    </div>
+                    <p className="font-bold text-lg">
+                      {plantilla.nombre}
+                    </p>
 
-                    {clienteItem.tipo === "Empresa" && (
-                      <p className="text-zinc-400 mt-2">
-                        Contacto: {clienteItem.contacto || "-"}
+                    {plantilla.descripcion && (
+
+                      <p className="text-zinc-500 text-sm mt-1">
+                        {plantilla.descripcion}
                       </p>
+
                     )}
 
-                    <p className="text-zinc-400 mt-2">
-                      Teléfono: {clienteItem.telefono || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Email: {clienteItem.email || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Dirección: {clienteItem.direccion || "-"}
-                    </p>
                   </div>
 
                   <button
-                    onClick={() => seleccionarCliente(clienteItem)}
+                    onClick={() =>
+                      agregarPlantillaAlPresupuesto(
+                        plantilla
+                      )
+                    }
                     className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
                   >
-                    Seleccionar
+                    Cargar
                   </button>
+
                 </div>
+
               ))}
 
-              {clientesFiltrados.length === 0 && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                  No hay clientes encontrados.
-                </div>
-              )}
             </div>
+
           </div>
-        </div>
-      )}
 
-      {mostrarBiblioteca && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-auto p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-4xl font-bold text-orange-500">
-                Biblioteca de Artículos
-              </h2>
+        )}
 
-              <button
-                onClick={() => setMostrarBiblioteca(false)}
-                className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
-              >
-                X
-              </button>
-            </div>
+        {mostrarBiblioteca && (
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
 
             <input
               type="text"
               placeholder="Buscar artículo..."
               value={busquedaArticulo}
-              onChange={(e) => setBusquedaArticulo(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-8"
+              onChange={(e) =>
+                setBusquedaArticulo(e.target.value)
+              }
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
             />
 
-            <div className="space-y-4">
+            <div className="space-y-3 max-h-[420px] overflow-auto">
+
               {articulosFiltrados.map((articulo) => (
+
                 <div
                   key={articulo.id}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex justify-between items-center"
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between gap-4"
                 >
+
                   <div>
-                    <p className="text-2xl font-bold">{articulo.descripcion}</p>
+
+                    <p className="font-bold text-lg">
+                      {articulo.descripcion}
+                    </p>
 
                     {articulo.detalle && (
-                      <p className="text-zinc-500 mt-2 text-sm">
+
+                      <p className="text-zinc-500 text-sm mt-1">
                         {articulo.detalle}
                       </p>
+
                     )}
 
                     <p className="text-zinc-400 mt-2">
-                      {articulo.moneda === "USD" ? "USD $" : "$"}
-                      {Number(articulo.precio).toLocaleString()}
+
+                      {moneda === "USD"
+                        ? "USD $"
+                        : "$"}
+
+                      {Number(
+                        articulo.precio
+                      ).toLocaleString()}
+
                     </p>
+
                   </div>
 
                   <button
-                    onClick={() => agregarArticuloAlPresupuesto(articulo)}
-                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    onClick={() =>
+                      agregarArticuloAlPresupuesto(
+                        articulo
+                      )
+                    }
+                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center"
                   >
                     Agregar
                   </button>
+
                 </div>
+
               ))}
 
-              {articulosFiltrados.length === 0 && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-                  No hay artículos encontrados.
-                </div>
-              )}
             </div>
+
           </div>
+
+        )}
+
+        <div className="space-y-4">
+
+          {items.map((item, index) => (
+
+            <div
+              key={index}
+              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
+            >
+
+              <div className="col-span-12 md:col-span-6">
+
+                <input
+                  type="text"
+                  placeholder="Descripción"
+                  value={item.descripcion}
+                  onChange={(e) =>
+                    actualizarItem(
+                      index,
+                      "descripcion",
+                      e.target.value
+                    )
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+              </div>
+
+              <div className="col-span-4 md:col-span-2">
+
+                <input
+                  type="number"
+                  placeholder="Cant."
+                  value={item.cantidad}
+                  onChange={(e) =>
+                    actualizarItem(
+                      index,
+                      "cantidad",
+                      e.target.value
+                    )
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+              </div>
+
+              <div className="col-span-4 md:col-span-2">
+
+                <input
+                  type="number"
+                  placeholder="Precio"
+                  value={item.precio}
+                  onChange={(e) =>
+                    actualizarItem(
+                      index,
+                      "precio",
+                      e.target.value
+                    )
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+              </div>
+
+              <div className="col-span-3 md:col-span-1 flex items-center justify-center font-bold text-orange-500">
+
+                {moneda === "USD"
+                  ? "USD $"
+                  : "$"}
+
+                {(
+                  (Number(item.cantidad) || 0) *
+                  (Number(item.precio) || 0)
+                ).toLocaleString()}
+
+              </div>
+
+              <div className="col-span-1 flex items-center justify-end">
+
+                <button
+                  onClick={() =>
+                    eliminarItem(index)
+                  }
+                  className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                >
+                  X
+                </button>
+
+              </div>
+
+            </div>
+
+          ))}
+
         </div>
-      )}
+
+        <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
+
+          <div className="space-y-4 text-xl">
+
+            <div className="flex justify-between">
+
+              <span>
+                Subtotal
+              </span>
+
+              <span>
+
+                {moneda === "USD"
+                  ? "USD $"
+                  : "$"}
+
+                {subtotal.toLocaleString()}
+
+              </span>
+
+            </div>
+
+            <div className="flex justify-between">
+
+              <span>
+                IVA
+              </span>
+
+              <span>
+
+                {moneda === "USD"
+                  ? "USD $"
+                  : "$"}
+
+                {iva.toLocaleString()}
+
+              </span>
+
+            </div>
+
+            <div className="flex justify-between text-3xl font-black text-orange-500 border-t border-zinc-800 pt-5">
+
+              <span>
+                Total
+              </span>
+
+              <span>
+
+                {moneda === "USD"
+                  ? "USD $"
+                  : "$"}
+
+                {total.toLocaleString()}
+
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
     </div>
   );
 }
