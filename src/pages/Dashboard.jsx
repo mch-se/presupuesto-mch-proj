@@ -7,10 +7,19 @@ export default function Dashboard() {
   const [hora, setHora] = React.useState(new Date());
   const [alias, setAlias] = React.useState("");
   const [dolar, setDolar] = React.useState(null);
+  const [actualizandoDolar, setActualizandoDolar] = React.useState(false);
+
+  const [contadores, setContadores] = React.useState({
+    presupuestos: 0,
+    clientes: 0,
+    articulos: 0,
+    plantillas: 0,
+  });
 
   React.useEffect(() => {
     obtenerAlias();
     cargarDolar();
+    cargarContadores();
 
     const intervaloHora = setInterval(() => {
       setHora(new Date());
@@ -27,11 +36,57 @@ export default function Dashboard() {
   }, []);
 
   async function cargarDolar() {
+    setActualizandoDolar(true);
+
     const data = await obtenerDolarBNA();
 
     if (data) {
       setDolar(data);
     }
+
+    setActualizandoDolar(false);
+  }
+
+  async function cargarContadores() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const [
+      presupuestos,
+      clientes,
+      articulos,
+      plantillas,
+    ] = await Promise.all([
+      supabase
+        .from("presupuestos")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+
+      supabase
+        .from("clientes")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+
+      supabase
+        .from("articulos")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+
+      supabase
+        .from("plantillas")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+    ]);
+
+    setContadores({
+      presupuestos: presupuestos.count || 0,
+      clientes: clientes.count || 0,
+      articulos: articulos.count || 0,
+      plantillas: plantillas.count || 0,
+    });
   }
 
   async function obtenerAlias() {
@@ -60,30 +115,35 @@ export default function Dashboard() {
       subtitulo: "Presupuesto",
       link: "/presupuestos",
       color: "bg-orange-500 hover:bg-orange-600",
+      contador: null,
     },
     {
       titulo: "Historial",
       subtitulo: "Presupuestos",
       link: "/historial",
       color: "bg-zinc-800 hover:bg-zinc-700",
+      contador: contadores.presupuestos,
     },
     {
       titulo: "Clientes",
       subtitulo: "Base de datos",
       link: "/clientes",
       color: "bg-zinc-800 hover:bg-zinc-700",
+      contador: contadores.clientes,
     },
     {
       titulo: "Artículos",
       subtitulo: "Biblioteca",
       link: "/articulos",
       color: "bg-zinc-800 hover:bg-zinc-700",
+      contador: contadores.articulos,
     },
     {
       titulo: "Plantillas",
       subtitulo: "Presupuestos rápidos",
       link: "/plantillas",
       color: "bg-zinc-800 hover:bg-zinc-700",
+      contador: contadores.plantillas,
     },
   ];
 
@@ -100,23 +160,33 @@ export default function Dashboard() {
               Sistema de Presupuestos
             </p>
 
-            {dolar && (
-              <p className="text-sm md:text-base text-green-400 mt-2">
-                Dólar BNA: Compra ${dolar.compra} / Venta ${dolar.venta}{" "}
-                <span className="text-zinc-500">
-                  (
-                  Actualizado{" "}
-                  {dolar.fecha.toLocaleString("es-AR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  )
-                </span>
-              </p>
-            )}
+            <button
+              onClick={cargarDolar}
+              disabled={actualizandoDolar}
+              className="text-left text-sm md:text-base text-green-400 mt-2 hover:text-green-300 transition-all disabled:opacity-60"
+            >
+              {actualizandoDolar && "Actualizando..."}
+
+              {!actualizandoDolar && dolar && (
+                <>
+                  Dólar BNA: Compra ${dolar.compra} / Venta ${dolar.venta}{" "}
+                  <span className="text-zinc-500">
+                    (
+                    Actualizado{" "}
+                    {dolar.fecha.toLocaleString("es-AR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    )
+                  </span>
+                </>
+              )}
+
+              {!actualizandoDolar && !dolar && "Actualizar dólar BNA"}
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-3 items-stretch lg:items-center">
@@ -177,7 +247,19 @@ export default function Dashboard() {
               </div>
 
               <div className="mt-6">
-                <div className="w-10 h-1 bg-white/50 rounded-full" />
+                {card.contador !== null ? (
+                  <div>
+                    <p className="text-zinc-400 text-sm">
+                      Total
+                    </p>
+
+                    <p className="text-4xl font-black text-white">
+                      {card.contador}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="w-10 h-1 bg-white/50 rounded-full" />
+                )}
               </div>
             </Link>
           ))}
