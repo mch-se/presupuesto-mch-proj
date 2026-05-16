@@ -104,16 +104,16 @@ export default function Dashboard() {
 
           </div>
 
-          <div className="flex flex-col md:flex-row gap-3 md:items-center">
+          <div className="flex flex-wrap gap-3 items-stretch lg:items-center">
 
             <Link
               to="/importar"
-              className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-4 py-3 rounded-2xl text-sm font-bold text-center"
+              className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-center"
             >
               Importar
             </Link>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[180px]">
 
               <p className="text-zinc-500 text-xs">
                 Usuario
@@ -123,17 +123,17 @@ export default function Dashboard() {
                 {alias}
               </p>
 
-              <div className="mt-3 text-sm">
+            </div>
 
-                <p className="text-zinc-400">
-                  {hora.toLocaleDateString()}
-                </p>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[160px] flex flex-col justify-center">
 
-                <p className="text-orange-500 font-bold">
-                  {hora.toLocaleTimeString()}
-                </p>
+              <p className="text-zinc-400 text-sm">
+                {hora.toLocaleDateString()}
+              </p>
 
-              </div>
+              <p className="text-orange-500 font-bold">
+                {hora.toLocaleTimeString()}
+              </p>
 
             </div>
 
@@ -141,7 +141,7 @@ export default function Dashboard() {
               onClick={
                 cerrarSesion
               }
-              className="bg-red-500 hover:bg-red-600 px-5 py-4 rounded-2xl font-bold"
+              className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-2xl font-bold"
             >
               Salir
             </button>
