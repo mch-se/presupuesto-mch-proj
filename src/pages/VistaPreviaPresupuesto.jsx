@@ -1,45 +1,28 @@
 import React from "react";
-
+import { useParams, Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-
-import {
-  Link,
-  useParams,
-} from "react-router-dom";
-
 import html2pdf from "html2pdf.js";
 
 export default function VistaPreviaPresupuesto() {
-
   const { id } = useParams();
 
-  const [presupuesto, setPresupuesto] =
-    React.useState(null);
+  const [presupuesto, setPresupuesto] = React.useState(null);
+  const [items, setItems] = React.useState([]);
+  const [configuracion, setConfiguracion] = React.useState(null);
+  const [alias, setAlias] = React.useState("");
 
-  const [items, setItems] =
-    React.useState([]);
-
-  const [alias, setAlias] =
-    React.useState("");
-
-  const [loading, setLoading] =
-    React.useState(true);
-
-  const hojaRef =
-    React.useRef(null);
+  const hojaRef = React.useRef(null);
 
   React.useEffect(() => {
-    obtenerPresupuesto();
+    cargarPresupuesto();
   }, []);
 
-  async function obtenerPresupuesto() {
-
-    const { data, error } =
-      await supabase
-        .from("presupuestos")
-        .select("*")
-        .eq("id", id)
-        .single();
+  async function cargarPresupuesto() {
+    const { data, error } = await supabase
+      .from("presupuestos")
+      .select("*")
+      .eq("id", id)
+      .single();
 
     if (error) {
       alert(error.message);
@@ -48,11 +31,10 @@ export default function VistaPreviaPresupuesto() {
 
     setPresupuesto(data);
 
-    const { data: itemsData } =
-      await supabase
-        .from("presupuesto_items")
-        .select("*")
-        .eq("presupuesto_id", id);
+    const { data: itemsData } = await supabase
+      .from("presupuesto_items")
+      .select("*")
+      .eq("presupuesto_id", id);
 
     setItems(itemsData || []);
 
@@ -61,50 +43,46 @@ export default function VistaPreviaPresupuesto() {
     } = await supabase.auth.getUser();
 
     if (user) {
-
-      const {
-        data: profile,
-      } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
         .select("alias")
         .eq("id", user.id)
         .single();
 
-      setAlias(
-        profile?.alias ||
-        user.email
-      );
+      setAlias(profile?.alias || user.email);
     }
 
-    setLoading(false);
+    if (data.user_id) {
+      const { data: configData } = await supabase
+        .from("configuracion_usuario")
+        .select("*")
+        .eq("user_id", data.user_id)
+        .single();
+
+      setConfiguracion(configData || null);
+    }
   }
 
   function descargarPDF() {
-
     const opciones = {
-      margin: 0.2,
-
-      filename:
-        `Presupuesto-${presupuesto.numero}.pdf`,
-
+      margin: 0.25,
+      filename: `Presupuesto-${presupuesto.numero}.pdf`,
       image: {
         type: "jpeg",
         quality: 1,
       },
-
       html2canvas: {
         scale: 2,
+        useCORS: true,
       },
-
       jsPDF: {
         unit: "in",
         format: "a4",
         orientation: "portrait",
       },
-
       pagebreak: {
-        mode: ["avoid-all", "css", "legacy"],
-        avoid: [".no-break"],
+        mode: ["css", "legacy"],
+        avoid: [".bloque-corto"],
       },
     };
 
@@ -114,9 +92,9 @@ export default function VistaPreviaPresupuesto() {
       .save();
   }
 
-  if (loading) {
+  if (!presupuesto) {
     return (
-      <div className="min-h-screen bg-zinc-300 flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
       </div>
     );
@@ -127,186 +105,169 @@ export default function VistaPreviaPresupuesto() {
       ? "USD $"
       : "$";
 
-  const fecha =
-    new Date(
-      presupuesto.created_at
-    ).toLocaleDateString();
+  const condiciones =
+    configuracion?.condiciones_comerciales ||
+    `Los importes son válidos por 5 días debido a la inestabilidad monetaria.
+El pago debe estar acreditado al momento de finalizar el trabajo; de lo contrario, se aplicará mora del 3% por día hasta que se acredite el pago.
+Pago efectivo o transferencia.
+Otros medios de pago pueden incluir recargos.
+Incluye configuración y puesta en marcha salvo aclaración previa.
+No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
+
+  const generadoPor =
+    configuracion?.firma_pdf ||
+    alias ||
+    "MCH Seguridad Electrónica";
 
   return (
-    <div className="min-h-screen bg-zinc-300 p-6">
+    <div className="min-h-screen bg-zinc-300 p-4 md:p-8">
 
       <div className="max-w-5xl mx-auto">
 
-        <div className="flex justify-between mb-6 print:hidden">
+        <div className="no-print flex justify-between items-center mb-6">
 
           <Link
             to={`/presupuesto/${id}`}
-            className="bg-black text-white px-5 py-3 rounded font-bold"
+            className="bg-zinc-700 hover:bg-zinc-600 text-white px-5 py-3 rounded-2xl font-bold"
           >
-            X Cerrar
+            Volver
           </Link>
 
-          <div className="flex gap-4">
-
-            <button
-              onClick={() =>
-                window.print()
-              }
-              className="bg-zinc-700 text-white px-5 py-3 rounded font-bold"
-            >
-              Imprimir
-            </button>
-
-            <button
-              onClick={
-                descargarPDF
-              }
-              className="bg-black text-white px-5 py-3 rounded font-bold"
-            >
-              Descargar PDF
-            </button>
-
-          </div>
+          <button
+            onClick={descargarPDF}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl font-bold"
+          >
+            Descargar PDF
+          </button>
 
         </div>
 
         <div
           ref={hojaRef}
-          className="bg-white text-black p-10 shadow-2xl"
+          className="bg-white text-black p-10 md:p-12"
         >
 
-          <div className="flex justify-between border-b pb-6 no-break">
+          <div className="flex justify-between items-start border-b pb-8 bloque-corto">
 
             <div>
 
-              <h1 className="text-4xl font-black">
+              <h1 className="text-5xl font-black text-orange-500">
                 MCH
               </h1>
 
-              <p className="font-semibold mt-1">
+              <p className="text-zinc-600 mt-2 text-lg">
                 Seguridad Electrónica
               </p>
 
-              <div className="mt-5 text-sm leading-6">
-
-                <p>Lomas de Zamora</p>
-                <p>Buenos Aires</p>
-                <p>Tel: 11 2667-0854</p>
-                <p>mchsolucioneselectronicas@hotmail.com</p>
-                <p>CUIT: 23-33915525-9</p>
-
-              </div>
-
-            </div>
-
-            <div className="text-right">
-
-              <p className="text-sm font-semibold">
-                PRESUPUESTO
-              </p>
-
-              <p className="text-3xl font-black mt-2">
+              <p className="text-zinc-500 mt-4">
+                Presupuesto N°
+                {" "}
                 {presupuesto.numero}
               </p>
 
-              <p className="mt-4 text-sm">
-                Fecha: {fecha}
-              </p>
+            </div>
+
+            <div className="text-right text-zinc-500">
+
+              {new Date(
+                presupuesto.created_at
+              ).toLocaleDateString()}
 
             </div>
 
           </div>
 
-          <div className="mt-8 border-b pb-6 no-break">
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
 
-            <div className="grid grid-cols-2 gap-8">
+            <div>
 
-              <div>
+              <p className="text-zinc-500 text-sm">
+                Cliente
+              </p>
 
-                <p className="text-sm font-bold">
-                  CLIENTE
+              <p className="font-bold text-2xl mt-1">
+                {presupuesto.cliente_empresa ||
+                  presupuesto.cliente}
+              </p>
+
+              {presupuesto.cliente_contacto && (
+
+                <p className="text-zinc-600 mt-3">
+                  {presupuesto.cliente_contacto}
                 </p>
 
-                <p className="mt-2 text-lg font-semibold">
-                  {presupuesto.cliente_empresa || "-"}
+              )}
+
+              {presupuesto.cliente_telefono && (
+
+                <p className="text-zinc-600">
+                  {presupuesto.cliente_telefono}
                 </p>
 
-                {presupuesto.cliente_contacto && (
+              )}
 
-                  <p className="text-sm text-zinc-600 mt-2">
-                    Contacto:
-                    {" "}
-                    {presupuesto.cliente_contacto}
-                  </p>
+              {presupuesto.cliente_email && (
 
-                )}
-
-              </div>
-
-              <div>
-
-                <p className="text-sm font-bold">
-                  DATOS DE CONTACTO
+                <p className="text-zinc-600">
+                  {presupuesto.cliente_email}
                 </p>
 
-                <p className="mt-2 text-zinc-700">
-                  Tel:
-                  {" "}
-                  {presupuesto.cliente_telefono || "-"}
+              )}
+
+              {presupuesto.cliente_direccion && (
+
+                <p className="text-zinc-600">
+                  {presupuesto.cliente_direccion}
                 </p>
 
-                <p className="mt-1 text-zinc-700 break-all">
-                  Email:
-                  {" "}
-                  {presupuesto.cliente_email || "-"}
-                </p>
-
-                <p className="mt-1 text-zinc-700">
-                  Dirección:
-                  {" "}
-                  {presupuesto.cliente_direccion || "-"}
-                </p>
-
-              </div>
+              )}
 
             </div>
 
-            <div className="mt-10">
+            <div>
 
-              <p className="text-2xl font-bold">
-                {presupuesto.descripcion_corta || "-"}
-              </p>
+              {presupuesto.descripcion_corta && (
 
-              <div className="mt-5 whitespace-pre-wrap leading-relaxed text-zinc-700">
-                {presupuesto.descripcion_larga || "-"}
-              </div>
+                <p className="font-bold text-lg mb-5">
+                  {presupuesto.descripcion_corta}
+                </p>
+
+              )}
+
+              {presupuesto.descripcion_larga && (
+
+                <p className="text-zinc-700 whitespace-pre-wrap leading-relaxed">
+                  {presupuesto.descripcion_larga}
+                </p>
+
+              )}
 
             </div>
 
           </div>
 
-          <div className="mt-10">
+          <div className="mt-12">
 
             <table className="w-full border-collapse">
 
               <thead>
 
-                <tr className="bg-zinc-100 border-y">
+                <tr className="border-b-2 border-zinc-300">
 
-                  <th className="text-left p-3 text-sm">
+                  <th className="text-left py-4">
                     Descripción
                   </th>
 
-                  <th className="text-center p-3 text-sm w-24">
-                    Cant.
+                  <th className="text-center py-4">
+                    Cantidad
                   </th>
 
-                  <th className="text-right p-3 text-sm w-40">
+                  <th className="text-right py-4">
                     Precio
                   </th>
 
-                  <th className="text-right p-3 text-sm w-40">
-                    Subtotal
+                  <th className="text-right py-4">
+                    Total
                   </th>
 
                 </tr>
@@ -315,44 +276,82 @@ export default function VistaPreviaPresupuesto() {
 
               <tbody>
 
-                {items.map((item) => (
+                {items.map((item, index) => {
 
-                  <tr
-                    key={item.id}
-                    className="border-b"
+                  const subtotal =
+                    (Number(item.cantidad) || 0) *
+                    (Number(item.precio) || 0);
+
+                  return (
+
+                    <tr
+                      key={index}
+                      className="border-b border-zinc-200"
+                    >
+
+                      <td className="py-5">
+                        {item.descripcion}
+                      </td>
+
+                      <td className="text-center py-5">
+                        {item.cantidad}
+                      </td>
+
+                      <td className="text-right py-5">
+
+                        {simbolo}
+
+                        {Number(
+                          item.precio
+                        ).toLocaleString()}
+
+                      </td>
+
+                      <td className="text-right py-5 font-bold">
+
+                        {simbolo}
+
+                        {subtotal.toLocaleString()}
+
+                      </td>
+
+                    </tr>
+
+                  );
+
+                })}
+
+                <tr className="border-t-2 border-black bloque-corto">
+
+                  <td
+                    colSpan="3"
+                    className="py-4 text-right font-black text-xl"
                   >
+                    TOTAL
+                  </td>
 
-                    <td className="p-3 text-sm">
-                      {item.descripcion}
-                    </td>
+                  <td className="py-4 text-right font-black text-xl">
 
-                    <td className="p-3 text-center text-sm">
-                      {item.cantidad}
-                    </td>
+                    {simbolo}
 
-                    <td className="p-3 text-right text-sm">
+                    {Number(
+                      presupuesto.total
+                    ).toLocaleString()}
 
-                      {simbolo}
+                  </td>
 
-                      {Number(
-                        item.precio
-                      ).toLocaleString()}
+                </tr>
 
-                    </td>
+                <tr className="bloque-corto">
 
-                    <td className="p-3 text-right text-sm font-bold">
+                  <td
+                    colSpan="4"
+                    className="text-right text-zinc-500 text-xs pb-2"
+                  >
+                    Factura C - IVA no discriminado
+                  </td>
 
-                      {simbolo}
-
-                      {Number(
-                        item.subtotal
-                      ).toLocaleString()}
-
-                    </td>
-
-                  </tr>
-
-                ))}
+                </tr>
 
               </tbody>
 
@@ -360,80 +359,29 @@ export default function VistaPreviaPresupuesto() {
 
           </div>
 
-          <div className="flex justify-end mt-10 no-break">
+          <div className="mt-8 border-t pt-6 text-xs text-zinc-700 bloque-corto">
 
-            <div className="w-80 border p-5">
-
-              <div className="flex justify-between mb-3">
-
-                <span className="font-semibold">
-                  Subtotal
-                </span>
-
-                <span>
-                  {simbolo}
-                  {Number(
-                    presupuesto.subtotal
-                  ).toLocaleString()}
-                </span>
-
-              </div>
-
-              <div className="flex justify-between mb-3">
-
-                <span className="font-semibold">
-                  IVA
-                </span>
-
-                <span>
-                  {simbolo}
-                  {Number(
-                    presupuesto.iva
-                  ).toLocaleString()}
-                </span>
-
-              </div>
-
-              <div className="flex justify-between border-t pt-4 text-2xl font-black">
-
-                <span>
-                  TOTAL
-                </span>
-
-                <span>
-                  {simbolo}
-                  {Number(
-                    presupuesto.total
-                  ).toLocaleString()}
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <div className="mt-10 text-xs leading-5 border-t pt-5 text-zinc-700 no-break">
-
-            <p className="font-bold text-black mb-2">
-              Condiciones Comerciales
+            <p className="font-bold text-black mb-3">
+              Condiciones comerciales
             </p>
 
-            <p>
-              Los importes son válidos por 5 días debido a la inestabilidad monetaria.
-              El pago debe estar acreditado al momento de finalizar el trabajo;
-              de lo contrario, se aplicará mora del 3% por día hasta que se acredite el pago.
-              Pago efectivo o transferencia.
-              Otros medios de pago pueden incluir recargos.
-              Incluye configuración y puesta en marcha salvo aclaración previa.
-              No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.
+            <p className="whitespace-pre-wrap leading-relaxed">
+              {condiciones}
             </p>
 
             <p className="mt-4 text-zinc-500">
               Generado por:
               {" "}
-              {alias}
+              {generadoPor}
             </p>
+
+            {configuracion?.pie_presupuesto && (
+
+              <p className="mt-3 text-zinc-500 whitespace-pre-wrap">
+                {configuracion.pie_presupuesto}
+              </p>
+
+            )}
 
           </div>
 
