@@ -285,18 +285,28 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
                   return (
 
                     <tr
-                      key={index}
-                      className="border-b border-zinc-200"
-                    >
-
+  key={index}
+  className="border-b border-zinc-200 bloque-corto"
+>
                       <td className="py-5">
                         {item.descripcion}
                       </td>
 
-                      <td className="text-center py-5">
-                        {item.cantidad}
-                      </td>
+                     <td className="py-5">
 
+  <p className="font-semibold">
+    {item.descripcion}
+  </p>
+
+  {item.detalle && (
+
+    <p className="text-zinc-600 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
+      {item.detalle}
+    </p>
+
+  )}
+
+</td>
                       <td className="text-right py-5">
 
                         {simbolo}

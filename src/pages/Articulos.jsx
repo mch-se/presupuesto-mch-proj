@@ -11,6 +11,9 @@ export default function Articulos() {
   const [descripcion, setDescripcion] =
     React.useState("");
 
+  const [detalle, setDetalle] =
+    React.useState("");
+
   const [precio, setPrecio] =
     React.useState("");
 
@@ -63,6 +66,7 @@ export default function Articulos() {
   function limpiarFormulario() {
 
     setDescripcion("");
+    setDetalle("");
     setPrecio("");
     setCosto("");
     setCategoria("");
@@ -92,13 +96,13 @@ export default function Articulos() {
           .from("articulos")
           .update({
             descripcion,
+            detalle,
             precio,
             costo,
             categoria,
             proveedor,
             moneda,
           })
-
           .eq(
             "id",
             editandoId
@@ -121,6 +125,7 @@ export default function Articulos() {
           .insert([
             {
               descripcion,
+              detalle,
               precio,
               costo,
               categoria,
@@ -152,6 +157,10 @@ export default function Articulos() {
 
     setDescripcion(
       articulo.descripcion || ""
+    );
+
+    setDetalle(
+      articulo.detalle || ""
     );
 
     setPrecio(
@@ -204,12 +213,35 @@ export default function Articulos() {
     obtenerArticulos();
   }
 
+  function detalleCorto(texto) {
+    if (!texto) return "";
+
+    if (texto.length <= 120) {
+      return texto;
+    }
+
+    return `${texto.slice(0, 120)}...`;
+  }
+
+  const articulosFiltrados =
+    articulos.filter((articulo) => {
+
+      const texto = `
+        ${articulo.descripcion || ""}
+        ${articulo.detalle || ""}
+        ${articulo.categoria || ""}
+        ${articulo.proveedor || ""}
+      `.toLowerCase();
+
+      return texto.includes(
+        busqueda.toLowerCase()
+      );
+    });
+
   return (
     <div className="min-h-screen bg-black text-white p-6">
 
       <div className="max-w-7xl mx-auto">
-
-        {/* HEADER */}
 
         <div className="flex justify-between items-center mb-10">
 
@@ -234,15 +266,13 @@ export default function Articulos() {
 
         </div>
 
-        {/* FORM */}
-
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
             <input
               type="text"
-              placeholder="Descripción"
+              placeholder="Descripción corta"
               value={descripcion}
               onChange={(e) =>
                 setDescripcion(
@@ -274,6 +304,17 @@ export default function Articulos() {
                 )
               }
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <textarea
+              placeholder="Descripción larga / detalle"
+              value={detalle}
+              onChange={(e) =>
+                setDetalle(
+                  e.target.value
+                )
+              }
+              className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
             />
 
             <input
@@ -350,8 +391,6 @@ export default function Articulos() {
 
         </div>
 
-        {/* BUSCADOR */}
-
         <div className="mb-8">
 
           <input
@@ -368,29 +407,18 @@ export default function Articulos() {
 
         </div>
 
-        {/* TABLA */}
-
         <div className="space-y-4">
 
-          {articulos
+          {articulosFiltrados.map((articulo) => (
 
-            .filter((articulo) =>
-              articulo.descripcion
-                ?.toLowerCase()
+            <div
+              key={articulo.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+            >
 
-                .includes(
-                  busqueda.toLowerCase()
-                )
-            )
+              <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
 
-            .map((articulo) => (
-
-              <div
-                key={articulo.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 flex justify-between items-center"
-              >
-
-                <div className="grid grid-cols-5 gap-6 w-full">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full">
 
                   <div>
 
@@ -399,9 +427,7 @@ export default function Articulos() {
                     </p>
 
                     <p className="text-xl font-bold mt-2">
-                      {
-                        articulo.descripcion
-                      }
+                      {articulo.descripcion}
                     </p>
 
                   </div>
@@ -413,9 +439,7 @@ export default function Articulos() {
                     </p>
 
                     <p className="mt-2">
-                      {
-                        articulo.categoria
-                      }
+                      {articulo.categoria}
                     </p>
 
                   </div>
@@ -427,9 +451,7 @@ export default function Articulos() {
                     </p>
 
                     <p className="mt-2">
-                      {
-                        articulo.proveedor
-                      }
+                      {articulo.proveedor}
                     </p>
 
                   </div>
@@ -476,9 +498,27 @@ export default function Articulos() {
 
                   </div>
 
+                  {articulo.detalle && (
+
+                    <div className="md:col-span-5 border-t border-zinc-800 pt-4">
+
+                      <p className="text-zinc-500 text-sm mb-2">
+                        Descripción larga
+                      </p>
+
+                      <p className="text-zinc-300 leading-relaxed">
+                        {detalleCorto(
+                          articulo.detalle
+                        )}
+                      </p>
+
+                    </div>
+
+                  )}
+
                 </div>
 
-                <div className="flex gap-4 ml-8">
+                <div className="flex gap-4 xl:ml-8 xl:self-center">
 
                   <button
                     onClick={() =>
@@ -486,7 +526,6 @@ export default function Articulos() {
                         articulo
                       )
                     }
-
                     className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
                   >
                     Editar
@@ -498,7 +537,6 @@ export default function Articulos() {
                         articulo.id
                       )
                     }
-
                     className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
                   >
                     Eliminar
@@ -507,7 +545,9 @@ export default function Articulos() {
                 </div>
 
               </div>
-            ))}
+
+            </div>
+          ))}
 
         </div>
 

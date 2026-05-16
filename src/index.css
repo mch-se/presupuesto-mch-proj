@@ -39,4 +39,10 @@
     break-inside: avoid;
     page-break-inside: avoid;
   }
+
+  tr.bloque-corto,
+  tr.bloque-corto td {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }

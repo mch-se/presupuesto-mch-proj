@@ -296,11 +296,8 @@ export default function VerPresupuesto() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
           <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
             <div className="col-span-6">Descripción</div>
-
             <div className="col-span-2">Cantidad</div>
-
             <div className="col-span-2">Precio</div>
-
             <div className="col-span-2">Subtotal</div>
           </div>
 
@@ -310,7 +307,15 @@ export default function VerPresupuesto() {
                 key={item.id}
                 className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               >
-                <div className="col-span-6">{item.descripcion}</div>
+                <div className="col-span-6">
+                  <p className="font-bold">{item.descripcion}</p>
+
+                  {item.detalle && (
+                    <p className="text-zinc-400 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
+                      {item.detalle}
+                    </p>
+                  )}
+                </div>
 
                 <div className="col-span-2">{item.cantidad}</div>
 
