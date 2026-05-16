@@ -18,6 +18,7 @@ export default function VistaPreviaPresupuesto() {
   }, []);
 
   async function cargarPresupuesto() {
+
     const { data, error } = await supabase
       .from("presupuestos")
       .select("*")
@@ -43,16 +44,20 @@ export default function VistaPreviaPresupuesto() {
     } = await supabase.auth.getUser();
 
     if (user) {
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("alias")
         .eq("id", user.id)
         .single();
 
-      setAlias(profile?.alias || user.email);
+      setAlias(
+        profile?.alias || user.email
+      );
     }
 
     if (data.user_id) {
+
       const { data: configData } = await supabase
         .from("configuracion_usuario")
         .select("*")
@@ -63,36 +68,152 @@ export default function VistaPreviaPresupuesto() {
     }
   }
 
-  function descargarPDF() {
-    const opciones = {
+  function opcionesPDF() {
+
+    return {
       margin: 0.25,
-      filename: `Presupuesto-${presupuesto.numero}.pdf`,
+
+      filename:
+        `Presupuesto-${presupuesto.numero}.pdf`,
+
       image: {
         type: "jpeg",
         quality: 1,
       },
+
       html2canvas: {
         scale: 2,
         useCORS: true,
       },
+
       jsPDF: {
         unit: "in",
         format: "a4",
         orientation: "portrait",
       },
+
       pagebreak: {
         mode: ["css", "legacy"],
         avoid: [".bloque-corto"],
       },
     };
+  }
+
+  function descargarPDF() {
 
     html2pdf()
-      .set(opciones)
+      .set(opcionesPDF())
       .from(hojaRef.current)
       .save();
   }
 
+  async function compartirPDF() {
+
+    try {
+
+      const worker =
+        html2pdf()
+          .set(opcionesPDF())
+          .from(hojaRef.current);
+
+      const pdfBlob =
+        await worker.outputPdf(
+          "blob"
+        );
+
+      const archivo =
+        new File(
+          [pdfBlob],
+
+          `Presupuesto-${presupuesto.numero}.pdf`,
+
+          {
+            type:
+              "application/pdf",
+          }
+        );
+
+      await navigator.share({
+        files: [archivo],
+
+        title:
+          `Presupuesto ${presupuesto.numero}`,
+      });
+
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser();
+
+      const {
+        data: profile,
+      } =
+        await supabase
+          .from("profiles")
+          .select("alias")
+          .eq(
+            "id",
+            user.id
+          )
+          .single();
+
+      const aliasUsuario =
+        profile?.alias ||
+        user.email;
+
+      await supabase
+        .from("presupuestos")
+        .update({
+          estado:
+            "Enviado",
+
+          fecha_enviado:
+            new Date().toISOString(),
+
+          enviado_por:
+            user.id,
+
+          enviado_por_alias:
+            aliasUsuario,
+        })
+
+        .eq(
+          "id",
+          id
+        );
+
+      await supabase
+        .from(
+          "presupuesto_estados"
+        )
+        .insert([
+          {
+            presupuesto_id:
+              id,
+
+            user_id:
+              user.id,
+
+            estado:
+              "Enviado",
+
+            nota:
+              `Presupuesto compartido por ${aliasUsuario}`,
+          },
+        ]);
+
+      alert(
+        "PDF compartido correctamente"
+      );
+
+    } catch (error) {
+
+      console.error(error);
+    }
+  }
+
   if (!presupuesto) {
+
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
@@ -107,6 +228,7 @@ export default function VistaPreviaPresupuesto() {
 
   const condiciones =
     configuracion?.condiciones_comerciales ||
+
     `Los importes son válidos por 5 días debido a la inestabilidad monetaria.
 El pago debe estar acreditado al momento de finalizar el trabajo; de lo contrario, se aplicará mora del 3% por día hasta que se acredite el pago.
 Pago efectivo o transferencia.
@@ -119,12 +241,27 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
     alias ||
     "MCH Seguridad Electrónica";
 
+  const puedeCompartir =
+    navigator.canShare &&
+    navigator.canShare({
+      files: [
+        new File(
+          ["test"],
+          "test.pdf",
+          {
+            type:
+              "application/pdf",
+          }
+        ),
+      ],
+    });
+
   return (
     <div className="min-h-screen bg-zinc-300 p-4 md:p-8">
 
       <div className="max-w-5xl mx-auto">
 
-        <div className="no-print flex justify-between items-center mb-6">
+        <div className="no-print flex flex-wrap justify-between items-center gap-4 mb-6">
 
           <Link
             to={`/presupuesto/${id}`}
@@ -133,12 +270,27 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
             Volver
           </Link>
 
-          <button
-            onClick={descargarPDF}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl font-bold"
-          >
-            Descargar PDF
-          </button>
+          <div className="flex flex-wrap gap-3">
+
+            <button
+              onClick={descargarPDF}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-2xl font-bold"
+            >
+              Descargar PDF
+            </button>
+
+            {puedeCompartir && (
+
+              <button
+                onClick={compartirPDF}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-2xl font-bold"
+              >
+                Compartir PDF
+              </button>
+
+            )}
+
+          </div>
 
         </div>
 
@@ -285,28 +437,32 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
                   return (
 
                     <tr
-  key={index}
-  className="border-b border-zinc-200 bloque-corto"
->
+                      key={index}
+                      className="border-b border-zinc-200 bloque-corto"
+                    >
+
                       <td className="py-5">
-                        {item.descripcion}
+
+                        <p className="font-semibold">
+                          {item.descripcion}
+                        </p>
+
+                        {item.detalle && (
+
+                          <p className="text-zinc-600 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
+                            {item.detalle}
+                          </p>
+
+                        )}
+
                       </td>
 
-                     <td className="py-5">
+                      <td className="text-center py-5">
 
-  <p className="font-semibold">
-    {item.descripcion}
-  </p>
+                        {item.cantidad}
 
-  {item.detalle && (
+                      </td>
 
-    <p className="text-zinc-600 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
-      {item.detalle}
-    </p>
-
-  )}
-
-</td>
                       <td className="text-right py-5">
 
                         {simbolo}
@@ -328,7 +484,6 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
                     </tr>
 
                   );
-
                 })}
 
                 <tr className="border-t-2 border-black bloque-corto">

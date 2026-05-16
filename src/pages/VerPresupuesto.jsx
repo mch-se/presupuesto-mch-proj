@@ -142,7 +142,13 @@ export default function VerPresupuesto() {
 
   const estadoActual = presupuesto.estado || "Edición";
 
-  const estados = ["Edición", "Cerrado", "Enviado", "Aprobado", "Finalizado"];
+  const estados = [
+    "Edición",
+    "Cerrado",
+    "Enviado",
+    "Aprobado",
+    "Finalizado",
+  ];
 
   function colorBotonEstado(estado) {
     if (estadoActual !== estado) {
@@ -167,16 +173,23 @@ export default function VerPresupuesto() {
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
+
         <div className="flex flex-col lg:flex-row lg:justify-between gap-6 mb-8">
+
           <div>
+
             <h1 className="text-4xl md:text-5xl font-black text-orange-500">
               Presupuesto
             </h1>
 
-            <p className="text-zinc-400 mt-2">N° {presupuesto.numero}</p>
+            <p className="text-zinc-400 mt-2">
+              N° {presupuesto.numero}
+            </p>
+
           </div>
 
           <div className="flex flex-wrap gap-3">
+
             <Link
               to={`/presupuesto-preview/${id}`}
               className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-2xl font-bold"
@@ -206,13 +219,20 @@ export default function VerPresupuesto() {
             >
               Volver
             </Link>
+
           </div>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-8">
+
           <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
+
             <div>
-              <p className="text-zinc-400 text-sm">Estado actual</p>
+
+              <p className="text-zinc-400 text-sm">
+                Estado actual
+              </p>
 
               <p
                 className={`text-3xl font-black mt-1 ${
@@ -228,14 +248,22 @@ export default function VerPresupuesto() {
                 {estadoActual}
               </p>
 
+              {presupuesto.enviado_por_alias && (
+                <p className="text-zinc-400 mt-2">
+                  Enviado por {presupuesto.enviado_por_alias}
+                </p>
+              )}
+
               {presupuesto.cerrado && (
                 <p className="text-zinc-400 mt-3">
                   Este presupuesto está cerrado y bloqueado contra edición.
                 </p>
               )}
+
             </div>
 
             <div className="flex flex-wrap gap-3">
+
               {estados.map((estado) => (
                 <button
                   key={estado}
@@ -247,17 +275,26 @@ export default function VerPresupuesto() {
                   {estado}
                 </button>
               ))}
+
             </div>
+
           </div>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
             <div>
-              <p className="text-zinc-400 text-sm">CLIENTE</p>
+
+              <p className="text-zinc-400 text-sm">
+                CLIENTE
+              </p>
 
               <p className="text-3xl font-bold mt-2">
-                {presupuesto.cliente_empresa || presupuesto.cliente}
+                {presupuesto.cliente_empresa ||
+                  presupuesto.cliente}
               </p>
 
               {presupuesto.cliente_contacto && (
@@ -277,10 +314,14 @@ export default function VerPresupuesto() {
               <p className="text-zinc-400 mt-2">
                 Dirección: {presupuesto.cliente_direccion || "-"}
               </p>
+
             </div>
 
             <div>
-              <p className="text-zinc-400 text-sm">DESCRIPCIÓN</p>
+
+              <p className="text-zinc-400 text-sm">
+                DESCRIPCIÓN
+              </p>
 
               <p className="text-2xl font-bold mt-2">
                 {presupuesto.descripcion_corta || "-"}
@@ -289,35 +330,60 @@ export default function VerPresupuesto() {
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 mt-4 whitespace-pre-wrap leading-relaxed text-zinc-300">
                 {presupuesto.descripcion_larga || "-"}
               </div>
+
             </div>
+
           </div>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
           <div className="grid grid-cols-12 gap-4 mb-4 px-2 text-zinc-400 font-bold">
-            <div className="col-span-6">Descripción</div>
-            <div className="col-span-2">Cantidad</div>
-            <div className="col-span-2">Precio</div>
-            <div className="col-span-2">Subtotal</div>
+
+            <div className="col-span-6">
+              Descripción
+            </div>
+
+            <div className="col-span-2">
+              Cantidad
+            </div>
+
+            <div className="col-span-2">
+              Precio
+            </div>
+
+            <div className="col-span-2">
+              Subtotal
+            </div>
+
           </div>
 
           <div className="space-y-4">
+
             {items.map((item) => (
               <div
                 key={item.id}
                 className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               >
+
                 <div className="col-span-6">
-                  <p className="font-bold">{item.descripcion}</p>
+
+                  <p className="font-bold">
+                    {item.descripcion}
+                  </p>
 
                   {item.detalle && (
                     <p className="text-zinc-400 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
                       {item.detalle}
                     </p>
                   )}
+
                 </div>
 
-                <div className="col-span-2">{item.cantidad}</div>
+                <div className="col-span-2">
+                  {item.cantidad}
+                </div>
 
                 <div className="col-span-2">
                   {simbolo}
@@ -328,27 +394,55 @@ export default function VerPresupuesto() {
                   {simbolo}
                   {Number(item.subtotal).toLocaleString()}
                 </div>
+
               </div>
             ))}
+
           </div>
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+
             <h2 className="text-2xl font-bold text-orange-500 mb-5">
               Historial de estados
             </h2>
 
             <div className="space-y-4">
+
               {historialEstados.map((estado) => (
                 <div
                   key={estado.id}
                   className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 >
-                  <p className="font-bold">{estado.estado}</p>
+
+                  <p className="font-bold">
+                    {estado.estado}
+                  </p>
 
                   <p className="text-zinc-400 text-sm mt-1">
-                    {new Date(estado.created_at).toLocaleString()}
+
+                    {new Date(
+                      new Date(
+                        estado.created_at
+                      ).getTime() -
+                        3 *
+                          60 *
+                          60 *
+                          1000
+                    ).toLocaleString(
+                      "es-AR",
+                      {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }
+                    )}
+
                   </p>
 
                   {estado.nota && (
@@ -356,6 +450,7 @@ export default function VerPresupuesto() {
                       {estado.nota}
                     </p>
                   )}
+
                 </div>
               ))}
 
@@ -364,35 +459,55 @@ export default function VerPresupuesto() {
                   No hay cambios de estado registrados.
                 </p>
               )}
+
             </div>
+
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 h-fit">
+
             <div className="space-y-4 text-2xl">
+
               <div className="flex justify-between">
-                <span>Subtotal</span>
+
+                <span>
+                  Subtotal
+                </span>
 
                 <span>
                   {simbolo}
-                  {Number(presupuesto.subtotal).toLocaleString()}
+                  {Number(
+                    presupuesto.subtotal
+                  ).toLocaleString()}
                 </span>
+
               </div>
 
               <div className="flex justify-between text-4xl font-bold text-orange-500 pt-6 border-t border-zinc-800">
-                <span>Total</span>
+
+                <span>
+                  Total
+                </span>
 
                 <span>
                   {simbolo}
-                  {Number(presupuesto.total).toLocaleString()}
+                  {Number(
+                    presupuesto.total
+                  ).toLocaleString()}
                 </span>
+
               </div>
 
               <p className="text-zinc-500 text-sm">
                 Factura C - IVA no discriminado
               </p>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     </div>
   );

@@ -15,16 +15,22 @@ export default function MiCuenta() {
 
   const [condicionesComerciales, setCondicionesComerciales] =
     React.useState("");
-  const [firmaPdf, setFirmaPdf] = React.useState("");
-  const [piePresupuesto, setPiePresupuesto] = React.useState("");
 
-  const [loading, setLoading] = React.useState(true);
+  const [firmaPdf, setFirmaPdf] =
+    React.useState("");
+
+  const [piePresupuesto, setPiePresupuesto] =
+    React.useState("");
+
+  const [loading, setLoading] =
+    React.useState(true);
 
   React.useEffect(() => {
     cargarDatos();
   }, []);
 
   async function cargarDatos() {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -48,21 +54,49 @@ export default function MiCuenta() {
       .single();
 
     if (config) {
-      setNombreEmpresa(config.nombre_empresa || "");
-      setCuit(config.cuit || "");
-      setTelefono(config.telefono || "");
-      setEmailEmpresa(config.email || "");
-      setDireccion(config.direccion || "");
-      setWhatsapp(config.whatsapp || "");
-      setCondicionesComerciales(config.condiciones_comerciales || "");
-      setFirmaPdf(config.firma_pdf || "");
-      setPiePresupuesto(config.pie_presupuesto || "");
+
+      setNombreEmpresa(
+        config.nombre_empresa || ""
+      );
+
+      setCuit(
+        config.cuit || ""
+      );
+
+      setTelefono(
+        config.telefono || ""
+      );
+
+      setEmailEmpresa(
+        config.email || ""
+      );
+
+      setDireccion(
+        config.direccion || ""
+      );
+
+      setWhatsapp(
+        config.whatsapp || ""
+      );
+
+      setCondicionesComerciales(
+        config.condiciones_comerciales || ""
+      );
+
+      setFirmaPdf(
+        config.firma_pdf || ""
+      );
+
+      setPiePresupuesto(
+        config.pie_presupuesto || ""
+      );
     }
 
     setLoading(false);
   }
 
   async function guardarConfiguracion() {
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -71,15 +105,28 @@ export default function MiCuenta() {
 
     const datos = {
       user_id: user.id,
-      nombre_empresa: nombreEmpresa,
+
+      nombre_empresa:
+        nombreEmpresa,
+
       cuit,
+
       telefono,
+
       email: emailEmpresa,
+
       direccion,
+
       whatsapp,
-      condiciones_comerciales: condicionesComerciales,
-      firma_pdf: firmaPdf,
-      pie_presupuesto: piePresupuesto,
+
+      condiciones_comerciales:
+        condicionesComerciales,
+
+      firma_pdf:
+        firmaPdf,
+
+      pie_presupuesto:
+        piePresupuesto,
     };
 
     const { error } = await supabase
@@ -93,28 +140,43 @@ export default function MiCuenta() {
       return;
     }
 
-    alert("Configuración guardada");
+    alert(
+      "Configuración guardada"
+    );
   }
 
   async function cambiarPassword() {
+
     if (!email) {
-      alert("No se encontró el email del usuario");
+
+      alert(
+        "No se encontró el email del usuario"
+      );
+
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
+    const { error } =
+      await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo:
+            window.location.origin,
+        }
+      );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    alert("Te enviamos un email para cambiar la contraseña");
+    alert(
+      "Te enviamos un email para cambiar la contraseña"
+    );
   }
 
   if (loading) {
+
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
@@ -124,9 +186,13 @@ export default function MiCuenta() {
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
+
       <div className="max-w-5xl mx-auto">
+
         <div className="flex justify-between items-center mb-10">
+
           <div>
+
             <h1 className="text-5xl font-bold text-orange-500">
               Mi Cuenta
             </h1>
@@ -134,6 +200,7 @@ export default function MiCuenta() {
             <p className="text-zinc-400 mt-3">
               Usuario, empresa y configuración futura
             </p>
+
           </div>
 
           <Link
@@ -142,14 +209,17 @@ export default function MiCuenta() {
           >
             Volver
           </Link>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
           <h2 className="text-3xl font-bold text-orange-500 mb-6">
             Usuario
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
             <input
               value={alias}
               disabled
@@ -161,6 +231,7 @@ export default function MiCuenta() {
               disabled
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
+
           </div>
 
           <button
@@ -169,85 +240,130 @@ export default function MiCuenta() {
           >
             Cambiar contraseña por email
           </button>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
           <h2 className="text-3xl font-bold text-orange-500 mb-6">
             Empresa
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
             <input
               placeholder="Nombre comercial"
               value={nombreEmpresa}
-              onChange={(e) => setNombreEmpresa(e.target.value)}
+              onChange={(e) =>
+                setNombreEmpresa(
+                  e.target.value
+                )
+              }
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="CUIT"
               value={cuit}
-              onChange={(e) => setCuit(e.target.value)}
+              onChange={(e) =>
+                setCuit(
+                  e.target.value
+                )
+              }
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="Teléfono"
               value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
+              onChange={(e) =>
+                setTelefono(
+                  e.target.value
+                )
+              }
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="Email empresa"
               value={emailEmpresa}
-              onChange={(e) => setEmailEmpresa(e.target.value)}
+              onChange={(e) =>
+                setEmailEmpresa(
+                  e.target.value
+                )
+              }
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="Dirección"
               value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
+              onChange={(e) =>
+                setDireccion(
+                  e.target.value
+                )
+              }
               className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="WhatsApp Business"
               value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
+              onChange={(e) =>
+                setWhatsapp(
+                  e.target.value
+                )
+              }
               className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
+
           </div>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
           <h2 className="text-3xl font-bold text-orange-500 mb-6">
             PDF / Presupuestos
           </h2>
 
           <div className="space-y-6">
+
             <textarea
               placeholder="Condiciones comerciales"
               value={condicionesComerciales}
-              onChange={(e) => setCondicionesComerciales(e.target.value)}
+              onChange={(e) =>
+                setCondicionesComerciales(
+                  e.target.value
+                )
+              }
               className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-32"
             />
 
             <input
               placeholder="Firma / aclaración PDF"
               value={firmaPdf}
-              onChange={(e) => setFirmaPdf(e.target.value)}
+              onChange={(e) =>
+                setFirmaPdf(
+                  e.target.value
+                )
+              }
               className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <input
               placeholder="Texto pie de presupuesto"
               value={piePresupuesto}
-              onChange={(e) => setPiePresupuesto(e.target.value)}
+              onChange={(e) =>
+                setPiePresupuesto(
+                  e.target.value
+                )
+              }
               className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
+
           </div>
+
         </div>
 
         <button
@@ -256,7 +372,9 @@ export default function MiCuenta() {
         >
           Guardar Configuración
         </button>
+
       </div>
+
     </div>
   );
 }
