@@ -44,15 +44,10 @@ export default function Articulos() {
 
   async function obtenerArticulos() {
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } =
       await supabase
         .from("articulos")
         .select("*")
-        .eq("user_id", user.id)
         .order("descripcion");
 
     if (error) {
@@ -79,15 +74,31 @@ export default function Articulos() {
   async function guardarArticulo() {
 
     if (!descripcion) {
+
       alert(
         "Ingresar descripción"
       );
+
       return;
     }
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
+
+    const {
+      data: profile,
+    } =
+      await supabase
+        .from("profiles")
+        .select("alias")
+        .eq("id", user.id)
+        .single();
+
+    const alias =
+      profile?.alias ||
+      "Administrador";
 
     if (editandoId) {
 
@@ -131,8 +142,15 @@ export default function Articulos() {
               categoria,
               proveedor,
               moneda,
+
               user_id:
                 user.id,
+
+              cargado_por:
+                user.id,
+
+              cargado_por_alias:
+                alias,
             },
           ]);
 
@@ -214,29 +232,37 @@ export default function Articulos() {
   }
 
   function detalleCorto(texto) {
+
     if (!texto) return "";
 
-    if (texto.length <= 120) {
+    if (
+      texto.length <= 120
+    ) {
       return texto;
     }
 
-    return `${texto.slice(0, 120)}...`;
+    return `${texto.slice(
+      0,
+      120
+    )}...`;
   }
 
   const articulosFiltrados =
-    articulos.filter((articulo) => {
+    articulos.filter(
+      (articulo) => {
 
-      const texto = `
+        const texto = `
         ${articulo.descripcion || ""}
         ${articulo.detalle || ""}
         ${articulo.categoria || ""}
         ${articulo.proveedor || ""}
       `.toLowerCase();
 
-      return texto.includes(
-        busqueda.toLowerCase()
-      );
-    });
+        return texto.includes(
+          busqueda.toLowerCase()
+        );
+      }
+    );
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
@@ -279,6 +305,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -291,6 +318,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -303,6 +331,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -314,6 +343,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
             />
 
@@ -326,6 +356,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -338,6 +369,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -348,6 +380,7 @@ export default function Articulos() {
                   e.target.value
                 )
               }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             >
 
@@ -369,6 +402,7 @@ export default function Articulos() {
               onClick={
                 guardarArticulo
               }
+
               className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
             >
 
@@ -382,6 +416,7 @@ export default function Articulos() {
               onClick={
                 limpiarFormulario
               }
+
               className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
             >
               Limpiar
@@ -402,6 +437,7 @@ export default function Articulos() {
                 e.target.value
               )
             }
+
             className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
           />
 
@@ -409,145 +445,170 @@ export default function Articulos() {
 
         <div className="space-y-4">
 
-          {articulosFiltrados.map((articulo) => (
+          {articulosFiltrados.map(
+            (articulo) => (
 
-            <div
-              key={articulo.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
-            >
+              <div
+                key={articulo.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+              >
 
-              <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
+                <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
 
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full">
 
-                  <div>
+                    <div>
 
-                    <p className="text-zinc-500 text-sm">
-                      Descripción
-                    </p>
-
-                    <p className="text-xl font-bold mt-2">
-                      {articulo.descripcion}
-                    </p>
-
-                  </div>
-
-                  <div>
-
-                    <p className="text-zinc-500 text-sm">
-                      Categoría
-                    </p>
-
-                    <p className="mt-2">
-                      {articulo.categoria}
-                    </p>
-
-                  </div>
-
-                  <div>
-
-                    <p className="text-zinc-500 text-sm">
-                      Proveedor
-                    </p>
-
-                    <p className="mt-2">
-                      {articulo.proveedor}
-                    </p>
-
-                  </div>
-
-                  <div>
-
-                    <p className="text-zinc-500 text-sm">
-                      Costo
-                    </p>
-
-                    <p className="mt-2">
-
-                      {articulo.moneda ===
-                      "USD"
-                        ? "USD $"
-                        : "$"}
-
-                      {Number(
-                        articulo.costo
-                      ).toLocaleString()}
-
-                    </p>
-
-                  </div>
-
-                  <div>
-
-                    <p className="text-zinc-500 text-sm">
-                      Venta
-                    </p>
-
-                    <p className="mt-2 text-orange-500 font-bold">
-
-                      {articulo.moneda ===
-                      "USD"
-                        ? "USD $"
-                        : "$"}
-
-                      {Number(
-                        articulo.precio
-                      ).toLocaleString()}
-
-                    </p>
-
-                  </div>
-
-                  {articulo.detalle && (
-
-                    <div className="md:col-span-5 border-t border-zinc-800 pt-4">
-
-                      <p className="text-zinc-500 text-sm mb-2">
-                        Descripción larga
+                      <p className="text-zinc-500 text-sm">
+                        Descripción
                       </p>
 
-                      <p className="text-zinc-300 leading-relaxed">
-                        {detalleCorto(
-                          articulo.detalle
-                        )}
+                      <p className="text-xl font-bold mt-2">
+                        {
+                          articulo.descripcion
+                        }
                       </p>
 
                     </div>
 
-                  )}
+                    <div>
 
-                </div>
+                      <p className="text-zinc-500 text-sm">
+                        Categoría
+                      </p>
 
-                <div className="flex gap-4 xl:ml-8 xl:self-center">
+                      <p className="mt-2">
+                        {
+                          articulo.categoria
+                        }
+                      </p>
 
-                  <button
-                    onClick={() =>
-                      editarArticulo(
-                        articulo
-                      )
-                    }
-                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                  >
-                    Editar
-                  </button>
+                    </div>
 
-                  <button
-                    onClick={() =>
-                      eliminarArticulo(
-                        articulo.id
-                      )
-                    }
-                    className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
-                  >
-                    Eliminar
-                  </button>
+                    <div>
+
+                      <p className="text-zinc-500 text-sm">
+                        Proveedor
+                      </p>
+
+                      <p className="mt-2">
+                        {
+                          articulo.proveedor
+                        }
+                      </p>
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-zinc-500 text-sm">
+                        Costo
+                      </p>
+
+                      <p className="mt-2">
+
+                        {articulo.moneda ===
+                        "USD"
+                          ? "USD $"
+                          : "$"}
+
+                        {Number(
+                          articulo.costo
+                        ).toLocaleString()}
+
+                      </p>
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-zinc-500 text-sm">
+                        Venta
+                      </p>
+
+                      <p className="mt-2 text-orange-500 font-bold">
+
+                        {articulo.moneda ===
+                        "USD"
+                          ? "USD $"
+                          : "$"}
+
+                        {Number(
+                          articulo.precio
+                        ).toLocaleString()}
+
+                      </p>
+
+                    </div>
+
+                    {articulo.detalle && (
+
+                      <div className="md:col-span-5 border-t border-zinc-800 pt-4">
+
+                        <p className="text-zinc-500 text-sm mb-2">
+                          Descripción larga
+                        </p>
+
+                        <p className="text-zinc-300 leading-relaxed">
+
+                          {detalleCorto(
+                            articulo.detalle
+                          )}
+
+                        </p>
+
+                      </div>
+
+                    )}
+
+                    <div className="md:col-span-5">
+
+                      <p className="text-zinc-500 text-sm mt-2">
+
+                        Cargado por:{" "}
+
+                        {articulo.cargado_por_alias ||
+                          "Administrador"}
+
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <div className="flex gap-4 xl:ml-8 xl:self-center">
+
+                    <button
+                      onClick={() =>
+                        editarArticulo(
+                          articulo
+                        )
+                      }
+
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        eliminarArticulo(
+                          articulo.id
+                        )
+                      }
+
+                      className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Eliminar
+                    </button>
+
+                  </div>
 
                 </div>
 
               </div>
-
-            </div>
-          ))}
+            )
+          )}
 
         </div>
 

@@ -3,32 +3,57 @@ import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
 
 export default function Clientes() {
-  const [tipo, setTipo] = React.useState("Empresa");
-  const [empresa, setEmpresa] = React.useState("");
-  const [contacto, setContacto] = React.useState("");
-  const [telefono, setTelefono] = React.useState("");
-  const [email, setEmail] = React.useState("");
-  const [direccion, setDireccion] = React.useState("");
-  const [observaciones, setObservaciones] = React.useState("");
 
-  const [clientes, setClientes] = React.useState([]);
-  const [busqueda, setBusqueda] = React.useState("");
-  const [editandoId, setEditandoId] = React.useState(null);
+  const [tipo, setTipo] =
+    React.useState("Empresa");
+
+  const [empresa, setEmpresa] =
+    React.useState("");
+
+  const [contacto, setContacto] =
+    React.useState("");
+
+  const [telefono, setTelefono] =
+    React.useState("");
+
+  const [email, setEmail] =
+    React.useState("");
+
+  const [direccion, setDireccion] =
+    React.useState("");
+
+  const [
+    observaciones,
+    setObservaciones,
+  ] = React.useState("");
+
+  const [clientes, setClientes] =
+    React.useState([]);
+
+  const [busqueda, setBusqueda] =
+    React.useState("");
+
+  const [
+    editandoId,
+    setEditandoId,
+  ] = React.useState(null);
 
   React.useEffect(() => {
     obtenerClientes();
   }, []);
 
   async function obtenerClientes() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    const { data, error } =
+      await supabase
+        .from("clientes")
+        .select("*")
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
     if (error) {
       alert(error.message);
@@ -39,56 +64,117 @@ export default function Clientes() {
   }
 
   function limpiarFormulario() {
+
     setTipo("Empresa");
+
     setEmpresa("");
+
     setContacto("");
+
     setTelefono("");
+
     setEmail("");
+
     setDireccion("");
+
     setObservaciones("");
+
     setEditandoId(null);
   }
 
   async function guardarCliente() {
-    if (tipo === "Empresa" && !empresa) {
+
+    if (
+      tipo === "Empresa" &&
+      !empresa
+    ) {
       alert("Ingresar empresa");
       return;
     }
 
-    if (tipo === "Particular" && !empresa) {
+    if (
+      tipo === "Particular" &&
+      !empresa
+    ) {
       alert("Ingresar persona");
       return;
     }
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
+
+    const {
+      data: profile,
+    } =
+      await supabase
+        .from("profiles")
+        .select("alias")
+        .eq("id", user.id)
+        .single();
+
+    const alias =
+      profile?.alias ||
+      "Administrador";
 
     const datosCliente = {
+
       tipo,
+
       empresa,
-      contacto: tipo === "Empresa" ? contacto : "",
+
+      contacto:
+        tipo === "Empresa"
+          ? contacto
+          : "",
+
       telefono,
+
       email,
+
       direccion,
+
       observaciones,
-      user_id: user.id,
+
+      user_id:
+        user.id,
+
+      cargado_por:
+        user.id,
+
+      cargado_por_alias:
+        alias,
     };
 
     if (editandoId) {
-      const { error } = await supabase
-        .from("clientes")
-        .update(datosCliente)
-        .eq("id", editandoId);
+
+      const { error } =
+        await supabase
+          .from("clientes")
+          .update(datosCliente)
+          .eq(
+            "id",
+            editandoId
+          );
 
       if (error) {
         alert(error.message);
         return;
       }
 
-      alert("Cliente actualizado");
+      alert(
+        "Cliente actualizado"
+      );
+
     } else {
-      const { error } = await supabase.from("clientes").insert([datosCliente]);
+
+      const { error } =
+        await supabase
+          .from("clientes")
+          .insert([
+            datosCliente,
+          ]);
 
       if (error) {
         alert(error.message);
@@ -99,26 +185,66 @@ export default function Clientes() {
     }
 
     limpiarFormulario();
+
     obtenerClientes();
   }
 
-  function editarCliente(cliente) {
-    setTipo(cliente.tipo || "Empresa");
-    setEmpresa(cliente.empresa || "");
-    setContacto(cliente.contacto || "");
-    setTelefono(cliente.telefono || "");
-    setEmail(cliente.email || "");
-    setDireccion(cliente.direccion || "");
-    setObservaciones(cliente.observaciones || "");
-    setEditandoId(cliente.id);
+  function editarCliente(
+    cliente
+  ) {
+
+    setTipo(
+      cliente.tipo ||
+        "Empresa"
+    );
+
+    setEmpresa(
+      cliente.empresa || ""
+    );
+
+    setContacto(
+      cliente.contacto || ""
+    );
+
+    setTelefono(
+      cliente.telefono || ""
+    );
+
+    setEmail(
+      cliente.email || ""
+    );
+
+    setDireccion(
+      cliente.direccion ||
+        ""
+    );
+
+    setObservaciones(
+      cliente.observaciones ||
+        ""
+    );
+
+    setEditandoId(
+      cliente.id
+    );
   }
 
-  async function eliminarCliente(id) {
-    const confirmar = window.confirm("¿Eliminar cliente?");
+  async function eliminarCliente(
+    id
+  ) {
+
+    const confirmar =
+      window.confirm(
+        "¿Eliminar cliente?"
+      );
 
     if (!confirmar) return;
 
-    const { error } = await supabase.from("clientes").delete().eq("id", id);
+    const { error } =
+      await supabase
+        .from("clientes")
+        .delete()
+        .eq("id", id);
 
     if (error) {
       alert(error.message);
@@ -128,8 +254,11 @@ export default function Clientes() {
     obtenerClientes();
   }
 
-  const clientesFiltrados = clientes.filter((cliente) => {
-    const texto = `
+  const clientesFiltrados =
+    clientes.filter(
+      (cliente) => {
+
+        const texto = `
       ${cliente.tipo || ""}
       ${cliente.empresa || ""}
       ${cliente.contacto || ""}
@@ -138,14 +267,21 @@ export default function Clientes() {
       ${cliente.direccion || ""}
     `.toLowerCase();
 
-    return texto.includes(busqueda.toLowerCase());
-  });
+        return texto.includes(
+          busqueda.toLowerCase()
+        );
+      }
+    );
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
+
       <div className="max-w-7xl mx-auto">
+
         <div className="flex justify-between items-center mb-10">
+
           <div>
+
             <h1 className="text-5xl font-bold text-orange-500">
               Clientes
             </h1>
@@ -153,6 +289,7 @@ export default function Clientes() {
             <p className="text-zinc-400 mt-3">
               Empresas, particulares y contactos
             </p>
+
           </div>
 
           <Link
@@ -161,29 +298,51 @@ export default function Clientes() {
           >
             Volver
           </Link>
+
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
             <select
               value={tipo}
               onChange={(e) => {
-                setTipo(e.target.value);
+
+                setTipo(
+                  e.target.value
+                );
+
                 setContacto("");
               }}
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             >
-              <option value="Empresa">Empresa</option>
-              <option value="Particular">Particular</option>
+
+              <option value="Empresa">
+                Empresa
+              </option>
+
+              <option value="Particular">
+                Particular
+              </option>
+
             </select>
 
-            {tipo === "Empresa" ? (
+            {tipo ===
+            "Empresa" ? (
               <>
+
                 <input
                   type="text"
                   placeholder="Empresa"
                   value={empresa}
-                  onChange={(e) => setEmpresa(e.target.value)}
+                  onChange={(e) =>
+                    setEmpresa(
+                      e.target.value
+                    )
+                  }
+
                   className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 />
 
@@ -191,25 +350,43 @@ export default function Clientes() {
                   type="text"
                   placeholder="Persona de contacto"
                   value={contacto}
-                  onChange={(e) => setContacto(e.target.value)}
+                  onChange={(e) =>
+                    setContacto(
+                      e.target.value
+                    )
+                  }
+
                   className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 />
+
               </>
             ) : (
+
               <input
                 type="text"
                 placeholder="Persona"
                 value={empresa}
-                onChange={(e) => setEmpresa(e.target.value)}
+                onChange={(e) =>
+                  setEmpresa(
+                    e.target.value
+                  )
+                }
+
                 className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 md:col-span-2"
               />
+
             )}
 
             <input
               type="text"
               placeholder="Teléfono"
               value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
+              onChange={(e) =>
+                setTelefono(
+                  e.target.value
+                )
+              }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -217,7 +394,12 @@ export default function Clientes() {
               type="email"
               placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) =>
+                setEmail(
+                  e.target.value
+                )
+              }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
@@ -225,112 +407,207 @@ export default function Clientes() {
               type="text"
               placeholder="Dirección"
               value={direccion}
-              onChange={(e) => setDireccion(e.target.value)}
+              onChange={(e) =>
+                setDireccion(
+                  e.target.value
+                )
+              }
+
               className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
             />
 
             <textarea
               placeholder="Observaciones"
               value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
+              onChange={(e) =>
+                setObservaciones(
+                  e.target.value
+                )
+              }
+
               className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
             />
+
           </div>
 
           <div className="flex gap-4 mt-8">
+
             <button
-              onClick={guardarCliente}
+              onClick={
+                guardarCliente
+              }
+
               className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
             >
-              {editandoId ? "Actualizar Cliente" : "Guardar Cliente"}
+
+              {editandoId
+                ? "Actualizar Cliente"
+                : "Guardar Cliente"}
+
             </button>
 
             <button
-              onClick={limpiarFormulario}
+              onClick={
+                limpiarFormulario
+              }
+
               className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
             >
               Limpiar
             </button>
+
           </div>
+
         </div>
 
         <input
           type="text"
           placeholder="Buscar cliente..."
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={(e) =>
+            setBusqueda(
+              e.target.value
+            )
+          }
+
           className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-8"
         />
 
         <div className="space-y-4">
-          {clientesFiltrados.map((cliente) => (
-            <div
-              key={cliente.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
-            >
-              <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="bg-orange-500 text-white px-3 py-1 rounded-xl text-sm font-bold">
-                      {cliente.tipo}
-                    </span>
 
-                    <h2 className="text-2xl font-bold">
-                      {cliente.empresa || "-"}
-                    </h2>
+          {clientesFiltrados.map(
+            (cliente) => (
+
+              <div
+                key={cliente.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+              >
+
+                <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
+
+                  <div>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+
+                      <span className="bg-orange-500 text-white px-3 py-1 rounded-xl text-sm font-bold">
+
+                        {cliente.tipo}
+
+                      </span>
+
+                      <h2 className="text-2xl font-bold">
+
+                        {cliente.empresa ||
+                          "-"}
+
+                      </h2>
+
+                    </div>
+
+                    {cliente.tipo ===
+                      "Empresa" && (
+
+                      <p className="text-zinc-400 mt-3">
+                        Contacto:{" "}
+                        {cliente.contacto ||
+                          "-"}
+                      </p>
+
+                    )}
+
+                    <p className="text-zinc-400 mt-3">
+
+                      Teléfono:{" "}
+                      {cliente.telefono ||
+                        "-"}
+
+                    </p>
+
+                    <p className="text-zinc-400">
+
+                      Email:{" "}
+                      {cliente.email ||
+                        "-"}
+
+                    </p>
+
+                    <p className="text-zinc-400">
+
+                      Dirección:{" "}
+                      {cliente.direccion ||
+                        "-"}
+
+                    </p>
+
+                    <p className="text-zinc-500 mt-3 text-sm">
+
+                      Cargado por:{" "}
+                      {cliente.cargado_por_alias ||
+                        "Administrador"}
+
+                    </p>
+
+                    {cliente.observaciones && (
+
+                      <p className="text-zinc-500 mt-3">
+                        {
+                          cliente.observaciones
+                        }
+                      </p>
+
+                    )}
+
                   </div>
 
-                  {cliente.tipo === "Empresa" && (
-                    <p className="text-zinc-400 mt-3">
-                      Contacto: {cliente.contacto || "-"}
-                    </p>
-                  )}
+                  <div className="flex gap-4 items-start">
 
-                  <p className="text-zinc-400 mt-3">
-                    Teléfono: {cliente.telefono || "-"}
-                  </p>
+                    <button
+                      onClick={() =>
+                        editarCliente(
+                          cliente
+                        )
+                      }
 
-                  <p className="text-zinc-400">
-                    Email: {cliente.email || "-"}
-                  </p>
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Editar
+                    </button>
 
-                  <p className="text-zinc-400">
-                    Dirección: {cliente.direccion || "-"}
-                  </p>
+                    <button
+                      onClick={() =>
+                        eliminarCliente(
+                          cliente.id
+                        )
+                      }
 
-                  {cliente.observaciones && (
-                    <p className="text-zinc-500 mt-3">
-                      {cliente.observaciones}
-                    </p>
-                  )}
+                      className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Eliminar
+                    </button>
+
+                  </div>
+
                 </div>
 
-                <div className="flex gap-4 items-start">
-                  <button
-                    onClick={() => editarCliente(cliente)}
-                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                  >
-                    Editar
-                  </button>
-
-                  <button
-                    onClick={() => eliminarCliente(cliente.id)}
-                    className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
-                  >
-                    Eliminar
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
-
-          {clientesFiltrados.length === 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
-              No hay clientes cargados.
-            </div>
+            )
           )}
+
+          {clientesFiltrados.length ===
+            0 && (
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+
+              No hay clientes cargados.
+
+            </div>
+
+          )}
+
         </div>
+
       </div>
+
     </div>
   );
 }

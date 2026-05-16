@@ -10,6 +10,7 @@ export default function Plantillas() {
   const [items, setItems] = React.useState([]);
   const [articulos, setArticulos] = React.useState([]);
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
+  const [modoEdicion, setModoEdicion] = React.useState(false);
 
   React.useEffect(() => {
     obtenerPlantillas();
@@ -17,14 +18,9 @@ export default function Plantillas() {
   }, []);
 
   async function obtenerPlantillas() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } = await supabase
       .from("plantillas")
       .select("*")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -36,14 +32,9 @@ export default function Plantillas() {
   }
 
   async function obtenerArticulos() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } = await supabase
       .from("articulos")
       .select("*")
-      .eq("user_id", user.id)
       .order("descripcion");
 
     if (error) {
@@ -64,13 +55,28 @@ export default function Plantillas() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("plantillas").insert([
-      {
-        user_id: user.id,
-        nombre,
-        descripcion,
-      },
-    ]);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("alias")
+      .eq("id", user.id)
+      .single();
+
+    const alias = profile?.alias || "Administrador";
+
+    const { data: nuevaPlantilla, error } = await supabase
+      .from("plantillas")
+      .insert([
+        {
+          user_id: user.id,
+          nombre,
+          descripcion,
+          cargado_por: user.id,
+          cargado_por_alias: alias,
+          bloqueada: false,
+        },
+      ])
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
@@ -79,11 +85,14 @@ export default function Plantillas() {
 
     setNombre("");
     setDescripcion("");
-    obtenerPlantillas();
+    await obtenerPlantillas();
+    await seleccionarPlantilla(nuevaPlantilla);
+    setModoEdicion(true);
   }
 
   async function seleccionarPlantilla(plantilla) {
     setPlantillaSeleccionada(plantilla);
+    setModoEdicion(!plantilla.bloqueada);
 
     const { data, error } = await supabase
       .from("plantilla_items")
@@ -97,6 +106,63 @@ export default function Plantillas() {
     }
 
     setItems(data || []);
+  }
+
+  async function editarPlantilla() {
+    if (!plantillaSeleccionada) return;
+
+    const { error } = await supabase
+      .from("plantillas")
+      .update({ bloqueada: false })
+      .eq("id", plantillaSeleccionada.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const actualizada = {
+      ...plantillaSeleccionada,
+      bloqueada: false,
+    };
+
+    setPlantillaSeleccionada(actualizada);
+    setModoEdicion(true);
+    obtenerPlantillas();
+  }
+
+  async function guardarPlantilla() {
+    if (!plantillaSeleccionada) return;
+
+    if (!plantillaSeleccionada.nombre) {
+      alert("Ingresar nombre de plantilla");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("plantillas")
+      .update({
+        nombre: plantillaSeleccionada.nombre,
+        descripcion: plantillaSeleccionada.descripcion || "",
+        bloqueada: true,
+      })
+      .eq("id", plantillaSeleccionada.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const actualizada = {
+      ...plantillaSeleccionada,
+      bloqueada: true,
+    };
+
+    setPlantillaSeleccionada(actualizada);
+    setModoEdicion(false);
+    obtenerPlantillas();
+
+    alert("Plantilla guardada y bloqueada");
   }
 
   async function eliminarPlantilla(id) {
@@ -113,12 +179,18 @@ export default function Plantillas() {
 
     setPlantillaSeleccionada(null);
     setItems([]);
+    setModoEdicion(false);
     obtenerPlantillas();
   }
 
   async function agregarArticulo(articulo) {
     if (!plantillaSeleccionada) {
       alert("Seleccionar una plantilla");
+      return;
+    }
+
+    if (!modoEdicion) {
+      alert("Primero tocá Editar plantilla");
       return;
     }
 
@@ -139,15 +211,18 @@ export default function Plantillas() {
       return;
     }
 
-    seleccionarPlantilla(plantillaSeleccionada);
+    seleccionarPlantilla({
+      ...plantillaSeleccionada,
+      bloqueada: false,
+    });
   }
 
   async function actualizarItem(id, campo, valor) {
+    if (!modoEdicion) return;
+
     const { error } = await supabase
       .from("plantilla_items")
-      .update({
-        [campo]: valor,
-      })
+      .update({ [campo]: valor })
       .eq("id", id);
 
     if (error) {
@@ -168,6 +243,8 @@ export default function Plantillas() {
   }
 
   async function eliminarItem(id) {
+    if (!modoEdicion) return;
+
     const { error } = await supabase
       .from("plantilla_items")
       .delete()
@@ -179,6 +256,15 @@ export default function Plantillas() {
     }
 
     setItems((prev) => prev.filter((item) => item.id !== id));
+  }
+
+  function actualizarPlantillaSeleccionada(campo, valor) {
+    if (!modoEdicion) return;
+
+    setPlantillaSeleccionada((prev) => ({
+      ...prev,
+      [campo]: valor,
+    }));
   }
 
   const articulosFiltrados = articulos.filter((articulo) =>
@@ -257,20 +343,35 @@ export default function Plantillas() {
                         : "bg-zinc-950 border-zinc-800 hover:bg-zinc-800"
                     }`}
                   >
-                    <p className="font-bold text-lg">{plantilla.nombre}</p>
+                    <div className="flex justify-between gap-3">
+                      <p className="font-bold text-lg">{plantilla.nombre}</p>
+
+                      <span
+                        className={`text-xs px-3 py-1 rounded-xl h-fit ${
+                          plantilla.bloqueada
+                            ? "bg-red-600 text-white"
+                            : "bg-green-600 text-white"
+                        }`}
+                      >
+                        {plantilla.bloqueada ? "Bloqueada" : "Editando"}
+                      </span>
+                    </div>
 
                     {plantilla.descripcion && (
                       <p className="text-sm opacity-80 mt-1">
                         {plantilla.descripcion}
                       </p>
                     )}
+
+                    <p className="text-xs mt-3 opacity-70">
+                      Cargado por:{" "}
+                      {plantilla.cargado_por_alias || "Administrador"}
+                    </p>
                   </button>
                 ))}
 
                 {plantillas.length === 0 && (
-                  <p className="text-zinc-500">
-                    No hay plantillas creadas.
-                  </p>
+                  <p className="text-zinc-500">No hay plantillas creadas.</p>
                 )}
               </div>
             </div>
@@ -278,26 +379,95 @@ export default function Plantillas() {
 
           <div className="xl:col-span-2 space-y-6">
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-              <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-orange-500">
-                    {plantillaSeleccionada
-                      ? plantillaSeleccionada.nombre
-                      : "Seleccioná una plantilla"}
-                  </h2>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+                <div className="flex-1">
+                  {plantillaSeleccionada ? (
+                    <div className="space-y-3">
+                      <input
+                        value={plantillaSeleccionada.nombre || ""}
+                        disabled={!modoEdicion}
+                        onChange={(e) =>
+                          actualizarPlantillaSeleccionada(
+                            "nombre",
+                            e.target.value
+                          )
+                        }
+                        className={`w-full text-2xl font-bold rounded-2xl p-4 border ${
+                          modoEdicion
+                            ? "bg-zinc-950 border-zinc-700 text-orange-500"
+                            : "bg-zinc-950 border-zinc-800 text-orange-500 opacity-80"
+                        }`}
+                      />
 
-                  <p className="text-zinc-400 mt-1">
-                    Items que se cargarán automáticamente al presupuesto
-                  </p>
+                      <textarea
+                        value={plantillaSeleccionada.descripcion || ""}
+                        disabled={!modoEdicion}
+                        placeholder="Descripción interna"
+                        onChange={(e) =>
+                          actualizarPlantillaSeleccionada(
+                            "descripcion",
+                            e.target.value
+                          )
+                        }
+                        className={`w-full rounded-2xl p-4 border min-h-24 ${
+                          modoEdicion
+                            ? "bg-zinc-950 border-zinc-700 text-white"
+                            : "bg-zinc-950 border-zinc-800 text-zinc-400 opacity-80"
+                        }`}
+                      />
+
+                      <p
+                        className={`text-sm font-bold ${
+                          modoEdicion ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {modoEdicion
+                          ? "Modo edición activo"
+                          : "Plantilla bloqueada"}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-2xl font-bold text-orange-500">
+                        Seleccioná una plantilla
+                      </h2>
+
+                      <p className="text-zinc-400 mt-1">
+                        Items que se cargarán automáticamente al presupuesto
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {plantillaSeleccionada && (
-                  <button
-                    onClick={() => eliminarPlantilla(plantillaSeleccionada.id)}
-                    className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
-                  >
-                    Eliminar plantilla
-                  </button>
+                  <div className="flex flex-wrap gap-3">
+                    {!modoEdicion && (
+                      <button
+                        onClick={editarPlantilla}
+                        className="bg-green-600 hover:bg-green-700 px-5 py-3 rounded-xl font-bold"
+                      >
+                        Editar plantilla
+                      </button>
+                    )}
+
+                    {modoEdicion && (
+                      <button
+                        onClick={guardarPlantilla}
+                        className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                      >
+                        Guardar plantilla
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() =>
+                        eliminarPlantilla(plantillaSeleccionada.id)
+                      }
+                      className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Eliminar plantilla
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -309,33 +479,36 @@ export default function Plantillas() {
                   >
                     <div className="col-span-12 md:col-span-5">
                       <input
+                        disabled={!modoEdicion}
                         value={item.descripcion || ""}
                         onChange={(e) =>
                           actualizarItem(item.id, "descripcion", e.target.value)
                         }
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 disabled:opacity-60"
                       />
                     </div>
 
                     <div className="col-span-4 md:col-span-2">
                       <input
+                        disabled={!modoEdicion}
                         type="number"
                         value={item.cantidad || ""}
                         onChange={(e) =>
                           actualizarItem(item.id, "cantidad", e.target.value)
                         }
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 disabled:opacity-60"
                       />
                     </div>
 
                     <div className="col-span-4 md:col-span-2">
                       <input
+                        disabled={!modoEdicion}
                         type="number"
                         value={item.precio || ""}
                         onChange={(e) =>
                           actualizarItem(item.id, "precio", e.target.value)
                         }
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3"
+                        className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 disabled:opacity-60"
                       />
                     </div>
 
@@ -349,8 +522,9 @@ export default function Plantillas() {
 
                     <div className="col-span-12 md:col-span-1 flex justify-end">
                       <button
+                        disabled={!modoEdicion}
                         onClick={() => eliminarItem(item.id)}
-                        className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                        className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold disabled:opacity-40 disabled:hover:bg-red-500"
                       >
                         X
                       </button>
@@ -366,17 +540,28 @@ export default function Plantillas() {
               </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+            <div
+              className={`bg-zinc-900 border border-zinc-800 rounded-3xl p-6 ${
+                !modoEdicion ? "opacity-60" : ""
+              }`}
+            >
               <h2 className="text-2xl font-bold text-orange-500 mb-4">
                 Agregar artículos
               </h2>
 
+              {!modoEdicion && (
+                <p className="text-zinc-400 mb-4">
+                  Para agregar artículos, tocá Editar plantilla.
+                </p>
+              )}
+
               <input
                 type="text"
+                disabled={!modoEdicion}
                 placeholder="Buscar artículo..."
                 value={busquedaArticulo}
                 onChange={(e) => setBusquedaArticulo(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5 disabled:opacity-60"
               />
 
               <div className="space-y-3 max-h-[420px] overflow-auto">
@@ -401,8 +586,9 @@ export default function Plantillas() {
                     </div>
 
                     <button
+                      disabled={!modoEdicion}
                       onClick={() => agregarArticulo(articulo)}
-                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center"
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center disabled:opacity-40 disabled:hover:bg-orange-500"
                     >
                       Agregar
                     </button>
