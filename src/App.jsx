@@ -8,9 +8,9 @@ import {
 import ImportarDatos from "./pages/ImportarDatos";
 
 import { supabase } from "./lib/supabase";
-
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import MiCuenta from "./pages/MiCuenta";
 import Presupuestos from "./pages/Presupuestos";
 import Articulos from "./pages/Articulos";
 import Clientes from "./pages/Clientes";
@@ -112,6 +112,10 @@ export default function App() {
         <Route
           path="/importar"
           element={<ImportarDatos />}
+        />
+        <Route
+         path="/micuenta"
+         element={<MiCuenta />}
         />
 
       </Routes>

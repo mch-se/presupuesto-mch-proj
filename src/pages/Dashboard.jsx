@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { obtenerDolarBNA } from "../lib/dolar";
 
 export default function Dashboard() {
 
@@ -10,19 +11,44 @@ export default function Dashboard() {
   const [alias, setAlias] =
     React.useState("");
 
+  const [dolar, setDolar] =
+    React.useState(null);
+
   React.useEffect(() => {
 
     obtenerAlias();
 
-    const intervalo =
+    cargarDolar();
+
+    const intervaloHora =
       setInterval(() => {
         setHora(new Date());
       }, 1000);
 
-    return () =>
-      clearInterval(intervalo);
+    const intervaloDolar =
+      setInterval(() => {
+        cargarDolar();
+      }, 3600000);
+
+    return () => {
+
+      clearInterval(intervaloHora);
+
+      clearInterval(intervaloDolar);
+
+    };
 
   }, []);
+
+  async function cargarDolar() {
+
+    const data =
+      await obtenerDolarBNA();
+
+    if (data) {
+      setDolar(data);
+    }
+  }
 
   async function obtenerAlias() {
 
@@ -102,6 +128,43 @@ export default function Dashboard() {
               Sistema de Presupuestos
             </p>
 
+            {dolar && (
+
+              <p className="text-sm md:text-base text-green-400 mt-2">
+
+                Dólar BNA:
+                {" "}
+
+                Compra $
+                {dolar.compra}
+
+                {" / "}
+
+                Venta $
+                {dolar.venta}
+
+                {" "}
+
+                <span className="text-zinc-500">
+
+                  (
+                  Actualizado
+                  {" "}
+
+                  {dolar.fecha.toLocaleString("es-AR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})}                  )
+
+                </span>
+
+              </p>
+
+            )}
+
           </div>
 
           <div className="flex flex-wrap gap-3 items-stretch lg:items-center">
@@ -113,7 +176,10 @@ export default function Dashboard() {
               Importar
             </Link>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[180px]">
+            <Link
+              to="/micuenta"
+              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[180px] transition-all"
+            >
 
               <p className="text-zinc-500 text-xs">
                 Usuario
@@ -123,7 +189,7 @@ export default function Dashboard() {
                 {alias}
               </p>
 
-            </div>
+            </Link>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[160px] flex flex-col justify-center">
 
