@@ -20,6 +20,15 @@ export default function HistorialPresupuestos() {
   const [rol, setRol] =
     React.useState(null);
 
+  const [busqueda, setBusqueda] =
+    React.useState("");
+
+  const [filtroEstado, setFiltroEstado] =
+    React.useState("Todos");
+
+  const [filtroMoneda, setFiltroMoneda] =
+    React.useState("Todas");
+
   React.useEffect(() => {
     obtenerPresupuestos();
   }, []);
@@ -73,6 +82,15 @@ export default function HistorialPresupuestos() {
     setPresupuestos(data || []);
 
     setLoading(false);
+  }
+
+  function limpiarFiltros() {
+
+    setBusqueda("");
+
+    setFiltroEstado("Todos");
+
+    setFiltroMoneda("Todas");
   }
 
   async function generarNumeroNuevo() {
@@ -324,6 +342,44 @@ export default function HistorialPresupuestos() {
     return estado;
   }
 
+  const presupuestosFiltrados =
+    presupuestos.filter(
+      (presupuesto) => {
+
+        const texto =
+          `
+            ${presupuesto.numero || ""}
+            ${presupuesto.cliente || ""}
+            ${presupuesto.cliente_empresa || ""}
+            ${presupuesto.descripcion_corta || ""}
+            ${presupuesto.generado_por_alias || ""}
+          `.toLowerCase();
+
+        const coincideBusqueda =
+          texto.includes(
+            busqueda.toLowerCase()
+          );
+
+        const coincideEstado =
+          filtroEstado === "Todos"
+            ? true
+            : textoEstado(
+                presupuesto.estado
+              ) === filtroEstado;
+
+        const coincideMoneda =
+          filtroMoneda === "Todas"
+            ? true
+            : presupuesto.moneda === filtroMoneda;
+
+        return (
+          coincideBusqueda &&
+          coincideEstado &&
+          coincideMoneda
+        );
+      }
+    );
+
   if (loading) {
 
     return (
@@ -361,9 +417,94 @@ export default function HistorialPresupuestos() {
 
         </div>
 
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+            <input
+              type="text"
+              placeholder="Buscar presupuesto..."
+              value={busqueda}
+              onChange={(e) =>
+                setBusqueda(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+            />
+
+            <select
+              value={filtroEstado}
+              onChange={(e) =>
+                setFiltroEstado(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+            >
+              <option>
+                Todos
+              </option>
+
+              <option>
+                Pendiente
+              </option>
+
+              <option>
+                Enviado
+              </option>
+
+              <option>
+                Aprobado
+              </option>
+
+              <option>
+                Finalizado
+              </option>
+
+              <option>
+                Cerrado
+              </option>
+
+            </select>
+
+            <select
+              value={filtroMoneda}
+              onChange={(e) =>
+                setFiltroMoneda(
+                  e.target.value
+                )
+              }
+              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+            >
+              <option>
+                Todas
+              </option>
+
+              <option>
+                ARS
+              </option>
+
+              <option>
+                USD
+              </option>
+
+            </select>
+
+            <button
+              onClick={limpiarFiltros}
+              className="bg-orange-500 hover:bg-orange-600 rounded-2xl px-4 py-3 font-bold"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+        </div>
+
         <div className="space-y-4">
 
-          {presupuestos.map((presupuesto) => (
+          {presupuestosFiltrados.map((presupuesto) => (
 
             <div
               key={presupuesto.id}
@@ -510,11 +651,11 @@ export default function HistorialPresupuestos() {
             </div>
           ))}
 
-          {presupuestos.length === 0 && (
+          {presupuestosFiltrados.length === 0 && (
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
 
-              No hay presupuestos guardados.
+              No hay presupuestos encontrados.
 
             </div>
 
