@@ -35,6 +35,16 @@ export default function Dashboard() {
       plantillas: 0,
     });
 
+  const [
+    ultimosPresupuestos,
+    setUltimosPresupuestos,
+  ] = React.useState([]);
+
+  const [
+    ultimosClientes,
+    setUltimosClientes,
+  ] = React.useState([]);
+
   React.useEffect(() => {
 
     obtenerPerfil();
@@ -42,6 +52,8 @@ export default function Dashboard() {
     cargarDolar();
 
     cargarContadores();
+
+    cargarActividad();
 
     const intervaloHora =
       setInterval(() => {
@@ -188,98 +200,151 @@ export default function Dashboard() {
     });
   }
 
-  async function cerrarSesion() {
+  async function cargarActividad() {
 
-    await supabase.auth.signOut();
+    const {
+      data: presupuestos,
+    } =
+      await supabase
+        .from("presupuestos")
+        .select(`
+          id,
+          cliente,
+          total,
+          created_at,
+          generado_por_alias
+        `)
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
+        .limit(5);
+
+    const {
+      data: clientes,
+    } =
+      await supabase
+        .from("clientes")
+        .select(`
+          id,
+          empresa,
+          tipo,
+          created_at,
+          cargado_por_alias
+        `)
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        )
+        .limit(5);
+
+    setUltimosPresupuestos(
+      presupuestos || []
+    );
+
+    setUltimosClientes(
+      clientes || []
+    );
   }
 
   const cardsOperativas = [
 
-  {
-    titulo: "Nuevo",
-    subtitulo: "Presupuesto",
-    link: "/presupuestos",
-    color:
-      "bg-orange-500 hover:bg-orange-600",
-    contador: null,
-  },
+    {
+      titulo: "Nuevo",
+      subtitulo: "Presupuesto",
+      link: "/presupuestos",
+      color:
+        "bg-orange-500 hover:bg-orange-600",
+      contador: null,
+    },
 
-  {
-    titulo: "Historial",
-    subtitulo: "Presupuestos",
-    link: "/historial",
-    color:
-      "bg-zinc-800 hover:bg-zinc-700",
-    contador:
-      contadores.presupuestos,
-  },
+    {
+      titulo: "Historial",
+      subtitulo: "Presupuestos",
+      link: "/historial",
+      color:
+        "bg-zinc-800 hover:bg-zinc-700",
+      contador:
+        contadores.presupuestos,
+    },
 
-  {
-    titulo: "Clientes",
-    subtitulo: "Base de datos",
-    link: "/clientes",
-    color:
-      "bg-zinc-800 hover:bg-zinc-700",
-    contador:
-      contadores.clientes,
-  },
+    {
+      titulo: "Clientes",
+      subtitulo: "Base de datos",
+      link: "/clientes",
+      color:
+        "bg-zinc-800 hover:bg-zinc-700",
+      contador:
+        contadores.clientes,
+    },
 
-  {
-    titulo: "Artículos",
-    subtitulo: "Biblioteca",
-    link: "/articulos",
-    color:
-      "bg-zinc-800 hover:bg-zinc-700",
-    contador:
-      contadores.articulos,
-  },
+    {
+      titulo: "Artículos",
+      subtitulo: "Biblioteca",
+      link: "/articulos",
+      color:
+        "bg-zinc-800 hover:bg-zinc-700",
+      contador:
+        contadores.articulos,
+    },
 
-  {
-    titulo: "Plantillas",
-    subtitulo:
-      "Presupuestos rápidos",
-    link: "/plantillas",
-    color:
-      "bg-zinc-800 hover:bg-zinc-700",
-    contador:
-      contadores.plantillas,
-  },
+    {
+      titulo: "Plantillas",
+      subtitulo:
+        "Presupuestos rápidos",
+      link: "/plantillas",
+      color:
+        "bg-zinc-800 hover:bg-zinc-700",
+      contador:
+        contadores.plantillas,
+    },
 
-  ...(rol === "admin"
-    ? [
-        {
-          titulo: "Admin",
-          subtitulo: "Usuarios",
-          link: "/admin/usuarios",
-          color:
-            "bg-red-600 hover:bg-red-700",
-          contador: null,
-        },
-      ]
-    : []),
+    ...(rol === "admin"
+      ? [
+          {
+            titulo: "Admin",
+            subtitulo: "Usuarios",
+            link: "/admin/usuarios",
+            color:
+              "bg-red-600 hover:bg-red-700",
+            contador: null,
+          },
+        ]
+      : []),
 
-];
+  ];
+
   return (
     <div className="min-h-screen bg-black text-white">
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
 
-        <div className="flex flex-col lg:flex-row lg:justify-between gap-6 mb-8">
+        <div className="flex flex-col xl:flex-row xl:justify-between gap-6 mb-8">
 
           <div>
 
             <h1 className="text-4xl md:text-6xl font-black text-orange-500">
-              MCH
+              Dashboard
             </h1>
 
-            <p className="text-zinc-400 text-sm md:text-lg mt-1">
-              Sistema de Presupuestos
+            <p className="text-zinc-400 text-sm md:text-lg mt-2">
+
+              Bienvenido,
+              {" "}
+              <span className="text-white font-bold">
+                {alias}
+              </span>
+
             </p>
 
             <button
               onClick={cargarDolar}
               disabled={actualizandoDolar}
-              className="text-left text-sm md:text-base text-green-400 mt-2 hover:text-green-300 transition-all disabled:opacity-60"
+              className="text-left text-sm md:text-base text-green-400 mt-4 hover:text-green-300 transition-all disabled:opacity-60"
             >
 
               {actualizandoDolar &&
@@ -328,55 +393,32 @@ export default function Dashboard() {
 
           </div>
 
-          <div className="flex flex-wrap gap-3 items-stretch lg:items-center">
+          <div className="grid grid-cols-2 gap-4">
 
-            {!loadingPerfil &&
-              rol !==
-                "pendiente" && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 min-w-[170px]">
 
-              <Link
-                to="/importar"
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-4 py-3 rounded-2xl text-sm font-bold flex items-center justify-center"
-              >
-                Importar
-              </Link>
-
-            )}
-
-            <Link
-              to="/micuenta"
-              className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[180px] transition-all"
-            >
-
-              <p className="text-zinc-500 text-xs">
-                Usuario
+              <p className="text-zinc-500 text-sm">
+                Fecha
               </p>
 
-              <p className="font-bold text-lg">
-                {alias}
-              </p>
-
-              {!loadingPerfil && (
-                <p className="text-xs text-orange-400 mt-1 uppercase">
-                  {rol}
-                </p>
-              )}
-
-            </Link>
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-3 min-w-[160px] flex flex-col justify-center">
-
-              <p className="text-zinc-400 text-sm">
+              <p className="text-xl font-black mt-2">
                 {hora.toLocaleDateString()}
               </p>
 
-              <p className="text-orange-500 font-bold">
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 min-w-[170px]">
+
+              <p className="text-zinc-500 text-sm">
+                Hora
+              </p>
+
+              <p className="text-orange-500 text-xl font-black mt-2">
                 {hora.toLocaleTimeString()}
               </p>
 
             </div>
 
-            
           </div>
 
         </div>
@@ -408,65 +450,227 @@ export default function Dashboard() {
           rol !==
             "pendiente" && (
 
-          <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 md:gap-6">
+          <>
 
-            {cardsOperativas.map(
-              (card) => (
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 md:gap-6 mb-10">
 
-                <Link
-                  key={card.titulo}
-                  to={card.link}
-                  className={`${card.color} rounded-3xl p-5 md:p-8 min-h-[150px] md:min-h-[220px] flex flex-col justify-between transition-all active:scale-[0.98]`}
-                >
+              {cardsOperativas.map(
+                (card) => (
 
-                  <div>
+                  <Link
+                    key={card.titulo}
+                    to={card.link}
+                    className={`${card.color} rounded-3xl p-5 md:p-8 min-h-[160px] flex flex-col justify-between transition-all active:scale-[0.98]`}
+                  >
 
-                    <h2 className="text-2xl md:text-4xl font-black leading-tight">
+                    <div>
 
-                      {card.titulo}
+                      <h2 className="text-2xl md:text-4xl font-black leading-tight">
 
-                    </h2>
+                        {card.titulo}
 
-                    <p className="mt-2 text-sm md:text-lg opacity-80">
+                      </h2>
 
-                      {card.subtitulo}
+                      <p className="mt-2 text-sm md:text-lg opacity-80">
 
-                    </p>
+                        {card.subtitulo}
 
-                  </div>
+                      </p>
 
-                  <div className="mt-6">
+                    </div>
 
-                    {card.contador !==
-                    null ? (
+                    <div className="mt-6">
 
-                      <div>
+                      {card.contador !==
+                      null ? (
 
-                        <p className="text-zinc-400 text-sm">
-                          Total
-                        </p>
+                        <div>
 
-                        <p className="text-4xl font-black text-white">
+                          <p className="text-zinc-400 text-sm">
+                            Total
+                          </p>
 
-                          {card.contador}
+                          <p className="text-4xl font-black text-white">
 
-                        </p>
+                            {card.contador}
+
+                          </p>
+
+                        </div>
+
+                      ) : (
+
+                        <div className="w-10 h-1 bg-white/50 rounded-full" />
+
+                      )}
+
+                    </div>
+
+                  </Link>
+                )
+              )}
+
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+
+                <div className="flex justify-between items-center mb-6">
+
+                  <h2 className="text-2xl font-black">
+                    Últimos presupuestos
+                  </h2>
+
+                  <Link
+                    to="/historial"
+                    className="text-orange-500 font-bold"
+                  >
+                    Ver todos
+                  </Link>
+
+                </div>
+
+                <div className="space-y-4">
+
+                  {ultimosPresupuestos.map(
+                    (presupuesto) => (
+
+                      <div
+                        key={presupuesto.id}
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      >
+
+                        <div className="flex justify-between gap-4">
+
+                          <div>
+
+                            <p className="font-bold text-lg">
+
+                              {presupuesto.cliente ||
+                                "Sin cliente"}
+
+                            </p>
+
+                            <p className="text-zinc-500 text-sm mt-1">
+
+                              Generado por:
+                              {" "}
+                              {presupuesto.generado_por_alias ||
+                                "Administrador"}
+
+                            </p>
+
+                          </div>
+
+                          <div className="text-right">
+
+                            <p className="text-orange-500 font-black text-xl">
+
+                              $
+                              {Number(
+                                presupuesto.total || 0
+                              ).toLocaleString()}
+
+                            </p>
+
+                            <p className="text-zinc-500 text-sm mt-1">
+
+                              {new Date(
+                                presupuesto.created_at
+                              ).toLocaleDateString()}
+
+                            </p>
+
+                          </div>
+
+                        </div>
 
                       </div>
+                    )
+                  )}
 
-                    ) : (
+                </div>
 
-                      <div className="w-10 h-1 bg-white/50 rounded-full" />
+              </div>
 
-                    )}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
 
-                  </div>
+                <div className="flex justify-between items-center mb-6">
 
-                </Link>
-              )
-            )}
+                  <h2 className="text-2xl font-black">
+                    Últimos clientes
+                  </h2>
 
-          </div>
+                  <Link
+                    to="/clientes"
+                    className="text-orange-500 font-bold"
+                  >
+                    Ver todos
+                  </Link>
+
+                </div>
+
+                <div className="space-y-4">
+
+                  {ultimosClientes.map(
+                    (cliente) => (
+
+                      <div
+                        key={cliente.id}
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      >
+
+                        <div className="flex justify-between gap-4">
+
+                          <div>
+
+                            <p className="font-bold text-lg">
+
+                              {cliente.empresa}
+
+                            </p>
+
+                            <p className="text-zinc-500 text-sm mt-1">
+
+                              {cliente.tipo}
+
+                            </p>
+
+                          </div>
+
+                          <div className="text-right">
+
+                            <p className="text-orange-500 font-bold">
+
+                              {cliente.cargado_por_alias ||
+                                "Administrador"}
+
+                            </p>
+
+                            <p className="text-zinc-500 text-sm mt-1">
+
+                              {new Date(
+                                cliente.created_at
+                              ).toLocaleDateString()}
+
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </>
 
         )}
 
