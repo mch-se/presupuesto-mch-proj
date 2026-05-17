@@ -35,6 +35,12 @@ export default function Articulos() {
   const [busqueda, setBusqueda] =
     React.useState("");
 
+  const [filtroMoneda, setFiltroMoneda] =
+    React.useState("Todas");
+
+  const [filtroCategoria, setFiltroCategoria] =
+    React.useState("Todas");
+
   const [editandoId, setEditandoId] =
     React.useState(null);
 
@@ -61,11 +67,17 @@ export default function Articulos() {
   function limpiarFormulario() {
 
     setDescripcion("");
+
     setDetalle("");
+
     setPrecio("");
+
     setCosto("");
+
     setCategoria("");
+
     setProveedor("");
+
     setMoneda("ARS");
 
     setEditandoId(null);
@@ -238,6 +250,7 @@ export default function Articulos() {
     if (
       texto.length <= 120
     ) {
+
       return texto;
     }
 
@@ -247,19 +260,53 @@ export default function Articulos() {
     )}...`;
   }
 
+  const categorias =
+    [
+      ...new Set(
+        articulos
+          .map(
+            (a) =>
+              a.categoria
+          )
+          .filter(Boolean)
+      ),
+    ];
+
   const articulosFiltrados =
     articulos.filter(
       (articulo) => {
 
         const texto = `
-        ${articulo.descripcion || ""}
-        ${articulo.detalle || ""}
-        ${articulo.categoria || ""}
-        ${articulo.proveedor || ""}
-      `.toLowerCase();
+          ${articulo.descripcion || ""}
+          ${articulo.detalle || ""}
+          ${articulo.categoria || ""}
+          ${articulo.proveedor || ""}
+          ${articulo.cargado_por_alias || ""}
+        `.toLowerCase();
 
-        return texto.includes(
-          busqueda.toLowerCase()
+        const coincideBusqueda =
+          texto.includes(
+            busqueda.toLowerCase()
+          );
+
+        const coincideMoneda =
+          filtroMoneda === "Todas"
+            ? true
+            : articulo.moneda ===
+              filtroMoneda;
+
+        const coincideCategoria =
+  filtroCategoria === "Todas"
+    ? true
+    : (
+        articulo.categoria || ""
+      ).toLowerCase() ===
+      filtroCategoria.toLowerCase();
+
+        return (
+          coincideBusqueda &&
+          coincideMoneda &&
+          coincideCategoria
         );
       }
     );
@@ -426,20 +473,98 @@ export default function Articulos() {
 
         </div>
 
-        <div className="mb-8">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
 
-          <input
-            type="text"
-            placeholder="Buscar artículo..."
-            value={busqueda}
-            onChange={(e) =>
-              setBusqueda(
-                e.target.value
-              )
-            }
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-5"
-          />
+            <input
+              type="text"
+              placeholder="Buscar artículo..."
+              value={busqueda}
+              onChange={(e) =>
+                setBusqueda(
+                  e.target.value
+                )
+              }
+
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <select
+              value={filtroMoneda}
+              onChange={(e) =>
+                setFiltroMoneda(
+                  e.target.value
+                )
+              }
+
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            >
+
+              <option>
+                Todas
+              </option>
+
+              <option>
+                ARS
+              </option>
+
+              <option>
+                USD
+              </option>
+
+            </select>
+
+            <select
+              value={filtroCategoria}
+              onChange={(e) =>
+                setFiltroCategoria(
+                  e.target.value
+                )
+              }
+
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            >
+
+              <option>
+                Todas
+              </option>
+
+              {categorias.map(
+                (categoria) => (
+
+                  <option
+                    key={categoria}
+                  >
+
+                    {categoria}
+
+                  </option>
+                )
+              )}
+
+            </select>
+
+            <button
+              onClick={() => {
+
+                setBusqueda("");
+
+                setFiltroMoneda(
+                  "Todas"
+                );
+
+                setFiltroCategoria(
+                  "Todas"
+                );
+              }}
+
+              className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
 
         </div>
 
@@ -608,6 +733,16 @@ export default function Articulos() {
 
               </div>
             )
+          )}
+
+          {articulosFiltrados.length === 0 && (
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+
+              No hay artículos encontrados.
+
+            </div>
+
           )}
 
         </div>
