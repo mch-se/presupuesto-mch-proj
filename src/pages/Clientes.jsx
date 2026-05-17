@@ -1,6 +1,8 @@
 import React from "react";
 import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
+import Toast from "../components/Toast";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Clientes() {
 
@@ -41,6 +43,21 @@ export default function Clientes() {
     setEditandoId,
   ] = React.useState(null);
 
+  const [toastVisible, setToastVisible] =
+    React.useState(false);
+
+  const [toastMensaje, setToastMensaje] =
+    React.useState("");
+
+  const [toastTipo, setToastTipo] =
+    React.useState("ok");
+
+  const [modalVisible, setModalVisible] =
+    React.useState(false);
+
+  const [clienteEliminar, setClienteEliminar] =
+    React.useState(null);
+
   React.useEffect(() => {
     obtenerClientes();
   }, []);
@@ -59,11 +76,38 @@ export default function Clientes() {
         );
 
     if (error) {
-      alert(error.message);
+
+      mostrarToast(
+        error.message,
+        "error"
+      );
+
       return;
     }
 
     setClientes(data || []);
+  }
+
+  function mostrarToast(
+    mensaje,
+    tipo = "ok"
+  ) {
+
+    setToastMensaje(
+      mensaje
+    );
+
+    setToastTipo(
+      tipo
+    );
+
+    setToastVisible(true);
+
+    setTimeout(() => {
+
+      setToastVisible(false);
+
+    }, 2500);
   }
 
   function limpiarFormulario() {
@@ -92,7 +136,10 @@ export default function Clientes() {
       !empresa
     ) {
 
-      alert("Ingresar empresa");
+      mostrarToast(
+        "Ingresar empresa",
+        "error"
+      );
 
       return;
     }
@@ -102,7 +149,10 @@ export default function Clientes() {
       !empresa
     ) {
 
-      alert("Ingresar persona");
+      mostrarToast(
+        "Ingresar persona",
+        "error"
+      );
 
       return;
     }
@@ -167,13 +217,17 @@ export default function Clientes() {
 
       if (error) {
 
-        alert(error.message);
+        mostrarToast(
+          error.message,
+          "error"
+        );
 
         return;
       }
 
-      alert(
-        "Cliente actualizado"
+      mostrarToast(
+        "Cliente actualizado",
+        "ok"
       );
 
     } else {
@@ -187,12 +241,18 @@ export default function Clientes() {
 
       if (error) {
 
-        alert(error.message);
+        mostrarToast(
+          error.message,
+          "error"
+        );
 
         return;
       }
 
-      alert("Cliente creado");
+      mostrarToast(
+        "Cliente creado correctamente",
+        "ok"
+      );
     }
 
     limpiarFormulario();
@@ -240,29 +300,46 @@ export default function Clientes() {
     );
   }
 
-  async function eliminarCliente(
+  function solicitarEliminarCliente(
     id
   ) {
 
-    const confirmar =
-      window.confirm(
-        "¿Eliminar cliente?"
-      );
+    setClienteEliminar(id);
 
-    if (!confirmar) return;
+    setModalVisible(true);
+  }
+
+  async function confirmarEliminarCliente() {
+
+    if (!clienteEliminar) return;
 
     const { error } =
       await supabase
         .from("clientes")
         .delete()
-        .eq("id", id);
+        .eq(
+          "id",
+          clienteEliminar
+        );
 
     if (error) {
 
-      alert(error.message);
+      mostrarToast(
+        error.message,
+        "error"
+      );
 
       return;
     }
+
+    mostrarToast(
+      "Cliente eliminado",
+      "ok"
+    );
+
+    setModalVisible(false);
+
+    setClienteEliminar(null);
 
     obtenerClientes();
   }
@@ -299,68 +376,122 @@ export default function Clientes() {
     );
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <>
 
-      <div className="max-w-7xl mx-auto">
+      <ConfirmModal
+        visible={modalVisible}
+        titulo="Eliminar cliente"
+        mensaje="Esta acción eliminará el cliente definitivamente."
+        textoConfirmar="Eliminar"
+        textoCancelar="Cancelar"
+        onCancelar={() => {
 
-        <div className="flex justify-between items-center mb-10">
+          setModalVisible(false);
 
-          <div>
+          setClienteEliminar(null);
+        }}
+        onConfirmar={
+          confirmarEliminarCliente
+        }
+      />
 
-            <h1 className="text-5xl font-bold text-orange-500">
-              Clientes
-            </h1>
+      <Toast
+        mensaje={toastMensaje}
+        tipo={toastTipo}
+        visible={toastVisible}
+      />
 
-            <p className="text-zinc-400 mt-3">
-              Empresas, particulares y contactos
-            </p>
+      <div className="min-h-screen bg-black text-white p-6">
+
+        <div className="max-w-7xl mx-auto">
+
+          <div className="flex justify-between items-center mb-10">
+
+            <div>
+
+              <h1 className="text-5xl font-bold text-orange-500">
+                Clientes
+              </h1>
+
+              <p className="text-zinc-400 mt-3">
+                Empresas, particulares y contactos
+              </p>
+
+            </div>
+
+            <Link
+              to="/"
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+            >
+              Volver
+            </Link>
 
           </div>
 
-          <Link
-            to="/"
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-          >
-            Volver
-          </Link>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
 
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
+              <select
+                value={tipo}
+                onChange={(e) => {
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  setTipo(
+                    e.target.value
+                  );
 
-            <select
-              value={tipo}
-              onChange={(e) => {
+                  setContacto("");
+                }}
 
-                setTipo(
-                  e.target.value
-                );
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              >
 
-                setContacto("");
-              }}
+                <option value="Empresa">
+                  Empresa
+                </option>
 
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            >
+                <option value="Particular">
+                  Particular
+                </option>
 
-              <option value="Empresa">
-                Empresa
-              </option>
+              </select>
 
-              <option value="Particular">
-                Particular
-              </option>
+              {tipo ===
+              "Empresa" ? (
+                <>
 
-            </select>
+                  <input
+                    type="text"
+                    placeholder="Empresa"
+                    value={empresa}
+                    onChange={(e) =>
+                      setEmpresa(
+                        e.target.value
+                      )
+                    }
 
-            {tipo ===
-            "Empresa" ? (
-              <>
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Persona de contacto"
+                    value={contacto}
+                    onChange={(e) =>
+                      setContacto(
+                        e.target.value
+                      )
+                    }
+
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                </>
+              ) : (
 
                 <input
                   type="text"
-                  placeholder="Empresa"
+                  placeholder="Persona"
                   value={empresa}
                   onChange={(e) =>
                     setEmpresa(
@@ -368,319 +499,292 @@ export default function Clientes() {
                     )
                   }
 
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 md:col-span-2"
                 />
 
-                <input
-                  type="text"
-                  placeholder="Persona de contacto"
-                  value={contacto}
-                  onChange={(e) =>
-                    setContacto(
-                      e.target.value
-                    )
-                  }
-
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-
-              </>
-            ) : (
+              )}
 
               <input
                 type="text"
-                placeholder="Persona"
-                value={empresa}
+                placeholder="Teléfono"
+                value={telefono}
                 onChange={(e) =>
-                  setEmpresa(
+                  setTelefono(
                     e.target.value
                   )
                 }
 
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 md:col-span-2"
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               />
 
-            )}
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) =>
+                  setEmail(
+                    e.target.value
+                  )
+                }
 
-            <input
-              type="text"
-              placeholder="Teléfono"
-              value={telefono}
-              onChange={(e) =>
-                setTelefono(
-                  e.target.value
-                )
-              }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
 
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+              <input
+                type="text"
+                placeholder="Dirección"
+                value={direccion}
+                onChange={(e) =>
+                  setDireccion(
+                    e.target.value
+                  )
+                }
 
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) =>
-                setEmail(
-                  e.target.value
-                )
-              }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
 
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+              <textarea
+                placeholder="Observaciones"
+                value={observaciones}
+                onChange={(e) =>
+                  setObservaciones(
+                    e.target.value
+                  )
+                }
 
-            <input
-              type="text"
-              placeholder="Dirección"
-              value={direccion}
-              onChange={(e) =>
-                setDireccion(
-                  e.target.value
-                )
-              }
+                className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
+              />
 
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+            </div>
 
-            <textarea
-              placeholder="Observaciones"
-              value={observaciones}
-              onChange={(e) =>
-                setObservaciones(
-                  e.target.value
-                )
-              }
+            <div className="flex gap-4 mt-8">
 
-              className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
-            />
+              <button
+                onClick={
+                  guardarCliente
+                }
 
-          </div>
-
-          <div className="flex gap-4 mt-8">
-
-            <button
-              onClick={
-                guardarCliente
-              }
-
-              className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
-            >
-
-              {editandoId
-                ? "Actualizar Cliente"
-                : "Guardar Cliente"}
-
-            </button>
-
-            <button
-              onClick={
-                limpiarFormulario
-              }
-
-              className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
-            >
-              Limpiar
-            </button>
-
-          </div>
-
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-            <input
-              type="text"
-              placeholder="Buscar cliente..."
-              value={busqueda}
-              onChange={(e) =>
-                setBusqueda(
-                  e.target.value
-                )
-              }
-
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
-
-            <select
-              value={filtroTipo}
-              onChange={(e) =>
-                setFiltroTipo(
-                  e.target.value
-                )
-              }
-
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            >
-
-              <option>
-                Todos
-              </option>
-
-              <option>
-                Empresa
-              </option>
-
-              <option>
-                Particular
-              </option>
-
-            </select>
-
-            <button
-              onClick={() => {
-
-                setBusqueda("");
-
-                setFiltroTipo(
-                  "Todos"
-                );
-              }}
-
-              className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
-            >
-              Limpiar filtros
-            </button>
-
-          </div>
-
-        </div>
-
-        <div className="space-y-4">
-
-          {clientesFiltrados.map(
-            (cliente) => (
-
-              <div
-                key={cliente.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+                className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
               >
 
-                <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
+                {editandoId
+                  ? "Actualizar Cliente"
+                  : "Guardar Cliente"}
 
-                  <div>
+              </button>
 
-                    <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={
+                  limpiarFormulario
+                }
 
-                      <span className="bg-orange-500 text-white px-3 py-1 rounded-xl text-sm font-bold">
+                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+              >
+                Limpiar
+              </button>
 
-                        {cliente.tipo}
+            </div>
 
-                      </span>
+          </div>
 
-                      <h2 className="text-2xl font-bold">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
 
-                        {cliente.empresa ||
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              <input
+                type="text"
+                placeholder="Buscar cliente..."
+                value={busqueda}
+                onChange={(e) =>
+                  setBusqueda(
+                    e.target.value
+                  )
+                }
+
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <select
+                value={filtroTipo}
+                onChange={(e) =>
+                  setFiltroTipo(
+                    e.target.value
+                  )
+                }
+
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              >
+
+                <option>
+                  Todos
+                </option>
+
+                <option>
+                  Empresa
+                </option>
+
+                <option>
+                  Particular
+                </option>
+
+              </select>
+
+              <button
+                onClick={() => {
+
+                  setBusqueda("");
+
+                  setFiltroTipo(
+                    "Todos"
+                  );
+                }}
+
+                className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
+              >
+                Limpiar filtros
+              </button>
+
+            </div>
+
+          </div>
+
+          <div className="space-y-4">
+
+            {clientesFiltrados.map(
+              (cliente) => (
+
+                <div
+                  key={cliente.id}
+                  className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+                >
+
+                  <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
+
+                    <div>
+
+                      <div className="flex items-center gap-3 flex-wrap">
+
+                        <span className="bg-orange-500 text-white px-3 py-1 rounded-xl text-sm font-bold">
+
+                          {cliente.tipo}
+
+                        </span>
+
+                        <h2 className="text-2xl font-bold">
+
+                          {cliente.empresa ||
+                            "-"}
+
+                        </h2>
+
+                      </div>
+
+                      {cliente.tipo ===
+                        "Empresa" && (
+
+                        <p className="text-zinc-400 mt-3">
+                          Contacto:{" "}
+                          {cliente.contacto ||
+                            "-"}
+                        </p>
+
+                      )}
+
+                      <p className="text-zinc-400 mt-3">
+
+                        Teléfono:{" "}
+                        {cliente.telefono ||
                           "-"}
 
-                      </h2>
+                      </p>
+
+                      <p className="text-zinc-400">
+
+                        Email:{" "}
+                        {cliente.email ||
+                          "-"}
+
+                      </p>
+
+                      <p className="text-zinc-400">
+
+                        Dirección:{" "}
+                        {cliente.direccion ||
+                          "-"}
+
+                      </p>
+
+                      <p className="text-zinc-500 mt-3 text-sm">
+
+                        Cargado por:{" "}
+                        {cliente.cargado_por_alias ||
+                          "Administrador"}
+
+                      </p>
+
+                      {cliente.observaciones && (
+
+                        <p className="text-zinc-500 mt-3">
+                          {
+                            cliente.observaciones
+                          }
+                        </p>
+
+                      )}
 
                     </div>
 
-                    {cliente.tipo ===
-                      "Empresa" && (
+                    <div className="flex gap-4 items-start">
 
-                      <p className="text-zinc-400 mt-3">
-                        Contacto:{" "}
-                        {cliente.contacto ||
-                          "-"}
-                      </p>
-
-                    )}
-
-                    <p className="text-zinc-400 mt-3">
-
-                      Teléfono:{" "}
-                      {cliente.telefono ||
-                        "-"}
-
-                    </p>
-
-                    <p className="text-zinc-400">
-
-                      Email:{" "}
-                      {cliente.email ||
-                        "-"}
-
-                    </p>
-
-                    <p className="text-zinc-400">
-
-                      Dirección:{" "}
-                      {cliente.direccion ||
-                        "-"}
-
-                    </p>
-
-                    <p className="text-zinc-500 mt-3 text-sm">
-
-                      Cargado por:{" "}
-                      {cliente.cargado_por_alias ||
-                        "Administrador"}
-
-                    </p>
-
-                    {cliente.observaciones && (
-
-                      <p className="text-zinc-500 mt-3">
-                        {
-                          cliente.observaciones
+                      <button
+                        onClick={() =>
+                          editarCliente(
+                            cliente
+                          )
                         }
-                      </p>
 
-                    )}
+                        className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                      >
+                        Editar
+                      </button>
 
-                  </div>
+                      <button
+                        onClick={() =>
+                          solicitarEliminarCliente(
+                            cliente.id
+                          )
+                        }
 
-                  <div className="flex gap-4 items-start">
+                        className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                      >
+                        Eliminar
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        editarCliente(
-                          cliente
-                        )
-                      }
-
-                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        eliminarCliente(
-                          cliente.id
-                        )
-                      }
-
-                      className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
-                    >
-                      Eliminar
-                    </button>
+                    </div>
 
                   </div>
 
                 </div>
+              )
+            )}
+
+            {clientesFiltrados.length ===
+              0 && (
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+
+                No hay clientes cargados.
 
               </div>
-            )
-          )}
 
-          {clientesFiltrados.length ===
-            0 && (
+            )}
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
-
-              No hay clientes cargados.
-
-            </div>
-
-          )}
+          </div>
 
         </div>
 
       </div>
 
-    </div>
+    </>
   );
 }
