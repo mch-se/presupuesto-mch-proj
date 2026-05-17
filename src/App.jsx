@@ -176,8 +176,45 @@ export default function App() {
   if (loading) {
 
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
-        Cargando...
+
+      <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden">
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.15),transparent_45%)]" />
+
+        <div className="relative z-10 flex flex-col items-center">
+
+          <div className="relative">
+
+            <div className="w-40 h-40 rounded-full border-4 border-orange-500/20" />
+
+            <div className="absolute inset-0 rounded-full border-t-4 border-orange-500 animate-spin" />
+
+            <div className="absolute inset-5 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow-2xl">
+
+              <div className="text-center">
+
+                <h1 className="text-5xl font-black text-orange-500 tracking-widest">
+                  MCH
+                </h1>
+
+                <p className="text-zinc-500 text-xs mt-2 tracking-[0.35em]">
+                  SEGURIDAD
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <p className="text-zinc-400 mt-10 text-lg tracking-wide animate-pulse">
+
+            Iniciando sistema...
+
+          </p>
+
+        </div>
+
       </div>
     );
   }
