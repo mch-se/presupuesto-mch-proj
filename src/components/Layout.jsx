@@ -9,10 +9,15 @@ export default function Layout({ children }) {
   const [alias, setAlias] = React.useState("");
   const [rol, setRol] = React.useState("");
   const [modalSalir, setModalSalir] = React.useState(false);
+  const [menuMobileAbierto, setMenuMobileAbierto] = React.useState(false);
 
   React.useEffect(() => {
     cargarPerfil();
   }, []);
+
+  React.useEffect(() => {
+    setMenuMobileAbierto(false);
+  }, [location.pathname]);
 
   async function cargarPerfil() {
     const {
@@ -52,6 +57,51 @@ export default function Layout({ children }) {
     });
   }
 
+  function NavLinks() {
+    return (
+      <nav className="space-y-2">
+        {links.map((link) => {
+          const activo = location.pathname === link.url;
+
+          return (
+            <Link
+              key={link.url}
+              to={link.url}
+              className={`block px-4 py-3 rounded-2xl font-bold transition-all ${
+                activo
+                  ? "bg-orange-500 text-white"
+                  : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300"
+              }`}
+            >
+              {link.texto}
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
+
+  function UserBox() {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
+        <p className="text-zinc-500 text-xs">Usuario</p>
+
+        <p className="font-bold text-lg truncate">{alias || "-"}</p>
+
+        <p className="text-orange-400 text-xs uppercase mt-1">
+          {rol || "-"}
+        </p>
+
+        <button
+          onClick={() => setModalSalir(true)}
+          className="mt-4 w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl font-bold"
+        >
+          Salir
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <ConfirmModal
@@ -64,80 +114,73 @@ export default function Layout({ children }) {
         onConfirmar={confirmarCerrarSesion}
       />
 
-      <div className="min-h-screen bg-black text-white flex">
-        <aside className="hidden lg:flex w-72 bg-zinc-950 border-r border-zinc-800 p-5 flex-col justify-between">
-          <div>
-            <div className="mb-10">
-              <h1 className="text-4xl font-black text-orange-500">
-                MCH
-              </h1>
+      {menuMobileAbierto && (
+        <div
+          onClick={() => setMenuMobileAbierto(false)}
+          className="fixed inset-0 bg-black/70 z-[70] lg:hidden"
+        />
+      )}
+
+      <div
+        className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 p-5 z-[80] flex flex-col justify-between transform transition-transform duration-300 lg:hidden ${
+          menuMobileAbierto ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div>
+          <div className="flex justify-between items-start mb-10">
+            <div>
+              <h1 className="text-4xl font-black text-orange-500">MCH</h1>
 
               <p className="text-zinc-500 text-sm mt-1">
                 Seguridad Electrónica
               </p>
             </div>
 
-            <nav className="space-y-2">
-              {links.map((link) => {
-                const activo = location.pathname === link.url;
-
-                return (
-                  <Link
-                    key={link.url}
-                    to={link.url}
-                    className={`block px-4 py-3 rounded-2xl font-bold transition-all ${
-                      activo
-                        ? "bg-orange-500 text-white"
-                        : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300"
-                    }`}
-                  >
-                    {link.texto}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
-            <p className="text-zinc-500 text-xs">
-              Usuario
-            </p>
-
-            <p className="font-bold text-lg truncate">
-              {alias || "-"}
-            </p>
-
-            <p className="text-orange-400 text-xs uppercase mt-1">
-              {rol || "-"}
-            </p>
-
             <button
-              onClick={() => setModalSalir(true)}
-              className="mt-4 w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl font-bold"
+              onClick={() => setMenuMobileAbierto(false)}
+              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-bold"
             >
-              Salir
+              X
             </button>
           </div>
+
+          <NavLinks />
+        </div>
+
+        <UserBox />
+      </div>
+
+      <div className="min-h-screen bg-black text-white flex">
+        <aside className="hidden lg:flex w-72 bg-zinc-950 border-r border-zinc-800 p-5 flex-col justify-between">
+          <div>
+            <div className="mb-10">
+              <h1 className="text-4xl font-black text-orange-500">MCH</h1>
+
+              <p className="text-zinc-500 text-sm mt-1">
+                Seguridad Electrónica
+              </p>
+            </div>
+
+            <NavLinks />
+          </div>
+
+          <UserBox />
         </aside>
 
         <main className="flex-1 min-w-0">
           <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-50">
             <div>
-              <h1 className="text-2xl font-black text-orange-500">
-                MCH
-              </h1>
+              <h1 className="text-2xl font-black text-orange-500">MCH</h1>
 
-              <p className="text-zinc-500 text-xs uppercase">
-                {rol || "-"}
-              </p>
+              <p className="text-zinc-500 text-xs uppercase">{rol || "-"}</p>
             </div>
 
-            <Link
-              to="/"
+            <button
+              onClick={() => setMenuMobileAbierto(true)}
               className="bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-2xl font-bold"
             >
-              Inicio
-            </Link>
+              Menú
+            </button>
           </div>
 
           {children}
