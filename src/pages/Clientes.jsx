@@ -33,6 +33,9 @@ export default function Clientes() {
   const [busqueda, setBusqueda] =
     React.useState("");
 
+  const [filtroTipo, setFiltroTipo] =
+    React.useState("Todos");
+
   const [
     editandoId,
     setEditandoId,
@@ -88,7 +91,9 @@ export default function Clientes() {
       tipo === "Empresa" &&
       !empresa
     ) {
+
       alert("Ingresar empresa");
+
       return;
     }
 
@@ -96,7 +101,9 @@ export default function Clientes() {
       tipo === "Particular" &&
       !empresa
     ) {
+
       alert("Ingresar persona");
+
       return;
     }
 
@@ -159,7 +166,9 @@ export default function Clientes() {
           );
 
       if (error) {
+
         alert(error.message);
+
         return;
       }
 
@@ -177,7 +186,9 @@ export default function Clientes() {
           ]);
 
       if (error) {
+
         alert(error.message);
+
         return;
       }
 
@@ -247,7 +258,9 @@ export default function Clientes() {
         .eq("id", id);
 
     if (error) {
+
       alert(error.message);
+
       return;
     }
 
@@ -259,16 +272,28 @@ export default function Clientes() {
       (cliente) => {
 
         const texto = `
-      ${cliente.tipo || ""}
-      ${cliente.empresa || ""}
-      ${cliente.contacto || ""}
-      ${cliente.telefono || ""}
-      ${cliente.email || ""}
-      ${cliente.direccion || ""}
-    `.toLowerCase();
+          ${cliente.tipo || ""}
+          ${cliente.empresa || ""}
+          ${cliente.contacto || ""}
+          ${cliente.telefono || ""}
+          ${cliente.email || ""}
+          ${cliente.direccion || ""}
+          ${cliente.cargado_por_alias || ""}
+        `.toLowerCase();
 
-        return texto.includes(
-          busqueda.toLowerCase()
+        const coincideBusqueda =
+          texto.includes(
+            busqueda.toLowerCase()
+          );
+
+        const coincideTipo =
+          filtroTipo === "Todos"
+            ? true
+            : cliente.tipo === filtroTipo;
+
+        return (
+          coincideBusqueda &&
+          coincideTipo
         );
       }
     );
@@ -460,18 +485,66 @@ export default function Clientes() {
 
         </div>
 
-        <input
-          type="text"
-          placeholder="Buscar cliente..."
-          value={busqueda}
-          onChange={(e) =>
-            setBusqueda(
-              e.target.value
-            )
-          }
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
 
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-8"
-        />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <input
+              type="text"
+              placeholder="Buscar cliente..."
+              value={busqueda}
+              onChange={(e) =>
+                setBusqueda(
+                  e.target.value
+                )
+              }
+
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            />
+
+            <select
+              value={filtroTipo}
+              onChange={(e) =>
+                setFiltroTipo(
+                  e.target.value
+                )
+              }
+
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+            >
+
+              <option>
+                Todos
+              </option>
+
+              <option>
+                Empresa
+              </option>
+
+              <option>
+                Particular
+              </option>
+
+            </select>
+
+            <button
+              onClick={() => {
+
+                setBusqueda("");
+
+                setFiltroTipo(
+                  "Todos"
+                );
+              }}
+
+              className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
+            >
+              Limpiar filtros
+            </button>
+
+          </div>
+
+        </div>
 
         <div className="space-y-4">
 
