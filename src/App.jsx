@@ -9,6 +9,8 @@ import {
 
 import { supabase } from "./lib/supabase";
 
+import Layout from "./components/Layout";
+
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import MiCuenta from "./pages/MiCuenta";
@@ -227,113 +229,117 @@ export default function App() {
   return (
     <BrowserRouter>
 
-      <Routes>
+      <Layout>
 
-        <Route
-          path="/"
-          element={
-            <Dashboard />
-          }
-        />
+        <Routes>
 
-        <Route
-          path="/micuenta"
-          element={
-            <MiCuenta />
-          }
-        />
+          <Route
+            path="/"
+            element={
+              <Dashboard />
+            }
+          />
 
-        <Route
-          path="/presupuestos"
-          element={
-            <RutaProtegida>
-              <Presupuestos />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/micuenta"
+            element={
+              <MiCuenta />
+            }
+          />
 
-        <Route
-          path="/presupuestos/:id"
-          element={
-            <RutaProtegida>
-              <Presupuestos />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/presupuestos"
+            element={
+              <RutaProtegida>
+                <Presupuestos />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/historial"
-          element={
-            <RutaProtegida>
-              <HistorialPresupuestos />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/presupuestos/:id"
+            element={
+              <RutaProtegida>
+                <Presupuestos />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/presupuesto/:id"
-          element={
-            <RutaProtegida>
-              <VerPresupuesto />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/historial"
+            element={
+              <RutaProtegida>
+                <HistorialPresupuestos />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/presupuesto-preview/:id"
-          element={
-            <RutaProtegida>
-              <VistaPreviaPresupuesto />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/presupuesto/:id"
+            element={
+              <RutaProtegida>
+                <VerPresupuesto />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/articulos"
-          element={
-            <RutaProtegida>
-              <Articulos />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/presupuesto-preview/:id"
+            element={
+              <RutaProtegida>
+                <VistaPreviaPresupuesto />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/clientes"
-          element={
-            <RutaProtegida>
-              <Clientes />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/articulos"
+            element={
+              <RutaProtegida>
+                <Articulos />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/importar"
-          element={
-            <RutaProtegida>
-              <ImportarDatos />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/clientes"
+            element={
+              <RutaProtegida>
+                <Clientes />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/plantillas"
-          element={
-            <RutaProtegida>
-              <Plantillas />
-            </RutaProtegida>
-          }
-        />
+          <Route
+            path="/importar"
+            element={
+              <RutaProtegida>
+                <ImportarDatos />
+              </RutaProtegida>
+            }
+          />
 
-        <Route
-          path="/admin/usuarios"
-          element={
-            <RutaAdmin>
-              <AdminUsuarios />
-            </RutaAdmin>
-          }
-        />
+          <Route
+            path="/plantillas"
+            element={
+              <RutaProtegida>
+                <Plantillas />
+              </RutaProtegida>
+            }
+          />
 
-      </Routes>
+          <Route
+            path="/admin/usuarios"
+            element={
+              <RutaAdmin>
+                <AdminUsuarios />
+              </RutaAdmin>
+            }
+          />
+
+        </Routes>
+
+      </Layout>
 
     </BrowserRouter>
   );
