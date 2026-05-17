@@ -9,15 +9,26 @@ export default function Articulos() {
   const [detalle, setDetalle] = React.useState("");
   const [precio, setPrecio] = React.useState("");
   const [costo, setCosto] = React.useState("");
-  const [categoria, setCategoria] = React.useState("");
+  const [categoriaId, setCategoriaId] = React.useState("");
+  const [tipoId, setTipoId] = React.useState("");
   const [proveedor, setProveedor] = React.useState("");
   const [moneda, setMoneda] = React.useState("ARS");
 
   const [articulos, setArticulos] = React.useState([]);
+  const [categorias, setCategorias] = React.useState([]);
+  const [tipos, setTipos] = React.useState([]);
+
   const [busqueda, setBusqueda] = React.useState("");
-  const [filtroMoneda, setFiltroMoneda] = React.useState("Todas");
   const [filtroCategoria, setFiltroCategoria] = React.useState("Todas");
+  const [filtroTipo, setFiltroTipo] = React.useState("Todos");
+
   const [editandoId, setEditandoId] = React.useState(null);
+
+  const [mostrarFormulario, setMostrarFormulario] =
+    React.useState(false);
+
+  const [menuAbierto, setMenuAbierto] =
+    React.useState(null);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
@@ -27,6 +38,8 @@ export default function Articulos() {
   const [articuloEliminar, setArticuloEliminar] = React.useState(null);
 
   React.useEffect(() => {
+    obtenerCategorias();
+    obtenerTipos();
     obtenerArticulos();
   }, []);
 
@@ -38,6 +51,34 @@ export default function Articulos() {
     setTimeout(() => {
       setToastVisible(false);
     }, 2500);
+  }
+
+  async function obtenerCategorias() {
+    const { data, error } = await supabase
+      .from("articulo_categorias")
+      .select("*")
+      .order("nombre");
+
+    if (error) {
+      mostrarToast(error.message, "error");
+      return;
+    }
+
+    setCategorias(data || []);
+  }
+
+  async function obtenerTipos() {
+    const { data, error } = await supabase
+      .from("articulo_tipos")
+      .select("*")
+      .order("nombre");
+
+    if (error) {
+      mostrarToast(error.message, "error");
+      return;
+    }
+
+    setTipos(data || []);
   }
 
   async function obtenerArticulos() {
@@ -54,15 +95,34 @@ export default function Articulos() {
     setArticulos(data || []);
   }
 
+  function nombreCategoria(articulo) {
+    const encontrada = categorias.find(
+      (categoria) => categoria.id === articulo.categoria_id
+    );
+
+    return encontrada?.nombre || articulo.categoria || "-";
+  }
+
+  function nombreTipo(articulo) {
+    const encontrado = tipos.find(
+      (tipo) => tipo.id === articulo.tipo_id
+    );
+
+    return encontrado?.nombre || articulo.tipo || "-";
+  }
+
   function limpiarFormulario() {
     setDescripcion("");
     setDetalle("");
     setPrecio("");
     setCosto("");
-    setCategoria("");
+    setCategoriaId("");
+    setTipoId("");
     setProveedor("");
     setMoneda("ARS");
     setEditandoId(null);
+
+    setMostrarFormulario(false);
   }
 
   async function guardarArticulo() {
@@ -70,6 +130,14 @@ export default function Articulos() {
       mostrarToast("Ingresar descripción", "error");
       return;
     }
+
+    const categoriaSeleccionada = categorias.find(
+      (categoria) => categoria.id === categoriaId
+    );
+
+    const tipoSeleccionado = tipos.find(
+      (tipo) => tipo.id === tipoId
+    );
 
     const {
       data: { user },
@@ -83,18 +151,23 @@ export default function Articulos() {
 
     const alias = profile?.alias || "Administrador";
 
+    const datosArticulo = {
+      descripcion,
+      detalle,
+      precio,
+      costo,
+      proveedor,
+      moneda,
+      categoria_id: categoriaId || null,
+      tipo_id: tipoId || null,
+      categoria: categoriaSeleccionada?.nombre || "",
+      tipo: tipoSeleccionado?.nombre || "",
+    };
+
     if (editandoId) {
       const { error } = await supabase
         .from("articulos")
-        .update({
-          descripcion,
-          detalle,
-          precio,
-          costo,
-          categoria,
-          proveedor,
-          moneda,
-        })
+        .update(datosArticulo)
         .eq("id", editandoId);
 
       if (error) {
@@ -104,20 +177,16 @@ export default function Articulos() {
 
       mostrarToast("Artículo actualizado", "ok");
     } else {
-      const { error } = await supabase.from("articulos").insert([
-        {
-          descripcion,
-          detalle,
-          precio,
-          costo,
-          categoria,
-          proveedor,
-          moneda,
-          user_id: user.id,
-          cargado_por: user.id,
-          cargado_por_alias: alias,
-        },
-      ]);
+      const { error } = await supabase
+        .from("articulos")
+        .insert([
+          {
+            ...datosArticulo,
+            user_id: user.id,
+            cargado_por: user.id,
+            cargado_por_alias: alias,
+          },
+        ]);
 
       if (error) {
         mostrarToast(error.message, "error");
@@ -127,19 +196,43 @@ export default function Articulos() {
       mostrarToast("Artículo creado correctamente", "ok");
     }
 
+    setMostrarFormulario(false);
+
     limpiarFormulario();
     obtenerArticulos();
   }
 
   function editarArticulo(articulo) {
+    const categoriaEncontrada =
+      articulo.categoria_id ||
+      categorias.find(
+        (categoria) =>
+          categoria.nombre.toLowerCase() ===
+          (articulo.categoria || "").toLowerCase()
+      )?.id ||
+      "";
+
+    const tipoEncontrado =
+      articulo.tipo_id ||
+      tipos.find(
+        (tipo) =>
+          tipo.nombre.toLowerCase() ===
+          (articulo.tipo || "").toLowerCase()
+      )?.id ||
+      "";
+
     setDescripcion(articulo.descripcion || "");
     setDetalle(articulo.detalle || "");
     setPrecio(articulo.precio || "");
     setCosto(articulo.costo || "");
-    setCategoria(articulo.categoria || "");
+    setCategoriaId(categoriaEncontrada);
+    setTipoId(tipoEncontrado);
     setProveedor(articulo.proveedor || "");
     setMoneda(articulo.moneda || "ARS");
     setEditandoId(articulo.id);
+
+    setMostrarFormulario(true);
+    setMenuAbierto(null);
   }
 
   function solicitarEliminarArticulo(id) {
@@ -160,11 +253,10 @@ export default function Articulos() {
       return;
     }
 
-    mostrarToast("Artículo eliminado", "ok");
-
     setModalVisible(false);
     setArticuloEliminar(null);
 
+    mostrarToast("Artículo eliminado", "ok");
     obtenerArticulos();
   }
 
@@ -178,35 +270,39 @@ export default function Articulos() {
     return `${texto.slice(0, 120)}...`;
   }
 
-  const categorias = [
-    ...new Set(
-      articulos
-        .map((a) => a.categoria)
-        .filter(Boolean)
-    ),
-  ];
-
   const articulosFiltrados = articulos.filter((articulo) => {
+    const categoriaTexto = nombreCategoria(articulo);
+    const tipoTexto = nombreTipo(articulo);
+
     const texto = `
       ${articulo.descripcion || ""}
       ${articulo.detalle || ""}
-      ${articulo.categoria || ""}
+      ${categoriaTexto || ""}
+      ${tipoTexto || ""}
       ${articulo.proveedor || ""}
       ${articulo.cargado_por_alias || ""}
     `.toLowerCase();
 
-    const coincideBusqueda = texto.includes(busqueda.toLowerCase());
-
-    const coincideMoneda =
-      filtroMoneda === "Todas" ? true : articulo.moneda === filtroMoneda;
+    const coincideBusqueda =
+      texto.includes(busqueda.toLowerCase());
 
     const coincideCategoria =
       filtroCategoria === "Todas"
         ? true
-        : (articulo.categoria || "").toLowerCase() ===
+        : categoriaTexto.toLowerCase() ===
           filtroCategoria.toLowerCase();
 
-    return coincideBusqueda && coincideMoneda && coincideCategoria;
+    const coincideTipo =
+      filtroTipo === "Todos"
+        ? true
+        : tipoTexto.toLowerCase() ===
+          filtroTipo.toLowerCase();
+
+    return (
+      coincideBusqueda &&
+      coincideCategoria &&
+      coincideTipo
+    );
   });
 
   return (
@@ -232,8 +328,11 @@ export default function Articulos() {
 
       <div className="min-h-screen bg-black text-white p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-10">
+
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-5 mb-10">
+
             <div>
+
               <h1 className="text-5xl font-bold text-orange-500">
                 Artículos
               </h1>
@@ -241,146 +340,337 @@ export default function Articulos() {
               <p className="text-zinc-400 mt-3">
                 Biblioteca profesional
               </p>
+
             </div>
 
-            <Link
-              to="/"
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-            >
-              Volver
-            </Link>
+            <div className="flex flex-wrap gap-3">
+
+              <Link
+                to="/config/categorias"
+                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-5 py-3 rounded-xl font-bold"
+              >
+                Categorías
+              </Link>
+
+              <Link
+                to="/config/tipos"
+                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-5 py-3 rounded-xl font-bold"
+              >
+                Tipos
+              </Link>
+
+              <Link
+                to="/"
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+              >
+                Volver
+              </Link>
+
+            </div>
+
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-10">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <input
-                type="text"
-                placeholder="Descripción corta"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
+          <div className="mb-10">
 
-              <input
-                type="text"
-                placeholder="Categoría"
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <input
-                type="text"
-                placeholder="Proveedor"
-                value={proveedor}
-                onChange={(e) => setProveedor(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <textarea
-                placeholder="Descripción larga / detalle"
-                value={detalle}
-                onChange={(e) => setDetalle(e.target.value)}
-                className="md:col-span-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
-              />
-
-              <input
-                type="number"
-                placeholder="Costo"
-                value={costo}
-                onChange={(e) => setCosto(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <input
-                type="number"
-                placeholder="Precio Venta"
-                value={precio}
-                onChange={(e) => setPrecio(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <select
-                value={moneda}
-                onChange={(e) => setMoneda(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              >
-                <option value="ARS">ARS $</option>
-                <option value="USD">USD $</option>
-              </select>
-            </div>
-
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={guardarArticulo}
-                className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
-              >
-                {editandoId ? "Actualizar" : "Guardar"}
-              </button>
+            {!mostrarFormulario ? (
 
               <button
-                onClick={limpiarFormulario}
-                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+                onClick={() =>
+                  setMostrarFormulario(true)
+                }
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-8 transition-all"
               >
-                Limpiar
+
+                <div className="flex items-center justify-center gap-4">
+
+                  <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
+                    +
+                  </div>
+
+                  <div className="text-left">
+
+                    <p className="text-2xl font-black text-white">
+                      Agregar artículo
+                    </p>
+
+                    <p className="text-zinc-500 mt-1">
+                      Crear nuevo artículo para presupuestos
+                    </p>
+
+                  </div>
+
+                </div>
+
               </button>
-            </div>
+
+            ) : (
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+
+                <div className="flex items-center justify-between mb-8">
+
+                  <div>
+
+                    <h2 className="text-3xl font-black text-orange-500">
+
+                      {editandoId
+                        ? "Editar artículo"
+                        : "Nuevo artículo"}
+
+                    </h2>
+
+                    <p className="text-zinc-500 mt-1">
+                      Completar información del artículo
+                    </p>
+
+                  </div>
+
+                  <button
+                    onClick={limpiarFormulario}
+                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
+                  >
+                    Cerrar
+                  </button>
+
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  <input
+                    type="text"
+                    placeholder="Descripción corta"
+                    value={descripcion}
+                    onChange={(e) =>
+                      setDescripcion(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <select
+                    value={categoriaId}
+                    onChange={(e) =>
+                      setCategoriaId(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+
+                    <option value="">
+                      Seleccionar categoría
+                    </option>
+
+                    {categorias.map((categoria) => (
+
+                      <option
+                        key={categoria.id}
+                        value={categoria.id}
+                      >
+                        {categoria.nombre}
+                      </option>
+
+                    ))}
+
+                  </select>
+
+                  <select
+                    value={tipoId}
+                    onChange={(e) =>
+                      setTipoId(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+
+                    <option value="">
+                      Seleccionar tipo
+                    </option>
+
+                    {tipos.map((tipo) => (
+
+                      <option
+                        key={tipo.id}
+                        value={tipo.id}
+                      >
+                        {tipo.nombre}
+                      </option>
+
+                    ))}
+
+                  </select>
+
+                  <input
+                    type="text"
+                    placeholder="Proveedor"
+                    value={proveedor}
+                    onChange={(e) =>
+                      setProveedor(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <input
+                    type="number"
+                    placeholder="Costo"
+                    value={costo}
+                    onChange={(e) =>
+                      setCosto(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <input
+                    type="number"
+                    placeholder="Precio Venta"
+                    value={precio}
+                    onChange={(e) =>
+                      setPrecio(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <select
+                    value={moneda}
+                    onChange={(e) =>
+                      setMoneda(e.target.value)
+                    }
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+
+                    <option value="ARS">
+                      ARS $
+                    </option>
+
+                    <option value="USD">
+                      USD $
+                    </option>
+
+                  </select>
+
+                  <textarea
+                    placeholder="Descripción larga / detalle"
+                    value={detalle}
+                    onChange={(e) =>
+                      setDetalle(e.target.value)
+                    }
+                    className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
+                  />
+
+                </div>
+
+                <div className="flex gap-4 mt-8">
+
+                  <button
+                    onClick={guardarArticulo}
+                    className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
+                  >
+
+                    {editandoId
+                      ? "Actualizar"
+                      : "Guardar"}
+
+                  </button>
+
+                  <button
+                    onClick={limpiarFormulario}
+                    className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+                  >
+                    Cancelar
+                  </button>
+
+                </div>
+
+              </div>
+
+            )}
+
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
               <input
                 type="text"
                 placeholder="Buscar artículo..."
                 value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
+                onChange={(e) =>
+                  setBusqueda(e.target.value)
+                }
                 className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               />
 
               <select
-                value={filtroMoneda}
-                onChange={(e) => setFiltroMoneda(e.target.value)}
+                value={filtroCategoria}
+                onChange={(e) =>
+                  setFiltroCategoria(e.target.value)
+                }
                 className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               >
-                <option>Todas</option>
-                <option>ARS</option>
-                <option>USD</option>
+
+                <option>
+                  Todas
+                </option>
+
+                {categorias.map((categoria) => (
+
+                  <option key={categoria.id}>
+                    {categoria.nombre}
+                  </option>
+
+                ))}
+
               </select>
 
               <select
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
+                value={filtroTipo}
+                onChange={(e) =>
+                  setFiltroTipo(e.target.value)
+                }
                 className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               >
-                <option>Todas</option>
 
-                {categorias.map((categoria) => (
-                  <option key={categoria}>{categoria}</option>
+                <option>
+                  Todos
+                </option>
+
+                {tipos.map((tipo) => (
+
+                  <option key={tipo.id}>
+                    {tipo.nombre}
+                  </option>
+
                 ))}
+
               </select>
 
               <button
                 onClick={() => {
                   setBusqueda("");
-                  setFiltroMoneda("Todas");
                   setFiltroCategoria("Todas");
+                  setFiltroTipo("Todos");
                 }}
                 className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
               >
                 Limpiar filtros
               </button>
+
             </div>
+
           </div>
 
           <div className="space-y-4">
+
             {articulosFiltrados.map((articulo) => (
+
               <div
                 key={articulo.id}
                 className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
               >
+
                 <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full">
+
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-6 w-full">
+
                     <div>
+
                       <p className="text-zinc-500 text-sm">
                         Descripción
                       </p>
@@ -388,95 +678,181 @@ export default function Articulos() {
                       <p className="text-xl font-bold mt-2">
                         {articulo.descripcion}
                       </p>
+
                     </div>
 
                     <div>
+
                       <p className="text-zinc-500 text-sm">
                         Categoría
                       </p>
 
                       <p className="mt-2">
-                        {articulo.categoria}
+                        {nombreCategoria(articulo)}
                       </p>
+
                     </div>
 
                     <div>
+
+                      <p className="text-zinc-500 text-sm">
+                        Tipo
+                      </p>
+
+                      <p className="mt-2">
+                        {nombreTipo(articulo)}
+                      </p>
+
+                    </div>
+
+                    <div>
+
                       <p className="text-zinc-500 text-sm">
                         Proveedor
                       </p>
 
                       <p className="mt-2">
-                        {articulo.proveedor}
+                        {articulo.proveedor || "-"}
                       </p>
+
                     </div>
 
                     <div>
+
                       <p className="text-zinc-500 text-sm">
                         Costo
                       </p>
 
                       <p className="mt-2">
-                        {articulo.moneda === "USD" ? "USD $" : "$"}
-                        {Number(articulo.costo).toLocaleString()}
+                        {articulo.moneda === "USD"
+                          ? "USD $"
+                          : "$"}
+
+                        {Number(
+                          articulo.costo
+                        ).toLocaleString()}
                       </p>
+
                     </div>
 
                     <div>
+
                       <p className="text-zinc-500 text-sm">
                         Venta
                       </p>
 
                       <p className="mt-2 text-orange-500 font-bold">
-                        {articulo.moneda === "USD" ? "USD $" : "$"}
-                        {Number(articulo.precio).toLocaleString()}
+
+                        {articulo.moneda === "USD"
+                          ? "USD $"
+                          : "$"}
+
+                        {Number(
+                          articulo.precio
+                        ).toLocaleString()}
+
                       </p>
+
                     </div>
 
                     {articulo.detalle && (
-                      <div className="md:col-span-5 border-t border-zinc-800 pt-4">
+
+                      <div className="md:col-span-6 border-t border-zinc-800 pt-4">
+
                         <p className="text-zinc-500 text-sm mb-2">
                           Descripción larga
                         </p>
 
                         <p className="text-zinc-300 leading-relaxed">
-                          {detalleCorto(articulo.detalle)}
+                          {detalleCorto(
+                            articulo.detalle
+                          )}
                         </p>
+
                       </div>
+
                     )}
 
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-6">
+
                       <p className="text-zinc-500 text-sm mt-2">
+
                         Cargado por:{" "}
-                        {articulo.cargado_por_alias || "Administrador"}
+
+                        {articulo.cargado_por_alias ||
+                          "Administrador"}
+
                       </p>
+
                     </div>
+
                   </div>
 
-                  <div className="flex gap-4 xl:ml-8 xl:self-center">
-                    <button
-                      onClick={() => editarArticulo(articulo)}
-                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                    >
-                      Editar
-                    </button>
+                  <div className="relative xl:ml-8 xl:self-center">
 
                     <button
-                      onClick={() => solicitarEliminarArticulo(articulo.id)}
-                      className="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-xl font-bold"
+                      onClick={() =>
+                        setMenuAbierto(
+                          menuAbierto === articulo.id
+                            ? null
+                            : articulo.id
+                        )
+                      }
+                      className="w-14 h-14 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
                     >
-                      Eliminar
+                      ⋮
                     </button>
+
+                    {menuAbierto === articulo.id && (
+
+                      <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
+
+                        <button
+                          onClick={() =>
+                            editarArticulo(articulo)
+                          }
+                          className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                        >
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setMenuAbierto(null);
+
+                            solicitarEliminarArticulo(
+                              articulo.id
+                            );
+                          }}
+                          className="w-full text-left px-5 py-4 hover:bg-red-500/20 text-red-400 font-bold"
+                        >
+                          Eliminar
+                        </button>
+
+                      </div>
+
+                    )}
+
                   </div>
+
                 </div>
+
               </div>
+
             ))}
 
             {articulosFiltrados.length === 0 && (
+
               <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+
                 No hay artículos encontrados.
+
               </div>
+
             )}
+
           </div>
+
         </div>
       </div>
     </>

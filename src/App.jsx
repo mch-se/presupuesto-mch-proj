@@ -23,6 +23,8 @@ import VistaPreviaPresupuesto from "./pages/VistaPreviaPresupuesto";
 import Plantillas from "./pages/Plantillas";
 import ImportarDatos from "./pages/ImportarDatos";
 import AdminUsuarios from "./pages/AdminUsuarios";
+import CategoriasArticulos from "./pages/CategoriasArticulos";
+import TiposArticulos from "./pages/TiposArticulos";
 
 export default function App() {
 
@@ -178,7 +180,6 @@ export default function App() {
   if (loading) {
 
     return (
-
       <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden">
 
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.15),transparent_45%)]" />
@@ -297,6 +298,24 @@ export default function App() {
             element={
               <RutaProtegida>
                 <Articulos />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/config/categorias"
+            element={
+              <RutaProtegida>
+                <CategoriasArticulos />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/config/tipos"
+            element={
+              <RutaProtegida>
+                <TiposArticulos />
               </RutaProtegida>
             }
           />
