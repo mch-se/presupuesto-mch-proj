@@ -1,6 +1,7 @@
 import React from "react";
 import { supabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import Toast from "../components/Toast";
 
 export default function Presupuestos() {
   const navigate = useNavigate();
@@ -31,6 +32,12 @@ export default function Presupuestos() {
   const [plantillas, setPlantillas] = React.useState([]);
   const [busquedaPlantilla, setBusquedaPlantilla] = React.useState("");
 
+  const [guardando, setGuardando] = React.useState(false);
+
+  const [toastVisible, setToastVisible] = React.useState(false);
+  const [toastMensaje, setToastMensaje] = React.useState("");
+  const [toastTipo, setToastTipo] = React.useState("ok");
+
   React.useEffect(() => {
     obtenerArticulos();
     obtenerClientes();
@@ -43,7 +50,31 @@ export default function Presupuestos() {
     }
   }, []);
 
+  function mostrarToast(mensaje, tipo = "ok") {
+    setToastMensaje(mensaje);
+    setToastTipo(tipo);
+    setToastVisible(true);
+
+    setTimeout(() => {
+      setToastVisible(false);
+    }, 2500);
+  }
+
   async function cargarPresupuesto() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: perfil } = await supabase
+      .from("profiles")
+      .select("rol")
+      .eq("id", user.id)
+      .single();
+
+    const rol = perfil?.rol || "pendiente";
+
     const { data, error } = await supabase
       .from("presupuestos")
       .select("*")
@@ -51,7 +82,25 @@ export default function Presupuestos() {
       .single();
 
     if (error) {
-      alert(error.message);
+      mostrarToast(error.message, "error");
+      navigate("/historial");
+      return;
+    }
+
+    const esPropio = data.user_id === user.id;
+
+    const puedeEditar =
+      rol === "admin" ||
+      rol === "socio" ||
+      esPropio;
+
+    if (!puedeEditar) {
+      mostrarToast(
+        "No tenés permisos para editar este presupuesto",
+        "error"
+      );
+
+      navigate("/historial");
       return;
     }
 
@@ -102,18 +151,13 @@ export default function Presupuestos() {
   }
 
   async function obtenerArticulos() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } = await supabase
       .from("articulos")
       .select("*")
-      .eq("user_id", user.id)
       .order("descripcion");
 
     if (error) {
-      alert(error.message);
+      mostrarToast(error.message, "error");
       return;
     }
 
@@ -121,18 +165,13 @@ export default function Presupuestos() {
   }
 
   async function obtenerClientes() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } = await supabase
       .from("clientes")
       .select("*")
-      .eq("user_id", user.id)
       .order("empresa");
 
     if (error) {
-      alert(error.message);
+      mostrarToast(error.message, "error");
       return;
     }
 
@@ -140,18 +179,13 @@ export default function Presupuestos() {
   }
 
   async function obtenerPlantillas() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     const { data, error } = await supabase
       .from("plantillas")
       .select("*")
-      .eq("user_id", user.id)
       .order("nombre");
 
     if (error) {
-      alert(error.message);
+      mostrarToast(error.message, "error");
       return;
     }
 
@@ -219,7 +253,7 @@ export default function Presupuestos() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      alert(error.message);
+      mostrarToast(error.message, "error");
       return;
     }
 
@@ -244,99 +278,152 @@ export default function Presupuestos() {
   const total = subtotal;
 
   async function guardarPresupuesto() {
+    if (guardando) return;
+
     if (!cliente) {
-      alert("Ingresar o seleccionar cliente");
+      mostrarToast("Ingresar o seleccionar cliente", "error");
       return;
     }
 
-    const datosCliente = {
-      cliente_id: clienteSeleccionado?.id || null,
-      cliente_empresa: clienteSeleccionado?.empresa || cliente || "",
-      cliente_contacto: clienteSeleccionado?.contacto || "",
-      cliente_telefono: clienteTelefono || "",
-      cliente_email: clienteEmail || "",
-      cliente_direccion: clienteDireccion || "",
-    };
+    setGuardando(true);
 
-    const datosPresupuesto = {
-      cliente,
-      descripcion_corta: descripcionCorta,
-      descripcion_larga: descripcionLarga,
-      subtotal,
-      iva,
-      total,
-      estado: "Edición",
-      moneda,
-      tipo_factura: "C",
-      aplica_iva: false,
-      ...datosCliente,
-    };
-
-    if (modoEdicion) {
-      const { error } = await supabase
-        .from("presupuestos")
-        .update(datosPresupuesto)
-        .eq("id", id);
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      await supabase
-        .from("presupuesto_items")
-        .delete()
-        .eq("presupuesto_id", id);
-
-      const nuevosItems = items.map((item) => ({
-        presupuesto_id: id,
-        descripcion: item.descripcion,
-        detalle: item.detalle || "",
-        cantidad: Number(item.cantidad) || 0,
-        precio: Number(item.precio) || 0,
-        subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
-      }));
-
-      await supabase.from("presupuesto_items").insert(nuevosItems);
-
-      alert("Presupuesto actualizado");
-    } else {
+    try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const { data: presupuesto, error } = await supabase
-        .from("presupuestos")
-        .insert([
-          {
-            numero: numeroPresupuesto,
-            user_id: user.id,
-            ...datosPresupuesto,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        alert(error.message);
+      if (!user) {
+        mostrarToast("Sesión no válida", "error");
+        setGuardando(false);
         return;
       }
 
-      const itemsInsertar = items.map((item) => ({
-        presupuesto_id: presupuesto.id,
-        descripcion: item.descripcion,
-        detalle: item.detalle || "",
-        cantidad: Number(item.cantidad) || 0,
-        precio: Number(item.precio) || 0,
-        subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
-      }));
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("alias")
+        .eq("id", user.id)
+        .single();
 
-      await supabase.from("presupuesto_items").insert(itemsInsertar);
+      const alias = perfil?.alias || "Administrador";
 
-      alert("Presupuesto guardado");
+      const datosCliente = {
+        cliente_id: clienteSeleccionado?.id || null,
+        cliente_empresa: clienteSeleccionado?.empresa || cliente || "",
+        cliente_contacto: clienteSeleccionado?.contacto || "",
+        cliente_telefono: clienteTelefono || "",
+        cliente_email: clienteEmail || "",
+        cliente_direccion: clienteDireccion || "",
+      };
+
+      const datosPresupuesto = {
+        cliente,
+        descripcion_corta: descripcionCorta,
+        descripcion_larga: descripcionLarga,
+        subtotal,
+        iva,
+        total,
+        estado: "Edición",
+        moneda,
+        tipo_factura: "C",
+        aplica_iva: false,
+        ...datosCliente,
+      };
+
+      if (modoEdicion) {
+        const { error } = await supabase
+          .from("presupuestos")
+          .update(datosPresupuesto)
+          .eq("id", id);
+
+        if (error) {
+          mostrarToast(error.message, "error");
+          setGuardando(false);
+          return;
+        }
+
+        await supabase
+          .from("presupuesto_items")
+          .delete()
+          .eq("presupuesto_id", id);
+
+        const nuevosItems = items.map((item) => ({
+          presupuesto_id: id,
+          descripcion: item.descripcion,
+          detalle: item.detalle || "",
+          cantidad: Number(item.cantidad) || 0,
+          precio: Number(item.precio) || 0,
+          subtotal:
+            (Number(item.cantidad) || 0) *
+            (Number(item.precio) || 0),
+        }));
+
+        if (nuevosItems.length > 0) {
+          const { error: errorItems } = await supabase
+            .from("presupuesto_items")
+            .insert(nuevosItems);
+
+          if (errorItems) {
+            mostrarToast(errorItems.message, "error");
+            setGuardando(false);
+            return;
+          }
+        }
+
+        mostrarToast("Presupuesto actualizado", "ok");
+      } else {
+        const { data: presupuesto, error } = await supabase
+          .from("presupuestos")
+          .insert([
+            {
+              numero: numeroPresupuesto,
+              user_id: user.id,
+              generado_por: user.id,
+              generado_por_alias: alias,
+              ...datosPresupuesto,
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) {
+          mostrarToast(error.message, "error");
+          setGuardando(false);
+          return;
+        }
+
+        const itemsInsertar = items.map((item) => ({
+          presupuesto_id: presupuesto.id,
+          descripcion: item.descripcion,
+          detalle: item.detalle || "",
+          cantidad: Number(item.cantidad) || 0,
+          precio: Number(item.precio) || 0,
+          subtotal:
+            (Number(item.cantidad) || 0) *
+            (Number(item.precio) || 0),
+        }));
+
+        if (itemsInsertar.length > 0) {
+          const { error: errorItems } = await supabase
+            .from("presupuesto_items")
+            .insert(itemsInsertar);
+
+          if (errorItems) {
+            mostrarToast(errorItems.message, "error");
+            setGuardando(false);
+            return;
+          }
+        }
+
+        mostrarToast("Presupuesto guardado", "ok");
+      }
+
+      setTimeout(() => {
+        navigate("/historial");
+      }, 700);
+    } catch (error) {
+      mostrarToast(error.message, "error");
+      setGuardando(false);
     }
-
-    navigate("/historial");
   }
 
   const clientesFiltrados = clientes.filter((clienteItem) => {
@@ -368,358 +455,367 @@ export default function Presupuestos() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-black text-orange-500">
-              {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
-            </h1>
+    <>
+      <Toast
+        mensaje={toastMensaje}
+        tipo={toastTipo}
+        visible={toastVisible}
+      />
 
-            <p className="text-zinc-400 mt-2">
-              Presupuesto N° {numeroPresupuesto}
-            </p>
+      <div className="min-h-screen bg-black text-white p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black text-orange-500">
+                {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
+              </h1>
+
+              <p className="text-zinc-400 mt-2">
+                Presupuesto N° {numeroPresupuesto}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={guardarPresupuesto}
+                disabled={guardando}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-5 py-3 rounded-2xl font-bold"
+              >
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+
+              <Link
+                to="/"
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+              >
+                Volver
+              </Link>
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={guardarPresupuesto}
-              className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-2xl font-bold"
-            >
-              Guardar
-            </button>
-
-            <Link
-              to="/"
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-            >
-              Volver
-            </Link>
-          </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  placeholder="Cliente"
-                  value={cliente}
-                  onChange={(e) => {
-                    setCliente(e.target.value);
-                    setClienteSeleccionado(null);
-                  }}
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-
-                <button
-                  onClick={() => setMostrarClientes(!mostrarClientes)}
-                  className="bg-zinc-700 hover:bg-zinc-600 px-5 rounded-2xl font-bold"
-                >
-                  Buscar
-                </button>
-              </div>
-
-              {clienteSeleccionado && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                  <p className="text-green-400 font-bold">
-                    Cliente seleccionado
-                  </p>
-
-                  <button
-                    onClick={limpiarClienteSeleccionado}
-                    className="mt-3 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl font-bold"
-                  >
-                    Limpiar cliente
-                  </button>
-                </div>
-              )}
-
-              {mostrarClientes && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-3">
+                <div className="flex gap-3">
                   <input
                     type="text"
-                    placeholder="Buscar cliente..."
-                    value={busquedaCliente}
-                    onChange={(e) => setBusquedaCliente(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4"
+                    placeholder="Cliente"
+                    value={cliente}
+                    onChange={(e) => {
+                      setCliente(e.target.value);
+                      setClienteSeleccionado(null);
+                    }}
+                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   />
 
-                  <div className="max-h-72 overflow-auto space-y-2">
-                    {clientesFiltrados.map((clienteItem) => (
-                      <button
-                        key={clienteItem.id}
-                        onClick={() => seleccionarCliente(clienteItem)}
-                        className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl p-4"
-                      >
-                        <p className="font-bold">{clienteItem.empresa}</p>
-
-                        {clienteItem.contacto && (
-                          <p className="text-zinc-400 text-sm mt-1">
-                            {clienteItem.contacto}
-                          </p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <input
-                type="text"
-                placeholder="Teléfono"
-                value={clienteTelefono}
-                onChange={(e) => setClienteTelefono(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <input
-                type="text"
-                placeholder="Email"
-                value={clienteEmail}
-                onChange={(e) => setClienteEmail(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <input
-                type="text"
-                placeholder="Dirección"
-                value={clienteDireccion}
-                onChange={(e) => setClienteDireccion(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-            </div>
-
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Descripción corta"
-                value={descripcionCorta}
-                onChange={(e) => setDescripcionCorta(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <textarea
-                placeholder="Descripción larga"
-                value={descripcionLarga}
-                onChange={(e) => setDescripcionLarga(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[220px]"
-              />
-
-              <select
-                value={moneda}
-                onChange={(e) => setMoneda(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              >
-                <option value="ARS">Pesos Argentinos</option>
-                <option value="USD">Dólares</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3 mb-6">
-          <button
-            onClick={() => setMostrarBiblioteca(!mostrarBiblioteca)}
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-          >
-            Biblioteca de artículos
-          </button>
-
-          <button
-            onClick={agregarItemManual}
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-          >
-            Agregar ítem manual
-          </button>
-
-          <button
-            onClick={() => setMostrarPlantillas(!mostrarPlantillas)}
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-          >
-            Agregar plantilla
-          </button>
-        </div>
-
-        {mostrarPlantillas && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
-            <input
-              type="text"
-              placeholder="Buscar plantilla..."
-              value={busquedaPlantilla}
-              onChange={(e) => setBusquedaPlantilla(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
-            />
-
-            <div className="space-y-3">
-              {plantillasFiltradas.map((plantilla) => (
-                <div
-                  key={plantilla.id}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center gap-4"
-                >
-                  <div>
-                    <p className="font-bold text-lg">{plantilla.nombre}</p>
-
-                    {plantilla.descripcion && (
-                      <p className="text-zinc-500 text-sm mt-1">
-                        {plantilla.descripcion}
-                      </p>
-                    )}
-                  </div>
-
                   <button
-                    onClick={() => agregarPlantillaAlPresupuesto(plantilla)}
-                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    onClick={() => setMostrarClientes(!mostrarClientes)}
+                    className="bg-zinc-700 hover:bg-zinc-600 px-5 rounded-2xl font-bold"
                   >
-                    Cargar
+                    Buscar
                   </button>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {mostrarBiblioteca && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
-            <input
-              type="text"
-              placeholder="Buscar artículo..."
-              value={busquedaArticulo}
-              onChange={(e) => setBusquedaArticulo(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
-            />
-
-            <div className="space-y-3 max-h-[420px] overflow-auto">
-              {articulosFiltrados.map((articulo) => (
-                <div
-                  key={articulo.id}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between gap-4"
-                >
-                  <div>
-                    <p className="font-bold text-lg">{articulo.descripcion}</p>
-
-                    {articulo.detalle && (
-                      <p className="text-zinc-500 text-sm mt-1 whitespace-pre-wrap">
-                        {articulo.detalle}
-                      </p>
-                    )}
-
-                    <p className="text-zinc-400 mt-2">
-                      {moneda === "USD" ? "USD $" : "$"}
-                      {Number(articulo.precio).toLocaleString()}
+                {clienteSeleccionado && (
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+                    <p className="text-green-400 font-bold">
+                      Cliente seleccionado
                     </p>
+
+                    <button
+                      onClick={limpiarClienteSeleccionado}
+                      className="mt-3 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl font-bold"
+                    >
+                      Limpiar cliente
+                    </button>
                   </div>
+                )}
 
-                  <button
-                    onClick={() => agregarArticuloAlPresupuesto(articulo)}
-                    className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center"
-                  >
-                    Agregar
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                {mostrarClientes && (
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                    <input
+                      type="text"
+                      placeholder="Buscar cliente..."
+                      value={busquedaCliente}
+                      onChange={(e) => setBusquedaCliente(e.target.value)}
+                      className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4"
+                    />
 
-        <div className="space-y-4">
-          {items.map((item, index) => (
-            <div
-              key={index}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
-            >
-              <div className="col-span-12 md:col-span-6">
+                    <div className="max-h-72 overflow-auto space-y-2">
+                      {clientesFiltrados.map((clienteItem) => (
+                        <button
+                          key={clienteItem.id}
+                          onClick={() => seleccionarCliente(clienteItem)}
+                          className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl p-4"
+                        >
+                          <p className="font-bold">{clienteItem.empresa}</p>
+
+                          {clienteItem.contacto && (
+                            <p className="text-zinc-400 text-sm mt-1">
+                              {clienteItem.contacto}
+                            </p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <input
                   type="text"
-                  placeholder="Descripción"
-                  value={item.descripcion}
-                  onChange={(e) =>
-                    actualizarItem(index, "descripcion", e.target.value)
-                  }
+                  placeholder="Teléfono"
+                  value={clienteTelefono}
+                  onChange={(e) => setClienteTelefono(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Email"
+                  value={clienteEmail}
+                  onChange={(e) => setClienteEmail(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Dirección"
+                  value={clienteDireccion}
+                  onChange={(e) => setClienteDireccion(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Descripción corta"
+                  value={descripcionCorta}
+                  onChange={(e) => setDescripcionCorta(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 />
 
                 <textarea
-                  placeholder="Descripción larga / detalle"
-                  value={item.detalle || ""}
-                  onChange={(e) =>
-                    actualizarItem(index, "detalle", e.target.value)
-                  }
-                  className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
+                  placeholder="Descripción larga"
+                  value={descripcionLarga}
+                  onChange={(e) => setDescripcionLarga(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[220px]"
                 />
-              </div>
 
-              <div className="col-span-4 md:col-span-2">
-                <input
-                  type="number"
-                  placeholder="Cant."
-                  value={item.cantidad}
-                  onChange={(e) =>
-                    actualizarItem(index, "cantidad", e.target.value)
-                  }
+                <select
+                  value={moneda}
+                  onChange={(e) => setMoneda(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-              </div>
-
-              <div className="col-span-4 md:col-span-2">
-                <input
-                  type="number"
-                  placeholder="Precio"
-                  value={item.precio}
-                  onChange={(e) =>
-                    actualizarItem(index, "precio", e.target.value)
-                  }
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-              </div>
-
-              <div className="col-span-3 md:col-span-1 flex items-center justify-center font-bold text-orange-500">
-                {moneda === "USD" ? "USD $" : "$"}
-                {(
-                  (Number(item.cantidad) || 0) *
-                  (Number(item.precio) || 0)
-                ).toLocaleString()}
-              </div>
-
-              <div className="col-span-1 flex items-center justify-end">
-                <button
-                  onClick={() => eliminarItem(index)}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
                 >
-                  X
-                </button>
+                  <option value="ARS">Pesos Argentinos</option>
+                  <option value="USD">Dólares</option>
+                </select>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
-          <div className="space-y-4 text-xl">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button
+              onClick={() => setMostrarBiblioteca(!mostrarBiblioteca)}
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+            >
+              Biblioteca de artículos
+            </button>
 
-              <span>
-                {moneda === "USD" ? "USD $" : "$"}
-                {subtotal.toLocaleString()}
-              </span>
+            <button
+              onClick={agregarItemManual}
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+            >
+              Agregar ítem manual
+            </button>
+
+            <button
+              onClick={() => setMostrarPlantillas(!mostrarPlantillas)}
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+            >
+              Agregar plantilla
+            </button>
+          </div>
+
+          {mostrarPlantillas && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
+              <input
+                type="text"
+                placeholder="Buscar plantilla..."
+                value={busquedaPlantilla}
+                onChange={(e) => setBusquedaPlantilla(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
+              />
+
+              <div className="space-y-3">
+                {plantillasFiltradas.map((plantilla) => (
+                  <div
+                    key={plantilla.id}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center gap-4"
+                  >
+                    <div>
+                      <p className="font-bold text-lg">{plantilla.nombre}</p>
+
+                      {plantilla.descripcion && (
+                        <p className="text-zinc-500 text-sm mt-1">
+                          {plantilla.descripcion}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => agregarPlantillaAlPresupuesto(plantilla)}
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                    >
+                      Cargar
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
 
-            <div className="flex justify-between text-3xl font-black text-orange-500 border-t border-zinc-800 pt-5">
-              <span>Total</span>
+          {mostrarBiblioteca && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
+              <input
+                type="text"
+                placeholder="Buscar artículo..."
+                value={busquedaArticulo}
+                onChange={(e) => setBusquedaArticulo(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
+              />
 
-              <span>
-                {moneda === "USD" ? "USD $" : "$"}
-                {total.toLocaleString()}
-              </span>
+              <div className="space-y-3 max-h-[420px] overflow-auto">
+                {articulosFiltrados.map((articulo) => (
+                  <div
+                    key={articulo.id}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between gap-4"
+                  >
+                    <div>
+                      <p className="font-bold text-lg">{articulo.descripcion}</p>
+
+                      {articulo.detalle && (
+                        <p className="text-zinc-500 text-sm mt-1 whitespace-pre-wrap">
+                          {articulo.detalle}
+                        </p>
+                      )}
+
+                      <p className="text-zinc-400 mt-2">
+                        {moneda === "USD" ? "USD $" : "$"}
+                        {Number(articulo.precio).toLocaleString()}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => agregarArticuloAlPresupuesto(articulo)}
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center"
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
 
-            <p className="text-zinc-500 text-sm">
-              Factura C - IVA no discriminado
-            </p>
+          <div className="space-y-4">
+            {items.map((item, index) => (
+              <div
+                key={index}
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
+              >
+                <div className="col-span-12 md:col-span-6">
+                  <input
+                    type="text"
+                    placeholder="Descripción"
+                    value={item.descripcion}
+                    onChange={(e) =>
+                      actualizarItem(index, "descripcion", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
+                  <textarea
+                    placeholder="Descripción larga / detalle"
+                    value={item.detalle || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "detalle", e.target.value)
+                    }
+                    className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
+                  />
+                </div>
+
+                <div className="col-span-4 md:col-span-2">
+                  <input
+                    type="number"
+                    placeholder="Cant."
+                    value={item.cantidad}
+                    onChange={(e) =>
+                      actualizarItem(index, "cantidad", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+                </div>
+
+                <div className="col-span-4 md:col-span-2">
+                  <input
+                    type="number"
+                    placeholder="Precio"
+                    value={item.precio}
+                    onChange={(e) =>
+                      actualizarItem(index, "precio", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+                </div>
+
+                <div className="col-span-3 md:col-span-1 flex items-center justify-center font-bold text-orange-500">
+                  {moneda === "USD" ? "USD $" : "$"}
+                  {(
+                    (Number(item.cantidad) || 0) *
+                    (Number(item.precio) || 0)
+                  ).toLocaleString()}
+                </div>
+
+                <div className="col-span-1 flex items-center justify-end">
+                  <button
+                    onClick={() => eliminarItem(index)}
+                    className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                  >
+                    X
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
+            <div className="space-y-4 text-xl">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+
+                <span>
+                  {moneda === "USD" ? "USD $" : "$"}
+                  {subtotal.toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-3xl font-black text-orange-500 border-t border-zinc-800 pt-5">
+                <span>Total</span>
+
+                <span>
+                  {moneda === "USD" ? "USD $" : "$"}
+                  {total.toLocaleString()}
+                </span>
+              </div>
+
+              <p className="text-zinc-500 text-sm">
+                Factura C - IVA no discriminado
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
