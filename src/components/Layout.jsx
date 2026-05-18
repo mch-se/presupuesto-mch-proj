@@ -47,6 +47,7 @@ export default function Layout({ children }) {
     { texto: "Clientes", url: "/clientes" },
     { texto: "Artículos", url: "/articulos" },
     { texto: "Plantillas", url: "/plantillas" },
+    { texto: "Estadísticas", url: "/estadisticas" },
     { texto: "Mi Cuenta", url: "/micuenta" },
   ];
 
@@ -172,7 +173,9 @@ export default function Layout({ children }) {
             <div>
               <h1 className="text-2xl font-black text-orange-500">MCH</h1>
 
-              <p className="text-zinc-500 text-xs uppercase">{rol || "-"}</p>
+              <p className="text-zinc-500 text-xs uppercase">
+                {rol || "-"}
+              </p>
             </div>
 
             <button

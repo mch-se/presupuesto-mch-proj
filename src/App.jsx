@@ -25,6 +25,7 @@ import ImportarDatos from "./pages/ImportarDatos";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import CategoriasArticulos from "./pages/CategoriasArticulos";
 import TiposArticulos from "./pages/TiposArticulos";
+import Estadisticas from "./pages/Estadisticas";
 
 export default function App() {
 
@@ -325,6 +326,15 @@ export default function App() {
             element={
               <RutaProtegida>
                 <Clientes />
+              </RutaProtegida>
+            }
+          />
+
+          <Route
+            path="/estadisticas"
+            element={
+              <RutaProtegida>
+                <Estadisticas />
               </RutaProtegida>
             }
           />
