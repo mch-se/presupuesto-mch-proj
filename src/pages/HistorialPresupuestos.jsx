@@ -225,24 +225,6 @@ export default function HistorialPresupuestos() {
           estado:
             "Edición",
 
-          cerrado:
-            false,
-
-          enviado_whatsapp:
-            false,
-
-          fecha_cerrado:
-            null,
-
-          fecha_enviado:
-            null,
-
-          fecha_aprobado:
-            null,
-
-          fecha_finalizado:
-            null,
-
           moneda:
             presupuesto.moneda,
 
@@ -312,34 +294,27 @@ export default function HistorialPresupuestos() {
 
   function colorEstado(estado) {
 
-    if (
-      estado === "Enviado" ||
-      estado === "Aprobado" ||
-      estado === "Finalizado"
-    ) {
+    if (estado === "Aprobado") {
 
       return "bg-green-600 text-white";
     }
 
-    if (estado === "Cerrado") {
+    if (estado === "Rechazado") {
 
       return "bg-red-600 text-white";
     }
 
-    return "bg-orange-500 text-white";
-  }
+    if (estado === "Cancelado") {
 
-  function textoEstado(estado) {
-
-    if (
-      !estado ||
-      estado === "Edición"
-    ) {
-
-      return "Pendiente";
+      return "bg-zinc-700 text-white";
     }
 
-    return estado;
+    if (estado === "Enviado") {
+
+      return "bg-blue-600 text-white";
+    }
+
+    return "bg-orange-500 text-white";
   }
 
   const presupuestosFiltrados =
@@ -363,9 +338,8 @@ export default function HistorialPresupuestos() {
         const coincideEstado =
           filtroEstado === "Todos"
             ? true
-            : textoEstado(
-                presupuesto.estado
-              ) === filtroEstado;
+            : (presupuesto.estado || "Edición") ===
+              filtroEstado;
 
         const coincideMoneda =
           filtroMoneda === "Todas"
@@ -447,7 +421,7 @@ export default function HistorialPresupuestos() {
               </option>
 
               <option>
-                Pendiente
+                Edición
               </option>
 
               <option>
@@ -459,11 +433,11 @@ export default function HistorialPresupuestos() {
               </option>
 
               <option>
-                Finalizado
+                Rechazado
               </option>
 
               <option>
-                Cerrado
+                Cancelado
               </option>
 
             </select>
@@ -526,7 +500,6 @@ export default function HistorialPresupuestos() {
 
                   <p className="text-zinc-500 mt-1">
                     {presupuesto.descripcion_corta ||
-                      presupuesto.trabajo ||
                       "-"}
                   </p>
 
@@ -541,31 +514,25 @@ export default function HistorialPresupuestos() {
 
                 </div>
 
-                <div className="lg:col-span-2 flex lg:justify-center">
+                <div className="lg:col-span-3">
 
-                  <div>
+                  <p className="text-zinc-500 text-sm mb-2">
+                    Estado
+                  </p>
 
-                    <p className="text-zinc-500 text-sm mb-2">
-                      Estado
-                    </p>
+                  <span
+                    className={`${colorEstado(
+                      presupuesto.estado
+                    )} inline-block px-4 py-2 rounded-2xl font-bold`}
+                  >
 
-                    <span
-                      className={`${colorEstado(
-                        presupuesto.estado
-                      )} inline-block px-4 py-2 rounded-2xl font-bold`}
-                    >
+                    {presupuesto.estado || "Edición"}
 
-                      {textoEstado(
-                        presupuesto.estado
-                      )}
-
-                    </span>
-
-                  </div>
+                  </span>
 
                 </div>
 
-                <div className="lg:col-span-3 lg:text-right">
+                <div className="lg:col-span-2 lg:text-right">
 
                   <p className="text-zinc-500 text-sm">
                     Total
@@ -602,14 +569,14 @@ export default function HistorialPresupuestos() {
                           : presupuesto.id
                       )
                     }
-                    className="bg-green-600 hover:bg-green-700 px-5 py-3 rounded-2xl font-bold"
+                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
                   >
-                    Opciones
+                    ⋮
                   </button>
 
                   {menuAbierto === presupuesto.id && (
 
-                    <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[180px] z-50 shadow-2xl">
+                    <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[220px] z-50 shadow-2xl">
 
                       <Link
                         to={`/presupuestos/${presupuesto.id}`}

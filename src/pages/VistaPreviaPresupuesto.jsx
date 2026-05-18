@@ -161,46 +161,52 @@ export default function VistaPreviaPresupuesto() {
         profile?.alias ||
         user.email;
 
-      await supabase
-        .from("presupuestos")
-        .update({
-          estado:
-            "Enviado",
+      const estadoActual =
+        presupuesto.estado || "Edición";
 
-          fecha_enviado:
-            new Date().toISOString(),
+      if (estadoActual === "Edición") {
 
-          enviado_por:
-            user.id,
-
-          enviado_por_alias:
-            aliasUsuario,
-        })
-
-        .eq(
-          "id",
-          id
-        );
-
-      await supabase
-        .from(
-          "presupuesto_estados"
-        )
-        .insert([
-          {
-            presupuesto_id:
-              id,
-
-            user_id:
-              user.id,
-
+        await supabase
+          .from("presupuestos")
+          .update({
             estado:
               "Enviado",
 
-            nota:
-              `Presupuesto compartido por ${aliasUsuario}`,
-          },
-        ]);
+            fecha_enviado:
+              new Date().toISOString(),
+
+            enviado_por:
+              user.id,
+
+            enviado_por_alias:
+              aliasUsuario,
+          })
+
+          .eq(
+            "id",
+            id
+          );
+
+        await supabase
+          .from(
+            "presupuesto_estados"
+          )
+          .insert([
+            {
+              presupuesto_id:
+                id,
+
+              user_id:
+                user.id,
+
+              estado:
+                "Enviado",
+
+              nota:
+                `Presupuesto compartido por ${aliasUsuario}`,
+            },
+          ]);
+      }
 
       alert(
         "PDF compartido correctamente"
