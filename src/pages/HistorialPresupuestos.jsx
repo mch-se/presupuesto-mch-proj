@@ -1,78 +1,54 @@
 import React from "react";
-
 import { supabase } from "../lib/supabase";
-
-import {
-  Link,
-} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function HistorialPresupuestos() {
+  const navigate = useNavigate();
 
-  const [presupuestos, setPresupuestos] =
-    React.useState([]);
+  const [presupuestos, setPresupuestos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [menuAbierto, setMenuAbierto] = React.useState(null);
+  const [rol, setRol] = React.useState(null);
 
-  const [loading, setLoading] =
-    React.useState(true);
+  const [busqueda, setBusqueda] = React.useState("");
+  const [filtroEstado, setFiltroEstado] = React.useState("Todos");
+  const [filtroMoneda, setFiltroMoneda] = React.useState("Todas");
 
-  const [menuAbierto, setMenuAbierto] =
-    React.useState(null);
-
-  const [rol, setRol] =
-    React.useState(null);
-
-  const [busqueda, setBusqueda] =
-    React.useState("");
-
-  const [filtroEstado, setFiltroEstado] =
-    React.useState("Todos");
-
-  const [filtroMoneda, setFiltroMoneda] =
-    React.useState("Todas");
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [modalTitulo, setModalTitulo] = React.useState("");
+  const [modalMensaje, setModalMensaje] = React.useState("");
+  const [accionPendiente, setAccionPendiente] = React.useState(null);
 
   React.useEffect(() => {
     obtenerPresupuestos();
   }, []);
 
   async function obtenerPresupuestos() {
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) return;
 
-    const {
-      data: perfil,
-    } = await supabase
+    const { data: perfil } = await supabase
       .from("profiles")
       .select("rol")
       .eq("id", user.id)
       .single();
 
-    const rolUsuario =
-      perfil?.rol || "pendiente";
-
+    const rolUsuario = perfil?.rol || "pendiente";
     setRol(rolUsuario);
 
-    let query =
-      supabase
-        .from("presupuestos")
-        .select("*");
+    let query = supabase.from("presupuestos").select("*");
 
     if (rolUsuario === "vendedor") {
-
-      query =
-        query.eq(
-          "user_id",
-          user.id
-        );
+      query = query.eq("user_id", user.id);
     }
 
-    const { data, error } =
-      await query.order(
-        "created_at",
-        { ascending: false }
-      );
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       alert(error.message);
@@ -80,165 +56,136 @@ export default function HistorialPresupuestos() {
     }
 
     setPresupuestos(data || []);
-
     setLoading(false);
   }
 
   function limpiarFiltros() {
-
     setBusqueda("");
-
     setFiltroEstado("Todos");
-
     setFiltroMoneda("Todas");
   }
 
   async function generarNumeroNuevo() {
-
     const hoy = new Date();
-
-    const dia = String(
-      hoy.getDate()
-    ).padStart(2, "0");
-
-    const mes = String(
-      hoy.getMonth() + 1
-    ).padStart(2, "0");
-
-    const anio =
-      hoy.getFullYear();
-
-    const fechaTexto =
-      `${dia}-${mes}-${anio}`;
+    const dia = String(hoy.getDate()).padStart(2, "0");
+    const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+    const anio = hoy.getFullYear();
+    const fechaTexto = `${dia}-${mes}-${anio}`;
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    const { data } =
-      await supabase
-        .from("presupuestos")
-        .select("numero")
-        .eq("user_id", user.id);
+    const { data } = await supabase
+      .from("presupuestos")
+      .select("numero")
+      .eq("user_id", user.id);
 
     const presupuestosHoy =
-      data?.filter((p) =>
-        p.numero?.includes(
-          fechaTexto
-        )
-      ) || [];
+      data?.filter((p) => p.numero?.includes(fechaTexto)) || [];
 
-    const numero =
-      presupuestosHoy.length + 1;
-
-    return `${numero}-${fechaTexto}`;
+    return `${presupuestosHoy.length + 1}-${fechaTexto}`;
   }
 
-  async function eliminarPresupuesto(id) {
-
+  function abrirPresupuesto(presupuesto) {
     setMenuAbierto(null);
 
-    const confirmar =
-      window.confirm(
-        "¿Eliminar presupuesto?"
+    if ((presupuesto.estado || "Edición") === "Finalizado") {
+      setAccionPendiente({
+        tipo: "abrir_finalizado",
+        id: presupuesto.id,
+      });
+
+      setModalTitulo("Presupuesto finalizado");
+      setModalMensaje(
+        "Este presupuesto está finalizado. ¿Deseás abrirlo igualmente?"
       );
-
-    if (!confirmar) return;
-
-    await supabase
-      .from("presupuesto_items")
-      .delete()
-      .eq(
-        "presupuesto_id",
-        id
-      );
-
-    const { error } =
-      await supabase
-        .from("presupuestos")
-        .delete()
-        .eq("id", id);
-
-    if (error) {
-      alert(error.message);
+      setModalVisible(true);
       return;
     }
 
-    obtenerPresupuestos();
+    navigate(`/presupuesto/${presupuesto.id}`);
   }
 
-  async function duplicarPresupuesto(
-    presupuesto
-  ) {
-
+  function solicitarEliminarPresupuesto(id) {
     setMenuAbierto(null);
 
-    const numeroNuevo =
-      await generarNumeroNuevo();
+    setAccionPendiente({
+      tipo: "eliminar",
+      id,
+    });
 
-    const {
-      data: nuevo,
-      error,
-    } = await supabase
+    setModalTitulo("Eliminar presupuesto");
+    setModalMensaje("Esta acción eliminará el presupuesto definitivamente.");
+    setModalVisible(true);
+  }
+
+  async function confirmarAccion() {
+    if (!accionPendiente) return;
+
+    if (accionPendiente.tipo === "abrir_finalizado") {
+      const idAbrir = accionPendiente.id;
+
+      setModalVisible(false);
+      setAccionPendiente(null);
+
+      navigate(`/presupuesto/${idAbrir}`);
+      return;
+    }
+
+    if (accionPendiente.tipo === "eliminar") {
+      await supabase
+        .from("presupuesto_items")
+        .delete()
+        .eq("presupuesto_id", accionPendiente.id);
+
+      const { error } = await supabase
+        .from("presupuestos")
+        .delete()
+        .eq("id", accionPendiente.id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setModalVisible(false);
+      setAccionPendiente(null);
+
+      obtenerPresupuestos();
+    }
+  }
+
+  async function duplicarPresupuesto(presupuesto) {
+    setMenuAbierto(null);
+
+    const numeroNuevo = await generarNumeroNuevo();
+
+    const { data: nuevo, error } = await supabase
       .from("presupuestos")
       .insert([
         {
-          numero:
-            numeroNuevo,
-
-          cliente:
-            presupuesto.cliente,
-
-          cliente_id:
-            presupuesto.cliente_id || null,
-
+          numero: numeroNuevo,
+          cliente: presupuesto.cliente,
+          cliente_id: presupuesto.cliente_id || null,
           cliente_empresa:
             presupuesto.cliente_empresa || presupuesto.cliente || "",
-
-          cliente_contacto:
-            presupuesto.cliente_contacto || "",
-
-          cliente_telefono:
-            presupuesto.cliente_telefono || "",
-
-          cliente_email:
-            presupuesto.cliente_email || "",
-
-          cliente_direccion:
-            presupuesto.cliente_direccion || "",
-
-          descripcion_corta:
-            presupuesto.descripcion_corta || "",
-
-          descripcion_larga:
-            presupuesto.descripcion_larga || "",
-
-          subtotal:
-            presupuesto.subtotal,
-
-          iva:
-            0,
-
-          total:
-            presupuesto.total,
-
-          estado:
-            "Edición",
-
-          moneda:
-            presupuesto.moneda,
-
-          tipo_factura:
-            "C",
-
-          aplica_iva:
-            false,
-
-          user_id:
-            presupuesto.user_id,
-
-          generado_por_alias:
-            presupuesto.generado_por_alias || "",
+          cliente_contacto: presupuesto.cliente_contacto || "",
+          cliente_telefono: presupuesto.cliente_telefono || "",
+          cliente_email: presupuesto.cliente_email || "",
+          cliente_direccion: presupuesto.cliente_direccion || "",
+          descripcion_corta: presupuesto.descripcion_corta || "",
+          descripcion_larga: presupuesto.descripcion_larga || "",
+          subtotal: presupuesto.subtotal,
+          iva: 0,
+          total: presupuesto.total,
+          estado: "Edición",
+          moneda: presupuesto.moneda,
+          tipo_factura: "C",
+          aplica_iva: false,
+          user_id: presupuesto.user_id,
+          generado_por: presupuesto.generado_por || presupuesto.user_id,
+          generado_por_alias: presupuesto.generado_por_alias || "",
         },
       ])
       .select()
@@ -249,113 +196,74 @@ export default function HistorialPresupuestos() {
       return;
     }
 
-    const { data: items } =
-      await supabase
-        .from("presupuesto_items")
-        .select("*")
-        .eq(
-          "presupuesto_id",
-          presupuesto.id
-        );
+    const { data: items } = await supabase
+      .from("presupuesto_items")
+      .select("*")
+      .eq("presupuesto_id", presupuesto.id);
 
-    const nuevosItems =
-      (items || []).map((item) => ({
-        presupuesto_id:
-          nuevo.id,
-
-        descripcion:
-          item.descripcion,
-
-        detalle:
-          item.detalle || "",
-
-        cantidad:
-          item.cantidad,
-
-        precio:
-          item.precio,
-
-        subtotal:
-          item.subtotal,
-
-        tipo:
-          item.tipo || "",
-      }));
+    const nuevosItems = (items || []).map((item) => ({
+      presupuesto_id: nuevo.id,
+      descripcion: item.descripcion,
+      detalle: item.detalle || "",
+      categoria_id: item.categoria_id || null,
+      tipo_id: item.tipo_id || null,
+      categoria: item.categoria || "",
+      tipo: item.tipo || "",
+      cantidad: item.cantidad,
+      precio: item.precio,
+      subtotal: item.subtotal,
+    }));
 
     if (nuevosItems.length > 0) {
-
-      await supabase
-        .from("presupuesto_items")
-        .insert(nuevosItems);
+      await supabase.from("presupuesto_items").insert(nuevosItems);
     }
 
     obtenerPresupuestos();
   }
 
   function colorEstado(estado) {
-
     if (estado === "Aprobado") {
-
       return "bg-green-600 text-white";
     }
 
-    if (estado === "Rechazado") {
+    if (estado === "Finalizado") {
+      return "bg-purple-600 text-white";
+    }
 
+    if (estado === "Cerrado") {
       return "bg-red-600 text-white";
     }
 
-    if (estado === "Cancelado") {
-
-      return "bg-zinc-700 text-white";
-    }
-
     if (estado === "Enviado") {
-
       return "bg-blue-600 text-white";
     }
 
     return "bg-orange-500 text-white";
   }
 
-  const presupuestosFiltrados =
-    presupuestos.filter(
-      (presupuesto) => {
+  const presupuestosFiltrados = presupuestos.filter((presupuesto) => {
+    const texto = `
+      ${presupuesto.numero || ""}
+      ${presupuesto.cliente || ""}
+      ${presupuesto.cliente_empresa || ""}
+      ${presupuesto.descripcion_corta || ""}
+      ${presupuesto.generado_por_alias || ""}
+    `.toLowerCase();
 
-        const texto =
-          `
-            ${presupuesto.numero || ""}
-            ${presupuesto.cliente || ""}
-            ${presupuesto.cliente_empresa || ""}
-            ${presupuesto.descripcion_corta || ""}
-            ${presupuesto.generado_por_alias || ""}
-          `.toLowerCase();
+    const coincideBusqueda = texto.includes(busqueda.toLowerCase());
 
-        const coincideBusqueda =
-          texto.includes(
-            busqueda.toLowerCase()
-          );
+    const coincideEstado =
+      filtroEstado === "Todos"
+        ? true
+        : (presupuesto.estado || "Edición") === filtroEstado;
 
-        const coincideEstado =
-          filtroEstado === "Todos"
-            ? true
-            : (presupuesto.estado || "Edición") ===
-              filtroEstado;
+    const coincideMoneda =
+      filtroMoneda === "Todas" ? true : presupuesto.moneda === filtroMoneda;
 
-        const coincideMoneda =
-          filtroMoneda === "Todas"
-            ? true
-            : presupuesto.moneda === filtroMoneda;
-
-        return (
-          coincideBusqueda &&
-          coincideEstado &&
-          coincideMoneda
-        );
-      }
-    );
+    return coincideBusqueda && coincideEstado && coincideMoneda;
+  });
 
   if (loading) {
-
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
@@ -364,274 +272,190 @@ export default function HistorialPresupuestos() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-6">
+    <>
+      <ConfirmModal
+        visible={modalVisible}
+        titulo={modalTitulo}
+        mensaje={modalMensaje}
+        textoConfirmar="Confirmar"
+        textoCancelar="Cancelar"
+        onCancelar={() => {
+          setModalVisible(false);
+          setAccionPendiente(null);
+        }}
+        onConfirmar={confirmarAccion}
+      />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-black text-white p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-4xl md:text-5xl font-black text-orange-500">
+                Historial
+              </h1>
 
-        <div className="flex justify-between items-center mb-8">
+              <p className="text-zinc-400 mt-2">
+                Administración de presupuestos
+              </p>
+            </div>
 
-          <div>
-
-            <h1 className="text-4xl md:text-5xl font-black text-orange-500">
-              Historial
-            </h1>
-
-            <p className="text-zinc-400 mt-2">
-              Administración de presupuestos
-            </p>
-
+            <Link
+              to="/"
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+            >
+              Volver
+            </Link>
           </div>
 
-          <Link
-            to="/"
-            className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-          >
-            Volver
-          </Link>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input
+                type="text"
+                placeholder="Buscar presupuesto..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+              />
 
-        </div>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+              >
+                <option>Todos</option>
+                <option>Edición</option>
+                <option>Cerrado</option>
+                <option>Enviado</option>
+                <option>Aprobado</option>
+                <option>Finalizado</option>
+              </select>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
+              <select
+                value={filtroMoneda}
+                onChange={(e) => setFiltroMoneda(e.target.value)}
+                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+              >
+                <option>Todas</option>
+                <option>ARS</option>
+                <option>USD</option>
+              </select>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-            <input
-              type="text"
-              placeholder="Buscar presupuesto..."
-              value={busqueda}
-              onChange={(e) =>
-                setBusqueda(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
-            />
-
-            <select
-              value={filtroEstado}
-              onChange={(e) =>
-                setFiltroEstado(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
-            >
-              <option>
-                Todos
-              </option>
-
-              <option>
-                Edición
-              </option>
-
-              <option>
-                Enviado
-              </option>
-
-              <option>
-                Aprobado
-              </option>
-
-              <option>
-                Rechazado
-              </option>
-
-              <option>
-                Cancelado
-              </option>
-
-            </select>
-
-            <select
-              value={filtroMoneda}
-              onChange={(e) =>
-                setFiltroMoneda(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
-            >
-              <option>
-                Todas
-              </option>
-
-              <option>
-                ARS
-              </option>
-
-              <option>
-                USD
-              </option>
-
-            </select>
-
-            <button
-              onClick={limpiarFiltros}
-              className="bg-orange-500 hover:bg-orange-600 rounded-2xl px-4 py-3 font-bold"
-            >
-              Limpiar filtros
-            </button>
-
+              <button
+                onClick={limpiarFiltros}
+                className="bg-orange-500 hover:bg-orange-600 rounded-2xl px-4 py-3 font-bold"
+              >
+                Limpiar filtros
+              </button>
+            </div>
           </div>
 
-        </div>
+          <div className="space-y-4">
+            {presupuestosFiltrados.map((presupuesto) => (
+              <div
+                key={presupuesto.id}
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+                  <div className="lg:col-span-4">
+                    <h2 className="text-2xl md:text-3xl font-black">
+                      {presupuesto.numero}
+                    </h2>
 
-        <div className="space-y-4">
+                    <p className="text-zinc-400 mt-2 text-lg">
+                      {presupuesto.cliente_empresa || presupuesto.cliente}
+                    </p>
 
-          {presupuestosFiltrados.map((presupuesto) => (
+                    <p className="text-zinc-500 mt-1">
+                      {presupuesto.descripcion_corta || "-"}
+                    </p>
 
-            <div
-              key={presupuesto.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6"
-            >
+                    <p className="text-xs text-orange-400 mt-3 uppercase">
+                      Generado por:{" "}
+                      {presupuesto.generado_por_alias || "Administrador"}
+                    </p>
+                  </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+                  <div className="lg:col-span-3">
+                    <p className="text-zinc-500 text-sm mb-2">Estado</p>
 
-                <div className="lg:col-span-4">
+                    <span
+                      className={`${colorEstado(
+                        presupuesto.estado
+                      )} inline-block px-4 py-2 rounded-2xl font-bold`}
+                    >
+                      {presupuesto.estado || "Edición"}
+                    </span>
+                  </div>
 
-                  <h2 className="text-2xl md:text-3xl font-black">
-                    {presupuesto.numero}
-                  </h2>
+                  <div className="lg:col-span-2 lg:text-right">
+                    <p className="text-zinc-500 text-sm">Total</p>
 
-                  <p className="text-zinc-400 mt-2 text-lg">
-                    {presupuesto.cliente_empresa ||
-                      presupuesto.cliente}
-                  </p>
+                    <p className="text-3xl md:text-4xl font-black text-orange-500">
+                      {presupuesto.moneda === "USD" ? "USD $" : "$"}
+                      {Number(presupuesto.total).toLocaleString()}
+                    </p>
+                  </div>
 
-                  <p className="text-zinc-500 mt-1">
-                    {presupuesto.descripcion_corta ||
-                      "-"}
-                  </p>
+                  <div className="lg:col-span-3 flex gap-3 lg:justify-end relative">
+                    <button
+                      onClick={() => abrirPresupuesto(presupuesto)}
+                      className="bg-blue-500 hover:bg-blue-600 px-5 py-3 rounded-2xl font-bold"
+                    >
+                      Abrir
+                    </button>
 
-                  <p className="text-xs text-orange-400 mt-3 uppercase">
+                    <button
+                      onClick={() =>
+                        setMenuAbierto(
+                          menuAbierto === presupuesto.id
+                            ? null
+                            : presupuesto.id
+                        )
+                      }
+                      className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
+                    >
+                      ⋮
+                    </button>
 
-                    Generado por:
-                    {" "}
-                    {presupuesto.generado_por_alias ||
-                      "Administrador"}
+                    {menuAbierto === presupuesto.id && (
+                      <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[220px] z-50 shadow-2xl">
+                        <Link
+                          to={`/presupuestos/${presupuesto.id}`}
+                          className="bg-yellow-500 hover:bg-yellow-600 px-4 py-3 rounded-xl font-bold text-center"
+                        >
+                          Editar
+                        </Link>
 
-                  </p>
+                        <button
+                          onClick={() => duplicarPresupuesto(presupuesto)}
+                          className="bg-orange-500 hover:bg-orange-600 px-4 py-3 rounded-xl font-bold"
+                        >
+                          Duplicar
+                        </button>
 
+                        <button
+                          onClick={() =>
+                            solicitarEliminarPresupuesto(presupuesto.id)
+                          }
+                          className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="lg:col-span-3">
-
-                  <p className="text-zinc-500 text-sm mb-2">
-                    Estado
-                  </p>
-
-                  <span
-                    className={`${colorEstado(
-                      presupuesto.estado
-                    )} inline-block px-4 py-2 rounded-2xl font-bold`}
-                  >
-
-                    {presupuesto.estado || "Edición"}
-
-                  </span>
-
-                </div>
-
-                <div className="lg:col-span-2 lg:text-right">
-
-                  <p className="text-zinc-500 text-sm">
-                    Total
-                  </p>
-
-                  <p className="text-3xl md:text-4xl font-black text-orange-500">
-
-                    {presupuesto.moneda === "USD"
-                      ? "USD $"
-                      : "$"}
-
-                    {Number(
-                      presupuesto.total
-                    ).toLocaleString()}
-
-                  </p>
-
-                </div>
-
-                <div className="lg:col-span-3 flex gap-3 lg:justify-end relative">
-
-                  <Link
-                    to={`/presupuesto/${presupuesto.id}`}
-                    className="bg-blue-500 hover:bg-blue-600 px-5 py-3 rounded-2xl font-bold"
-                  >
-                    Abrir
-                  </Link>
-
-                  <button
-                    onClick={() =>
-                      setMenuAbierto(
-                        menuAbierto === presupuesto.id
-                          ? null
-                          : presupuesto.id
-                      )
-                    }
-                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
-                  >
-                    ⋮
-                  </button>
-
-                  {menuAbierto === presupuesto.id && (
-
-                    <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[220px] z-50 shadow-2xl">
-
-                      <Link
-                        to={`/presupuestos/${presupuesto.id}`}
-                        className="bg-yellow-500 hover:bg-yellow-600 px-4 py-3 rounded-xl font-bold text-center"
-                      >
-                        Editar
-                      </Link>
-
-                      <button
-                        onClick={() =>
-                          duplicarPresupuesto(
-                            presupuesto
-                          )
-                        }
-                        className="bg-orange-500 hover:bg-orange-600 px-4 py-3 rounded-xl font-bold"
-                      >
-                        Duplicar
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          eliminarPresupuesto(
-                            presupuesto.id
-                          )
-                        }
-                        className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                      >
-                        Eliminar
-                      </button>
-
-                    </div>
-
-                  )}
-
-                </div>
-
               </div>
+            ))}
 
-            </div>
-          ))}
-
-          {presupuestosFiltrados.length === 0 && (
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
-
-              No hay presupuestos encontrados.
-
-            </div>
-
-          )}
-
+            {presupuestosFiltrados.length === 0 && (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
+                No hay presupuestos encontrados.
+              </div>
+            )}
+          </div>
         </div>
-
       </div>
-
-    </div>
+    </>
   );
 }

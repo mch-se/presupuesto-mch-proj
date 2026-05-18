@@ -15,6 +15,7 @@ export default function VerPresupuesto() {
   }, []);
 
   async function obtenerPresupuesto() {
+
     const { data, error } = await supabase
       .from("presupuestos")
       .select("*")
@@ -39,98 +40,206 @@ export default function VerPresupuesto() {
       .from("presupuesto_estados")
       .select("*")
       .eq("presupuesto_id", id)
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
-    setHistorialEstados(estadosData || []);
+    const historialCompleto =
+      await Promise.all(
+
+        (estadosData || []).map(
+          async (estado) => {
+
+            let alias = "Sistema";
+
+            if (estado.user_id) {
+
+              const {
+                data: profile,
+              } = await supabase
+                .from("profiles")
+                .select("alias")
+                .eq(
+                  "id",
+                  estado.user_id
+                )
+                .single();
+
+              alias =
+                profile?.alias ||
+                "Usuario";
+            }
+
+            return {
+              ...estado,
+              alias_usuario:
+                alias,
+            };
+          }
+        )
+      );
+
+    setHistorialEstados(
+      historialCompleto
+    );
 
     setLoading(false);
   }
 
-  async function cambiarEstado(nuevoEstado) {
+  async function cambiarEstado(
+    nuevoEstado
+  ) {
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
+
+    const {
+      data: profile,
+    } =
+      await supabase
+        .from("profiles")
+        .select("alias")
+        .eq(
+          "id",
+          user.id
+        )
+        .single();
+
+    const aliasUsuario =
+      profile?.alias ||
+      user.email;
 
     const datos = {
       estado: nuevoEstado,
     };
 
-    if (nuevoEstado === "Cerrado") {
+    if (
+      nuevoEstado === "Cerrado"
+    ) {
+
       datos.cerrado = true;
-      datos.fecha_cerrado = new Date().toISOString();
+
+      datos.fecha_cerrado =
+        new Date().toISOString();
     }
 
-    if (nuevoEstado === "Enviado") {
-      datos.fecha_enviado = new Date().toISOString();
+    if (
+      nuevoEstado === "Enviado"
+    ) {
+
+      datos.fecha_enviado =
+        new Date().toISOString();
     }
 
-    if (nuevoEstado === "Aprobado") {
-      datos.fecha_aprobado = new Date().toISOString();
+    if (
+      nuevoEstado === "Aprobado"
+    ) {
+
+      datos.fecha_aprobado =
+        new Date().toISOString();
     }
 
-    if (nuevoEstado === "Finalizado") {
-      datos.fecha_finalizado = new Date().toISOString();
+    if (
+      nuevoEstado === "Finalizado"
+    ) {
+
+      datos.fecha_finalizado =
+        new Date().toISOString();
     }
 
-    const { error } = await supabase
-      .from("presupuestos")
-      .update(datos)
-      .eq("id", id);
+    const { error } =
+      await supabase
+        .from("presupuestos")
+        .update(datos)
+        .eq("id", id);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    await supabase.from("presupuesto_estados").insert([
-      {
-        presupuesto_id: id,
-        user_id: user.id,
-        estado: nuevoEstado,
-        nota: `Estado cambiado a ${nuevoEstado}`,
-      },
-    ]);
+    await supabase
+      .from(
+        "presupuesto_estados"
+      )
+      .insert([
+        {
+          presupuesto_id: id,
+          user_id: user.id,
+          estado: nuevoEstado,
+          nota:
+            `Estado cambiado a ${nuevoEstado}`,
+        },
+      ]);
 
     obtenerPresupuesto();
   }
 
   async function abrirParaEditar() {
-    const confirmar = window.confirm(
-      "¿Abrir este presupuesto para editarlo nuevamente?"
-    );
+
+    const confirmar =
+      window.confirm(
+        "¿Abrir este presupuesto para editarlo nuevamente?"
+      );
 
     if (!confirmar) return;
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
-    const { error } = await supabase
-      .from("presupuestos")
-      .update({
-        cerrado: false,
-        estado: "Edición",
-      })
-      .eq("id", id);
+    const {
+      data: profile,
+    } =
+      await supabase
+        .from("profiles")
+        .select("alias")
+        .eq(
+          "id",
+          user.id
+        )
+        .single();
+
+    const aliasUsuario =
+      profile?.alias ||
+      user.email;
+
+    const { error } =
+      await supabase
+        .from("presupuestos")
+        .update({
+          cerrado: false,
+          estado: "Edición",
+        })
+        .eq("id", id);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    await supabase.from("presupuesto_estados").insert([
-      {
-        presupuesto_id: id,
-        user_id: user.id,
-        estado: "Edición",
-        nota: "Presupuesto abierto para edición",
-      },
-    ]);
+    await supabase
+      .from(
+        "presupuesto_estados"
+      )
+      .insert([
+        {
+          presupuesto_id: id,
+          user_id: user.id,
+          estado: "Edición",
+          nota:
+            `Presupuesto abierto para edición por ${aliasUsuario}`,
+        },
+      ]);
 
     obtenerPresupuesto();
   }
 
   if (loading) {
+
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center text-3xl">
         Cargando...
@@ -138,9 +247,15 @@ export default function VerPresupuesto() {
     );
   }
 
-  const simbolo = presupuesto.moneda === "USD" ? "USD $" : "$";
+  const simbolo =
+    presupuesto.moneda ===
+    "USD"
+      ? "USD $"
+      : "$";
 
-  const estadoActual = presupuesto.estado || "Edición";
+  const estadoActual =
+    presupuesto.estado ||
+    "Edición";
 
   const estados = [
     "Edición",
@@ -150,21 +265,43 @@ export default function VerPresupuesto() {
     "Finalizado",
   ];
 
-  function colorBotonEstado(estado) {
-    if (estadoActual !== estado) {
+  function colorBotonEstado(
+    estado
+  ) {
+
+    if (
+      estadoActual !== estado
+    ) {
+
       return "bg-zinc-800 hover:bg-zinc-700 text-white";
     }
 
-    if (estado === "Cerrado") {
+    if (
+      estado === "Cerrado"
+    ) {
+
       return "bg-red-600 text-white";
     }
 
     if (
-      estado === "Enviado" ||
-      estado === "Aprobado" ||
+      estado === "Enviado"
+    ) {
+
+      return "bg-blue-600 text-white";
+    }
+
+    if (
+      estado === "Aprobado"
+    ) {
+
+      return "bg-green-600 text-white";
+    }
+
+    if (
       estado === "Finalizado"
     ) {
-      return "bg-green-600 text-white";
+
+      return "bg-purple-600 text-white";
     }
 
     return "bg-orange-500 text-white";
@@ -172,6 +309,7 @@ export default function VerPresupuesto() {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-6">
+
       <div className="max-w-7xl mx-auto">
 
         <div className="flex flex-col lg:flex-row lg:justify-between gap-6 mb-8">
@@ -183,7 +321,9 @@ export default function VerPresupuesto() {
             </h1>
 
             <p className="text-zinc-400 mt-2">
-              N° {presupuesto.numero}
+              N°
+              {" "}
+              {presupuesto.numero}
             </p>
 
           </div>
@@ -198,19 +338,23 @@ export default function VerPresupuesto() {
             </Link>
 
             {presupuesto.cerrado ? (
+
               <button
                 onClick={abrirParaEditar}
                 className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
               >
                 Abrir para editar
               </button>
+
             ) : (
+
               <Link
                 to={`/presupuestos/${id}`}
                 className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
               >
                 Editar
               </Link>
+
             )}
 
             <Link
@@ -238,10 +382,12 @@ export default function VerPresupuesto() {
                 className={`text-3xl font-black mt-1 ${
                   estadoActual === "Cerrado"
                     ? "text-red-500"
-                    : estadoActual === "Enviado" ||
-                      estadoActual === "Aprobado" ||
-                      estadoActual === "Finalizado"
+                    : estadoActual === "Enviado"
+                    ? "text-blue-500"
+                    : estadoActual === "Aprobado"
                     ? "text-green-500"
+                    : estadoActual === "Finalizado"
+                    ? "text-purple-500"
                     : "text-orange-500"
                 }`}
               >
@@ -249,15 +395,21 @@ export default function VerPresupuesto() {
               </p>
 
               {presupuesto.enviado_por_alias && (
+
                 <p className="text-zinc-400 mt-2">
-                  Enviado por {presupuesto.enviado_por_alias}
+                  Enviado por
+                  {" "}
+                  {presupuesto.enviado_por_alias}
                 </p>
+
               )}
 
               {presupuesto.cerrado && (
+
                 <p className="text-zinc-400 mt-3">
                   Este presupuesto está cerrado y bloqueado contra edición.
                 </p>
+
               )}
 
             </div>
@@ -265,15 +417,21 @@ export default function VerPresupuesto() {
             <div className="flex flex-wrap gap-3">
 
               {estados.map((estado) => (
+
                 <button
                   key={estado}
-                  onClick={() => cambiarEstado(estado)}
+                  onClick={() =>
+                    cambiarEstado(
+                      estado
+                    )
+                  }
                   className={`px-5 py-3 rounded-2xl font-bold transition-all ${colorBotonEstado(
                     estado
                   )}`}
                 >
                   {estado}
                 </button>
+
               ))}
 
             </div>
@@ -298,21 +456,31 @@ export default function VerPresupuesto() {
               </p>
 
               {presupuesto.cliente_contacto && (
+
                 <p className="text-zinc-400 mt-3">
-                  Contacto: {presupuesto.cliente_contacto}
+                  Contacto:
+                  {" "}
+                  {presupuesto.cliente_contacto}
                 </p>
+
               )}
 
               <p className="text-zinc-400 mt-2">
-                Tel: {presupuesto.cliente_telefono || "-"}
+                Tel:
+                {" "}
+                {presupuesto.cliente_telefono || "-"}
               </p>
 
               <p className="text-zinc-400 mt-2">
-                Email: {presupuesto.cliente_email || "-"}
+                Email:
+                {" "}
+                {presupuesto.cliente_email || "-"}
               </p>
 
               <p className="text-zinc-400 mt-2">
-                Dirección: {presupuesto.cliente_direccion || "-"}
+                Dirección:
+                {" "}
+                {presupuesto.cliente_direccion || "-"}
               </p>
 
             </div>
@@ -328,7 +496,9 @@ export default function VerPresupuesto() {
               </p>
 
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 mt-4 whitespace-pre-wrap leading-relaxed text-zinc-300">
+
                 {presupuesto.descripcion_larga || "-"}
+
               </div>
 
             </div>
@@ -362,6 +532,7 @@ export default function VerPresupuesto() {
           <div className="space-y-4">
 
             {items.map((item) => (
+
               <div
                 key={item.id}
                 className="grid grid-cols-12 gap-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
@@ -374,9 +545,11 @@ export default function VerPresupuesto() {
                   </p>
 
                   {item.detalle && (
+
                     <p className="text-zinc-400 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
                       {item.detalle}
                     </p>
+
                   )}
 
                 </div>
@@ -386,16 +559,27 @@ export default function VerPresupuesto() {
                 </div>
 
                 <div className="col-span-2">
+
                   {simbolo}
-                  {Number(item.precio).toLocaleString()}
+
+                  {Number(
+                    item.precio
+                  ).toLocaleString()}
+
                 </div>
 
                 <div className="col-span-2 text-orange-500 font-bold">
+
                   {simbolo}
-                  {Number(item.subtotal).toLocaleString()}
+
+                  {Number(
+                    item.subtotal
+                  ).toLocaleString()}
+
                 </div>
 
               </div>
+
             ))}
 
           </div>
@@ -413,51 +597,71 @@ export default function VerPresupuesto() {
             <div className="space-y-4">
 
               {historialEstados.map((estado) => (
+
                 <div
                   key={estado.id}
                   className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                 >
 
-                  <p className="font-bold">
-                    {estado.estado}
-                  </p>
+                  <div className="flex justify-between items-start gap-4">
 
-                  <p className="text-zinc-400 text-sm mt-1">
+                    <div>
 
-                    {new Date(
-                      new Date(
-                        estado.created_at
-                      ).getTime() -
-                        3 *
-                          60 *
-                          60 *
-                          1000
-                    ).toLocaleString(
-                      "es-AR",
-                      {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }
-                    )}
+                      <p className="font-bold">
+                        {estado.estado}
+                      </p>
 
-                  </p>
+                      <p className="text-zinc-500 text-sm mt-1">
+                        Por:
+                        {" "}
+                        {estado.alias_usuario}
+                      </p>
+
+                    </div>
+
+                    <p className="text-zinc-400 text-sm">
+
+                      {new Date(
+                        new Date(
+                          estado.created_at
+                        ).getTime() -
+                          3 *
+                            60 *
+                            60 *
+                            1000
+                      ).toLocaleString(
+                        "es-AR",
+                        {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+
+                    </p>
+
+                  </div>
 
                   {estado.nota && (
-                    <p className="text-zinc-500 text-sm mt-2">
+
+                    <p className="text-zinc-500 text-sm mt-3">
                       {estado.nota}
                     </p>
+
                   )}
 
                 </div>
+
               ))}
 
               {historialEstados.length === 0 && (
+
                 <p className="text-zinc-500">
                   No hay cambios de estado registrados.
                 </p>
+
               )}
 
             </div>
@@ -475,10 +679,13 @@ export default function VerPresupuesto() {
                 </span>
 
                 <span>
+
                   {simbolo}
+
                   {Number(
                     presupuesto.subtotal
                   ).toLocaleString()}
+
                 </span>
 
               </div>
@@ -490,10 +697,13 @@ export default function VerPresupuesto() {
                 </span>
 
                 <span>
+
                   {simbolo}
+
                   {Number(
                     presupuesto.total
                   ).toLocaleString()}
+
                 </span>
 
               </div>
@@ -509,6 +719,7 @@ export default function VerPresupuesto() {
         </div>
 
       </div>
+
     </div>
   );
 }
