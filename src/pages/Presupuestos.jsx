@@ -12,6 +12,7 @@ export default function Presupuestos() {
   const [descripcionCorta, setDescripcionCorta] = React.useState("");
   const [descripcionLarga, setDescripcionLarga] = React.useState("");
   const [moneda, setMoneda] = React.useState("ARS");
+  const [validoHasta, setValidoHasta] = React.useState("");
 
   const [clienteSeleccionado, setClienteSeleccionado] = React.useState(null);
   const [clientes, setClientes] = React.useState([]);
@@ -52,6 +53,7 @@ export default function Presupuestos() {
       cargarPresupuesto();
     } else {
       generarNumeroPresupuesto();
+      generarValidezDefault();
     }
   }, []);
 
@@ -107,6 +109,16 @@ export default function Presupuestos() {
     return encontrado?.nombre || "";
   }
 
+  function generarValidezDefault() {
+    const hoy = new Date();
+
+    hoy.setDate(hoy.getDate() + 7);
+
+    const fecha = hoy.toISOString().split("T")[0];
+
+    setValidoHasta(fecha);
+  }
+
   async function cargarPresupuesto() {
     const {
       data: { user },
@@ -149,6 +161,14 @@ export default function Presupuestos() {
     setDescripcionLarga(data.descripcion_larga || "");
     setMoneda(data.moneda || "ARS");
     setNumeroPresupuesto(data.numero || "");
+
+    if (data.valido_hasta) {
+      setValidoHasta(data.valido_hasta);
+    } else {
+      const fechaBase = data.created_at ? new Date(data.created_at) : new Date();
+      fechaBase.setDate(fechaBase.getDate() + 7);
+      setValidoHasta(fechaBase.toISOString().split("T")[0]);
+    }
 
     setClienteSeleccionado(
       data.cliente_id
@@ -377,30 +397,59 @@ export default function Presupuestos() {
         cliente_direccion: clienteDireccion || "",
       };
 
-      const datosPresupuesto = {
+      const datosPresupuestoBase = {
         cliente,
         descripcion_corta: descripcionCorta,
         descripcion_larga: descripcionLarga,
         subtotal,
         iva,
         total,
-        estado: "Edición",
         moneda,
         tipo_factura: "C",
         aplica_iva: false,
+        valido_hasta: validoHasta || null,
         ...datosCliente,
       };
 
       if (modoEdicion) {
+        const { data: presupuestoActual } = await supabase
+          .from("presupuestos")
+          .select("estado, valido_hasta")
+          .eq("id", id)
+          .single();
+
+        const cambioValidez =
+          (presupuestoActual?.valido_hasta || "") !== (validoHasta || "");
+
+        let estadoFinal = presupuestoActual?.estado || "Edición";
+
+        if (estadoFinal === "Enviado" && cambioValidez) {
+          estadoFinal = "Cerrado";
+        }
+
         const { error } = await supabase
           .from("presupuestos")
-          .update(datosPresupuesto)
+          .update({
+            ...datosPresupuestoBase,
+            estado: estadoFinal,
+          })
           .eq("id", id);
 
         if (error) {
           mostrarToast(error.message, "error");
           setGuardando(false);
           return;
+        }
+
+        if (presupuestoActual?.estado === "Enviado" && cambioValidez) {
+          await supabase.from("presupuesto_estados").insert([
+            {
+              presupuesto_id: id,
+              user_id: user.id,
+              estado: "Cerrado",
+              nota: `Validez modificada por ${alias}. Requiere reenvío.`,
+            },
+          ]);
         }
 
         await supabase
@@ -444,7 +493,8 @@ export default function Presupuestos() {
               user_id: user.id,
               generado_por: user.id,
               generado_por_alias: alias,
-              ...datosPresupuesto,
+              estado: "Edición",
+              ...datosPresupuestoBase,
             },
           ])
           .select()
@@ -680,6 +730,56 @@ export default function Presupuestos() {
                   <option value="ARS">Pesos Argentinos</option>
                   <option value="USD">Dólares</option>
                 </select>
+
+                <div>
+
+  <label className="block text-zinc-400 mb-2">
+    Presupuesto válido hasta
+  </label>
+
+  <div className="relative">
+
+    <input
+      id="validoHasta"
+      type="date"
+      value={validoHasta}
+      onChange={(e) =>
+        setValidoHasta(
+          e.target.value
+        )
+      }
+      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 pr-16 text-white"
+    />
+
+    <button
+      type="button"
+      onClick={() => {
+
+        const input =
+          document.getElementById(
+            "validoHasta"
+          );
+
+        if (!input) return;
+
+        input.showPicker?.();
+
+        input.focus();
+
+        input.click();
+      }}
+      className="absolute right-3 top-1/2 -translate-y-1/2 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-xl text-lg"
+    >
+      📅
+    </button>
+
+  </div>
+
+  <p className="text-zinc-500 text-sm mt-2">
+    Por defecto: 7 días desde la creación del presupuesto.
+  </p>
+
+</div>
               </div>
             </div>
           </div>
@@ -792,112 +892,112 @@ export default function Presupuestos() {
             </div>
           )}
 
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div
-                key={index}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
-              >
-                <div className="col-span-12 md:col-span-6">
-                  <input
-                    type="text"
-                    placeholder="Descripción"
-                    value={item.descripcion}
-                    onChange={(e) =>
-                      actualizarItem(index, "descripcion", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
+     <div className="space-y-4">
+  {items.map((item, index) => (
+    <div
+      key={index}
+      className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
+    >
+      <div className="col-span-12 md:col-span-6">
+        <input
+          type="text"
+          placeholder="Descripción"
+          value={item.descripcion}
+          onChange={(e) =>
+            actualizarItem(index, "descripcion", e.target.value)
+          }
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+        />
 
-                  <textarea
-                    placeholder="Descripción larga / detalle"
-                    value={item.detalle || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "detalle", e.target.value)
-                    }
-                    className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
-                  />
-                </div>
+        <textarea
+          placeholder="Descripción larga / detalle"
+          value={item.detalle || ""}
+          onChange={(e) =>
+            actualizarItem(index, "detalle", e.target.value)
+          }
+          className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
+        />
+      </div>
 
-                <div className="col-span-6 md:col-span-2">
-                  <select
-                    value={item.categoria_id || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "categoria_id", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="">Categoría</option>
+      <div className="col-span-6 md:col-span-2">
+        <select
+          value={item.categoria_id || ""}
+          onChange={(e) =>
+            actualizarItem(index, "categoria_id", e.target.value)
+          }
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+        >
+          <option value="">Categoría</option>
 
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          {categorias.map((categoria) => (
+            <option key={categoria.id} value={categoria.id}>
+              {categoria.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
 
-                <div className="col-span-6 md:col-span-2">
-                  <select
-                    value={item.tipo_id || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "tipo_id", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="">Tipo</option>
+      <div className="col-span-6 md:col-span-2">
+        <select
+          value={item.tipo_id || ""}
+          onChange={(e) =>
+            actualizarItem(index, "tipo_id", e.target.value)
+          }
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+        >
+          <option value="">Tipo</option>
 
-                    {tipos.map((tipo) => (
-                      <option key={tipo.id} value={tipo.id}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          {tipos.map((tipo) => (
+            <option key={tipo.id} value={tipo.id}>
+              {tipo.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
 
-                <div className="col-span-6 md:col-span-1">
-                  <input
-                    type="number"
-                    placeholder="Cant."
-                    value={item.cantidad}
-                    onChange={(e) =>
-                      actualizarItem(index, "cantidad", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-                </div>
+      <div className="col-span-6 md:col-span-1">
+        <input
+          type="number"
+          placeholder="Cant."
+          value={item.cantidad}
+          onChange={(e) =>
+            actualizarItem(index, "cantidad", e.target.value)
+          }
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+        />
+      </div>
 
-                <div className="col-span-6 md:col-span-1">
-                  <input
-                    type="number"
-                    placeholder="Precio"
-                    value={item.precio}
-                    onChange={(e) =>
-                      actualizarItem(index, "precio", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-                </div>
+      <div className="col-span-6 md:col-span-1">
+        <input
+          type="number"
+          placeholder="Precio"
+          value={item.precio}
+          onChange={(e) =>
+            actualizarItem(index, "precio", e.target.value)
+          }
+          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+        />
+      </div>
 
-                <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {(
-                    (Number(item.cantidad) || 0) *
-                    (Number(item.precio) || 0)
-                  ).toLocaleString()}
-                </div>
+      <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
+        {moneda === "USD" ? "USD $" : "$"}
+        {(
+          (Number(item.cantidad) || 0) *
+          (Number(item.precio) || 0)
+        ).toLocaleString()}
+      </div>
 
-                <div className="col-span-2 flex items-center justify-end">
-                  <button
-                    onClick={() => eliminarItem(index)}
-                    className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                  >
-                    X
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="col-span-2 flex items-center justify-end">
+        <button
+          onClick={() => eliminarItem(index)}
+          className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+        >
+          X
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
 
           <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
             <div className="space-y-4 text-xl">

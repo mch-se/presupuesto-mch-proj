@@ -417,31 +417,56 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
 
             </div>
 
-            <div className="text-right min-w-[220px]">
+         <div className="text-right min-w-[220px]">
 
-              <p className="text-zinc-500 text-sm uppercase tracking-wide">
-                Presupuesto
-              </p>
+  <p className="text-zinc-500 text-sm uppercase tracking-wide">
+    Presupuesto
+  </p>
 
-              <p className="text-4xl font-black text-orange-500 mt-1">
-                #{presupuesto.numero}
-              </p>
+  <p className="text-4xl font-black text-orange-500 mt-1">
+    #{presupuesto.numero}
+  </p>
 
-              <p className="text-zinc-500 mt-5">
-                Fecha
-              </p>
+  <p className="text-zinc-500 mt-5">
+    Fecha
+  </p>
 
-              <p className="font-semibold text-black mt-1">
+  <p className="font-semibold text-black mt-1">
 
-                {new Date(
-                  presupuesto.created_at
-                ).toLocaleDateString(
-                  "es-AR"
-                )}
+    {new Date(
+      presupuesto.created_at
+    ).toLocaleDateString(
+      "es-AR"
+    )}
 
-              </p>
+  </p>
 
-            </div>
+  {presupuesto.valido_hasta && (
+
+    <>
+
+      <p className="text-zinc-500 mt-5">
+        Válido hasta
+      </p>
+
+      <p className="font-semibold text-black mt-1">
+
+        {new Date(
+          presupuesto.valido_hasta
+        ).toLocaleDateString(
+          "es-AR",
+          {
+            timeZone: "UTC",
+          }
+        )}
+
+      </p>
+
+    </>
+
+  )}
+
+</div>
 
           </div>
 
