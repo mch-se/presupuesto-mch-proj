@@ -4,14 +4,23 @@ import { supabase } from "../lib/supabase";
 import html2pdf from "html2pdf.js";
 
 export default function VistaPreviaPresupuesto() {
+
   const { id } = useParams();
 
-  const [presupuesto, setPresupuesto] = React.useState(null);
-  const [items, setItems] = React.useState([]);
-  const [configuracion, setConfiguracion] = React.useState(null);
-  const [alias, setAlias] = React.useState("");
+  const [presupuesto, setPresupuesto] =
+    React.useState(null);
 
-  const hojaRef = React.useRef(null);
+  const [items, setItems] =
+    React.useState([]);
+
+  const [configuracion, setConfiguracion] =
+    React.useState(null);
+
+  const [alias, setAlias] =
+    React.useState("");
+
+  const hojaRef =
+    React.useRef(null);
 
   React.useEffect(() => {
     cargarPresupuesto();
@@ -19,53 +28,64 @@ export default function VistaPreviaPresupuesto() {
 
   async function cargarPresupuesto() {
 
-    const { data, error } = await supabase
-      .from("presupuestos")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { data, error } =
+      await supabase
+        .from("presupuestos")
+        .select("*")
+        .eq("id", id)
+        .single();
 
     if (error) {
+
       alert(error.message);
+
       return;
     }
 
     setPresupuesto(data);
 
-    const { data: itemsData } = await supabase
-      .from("presupuesto_items")
-      .select("*")
-      .eq("presupuesto_id", id);
+    const { data: itemsData } =
+      await supabase
+        .from("presupuesto_items")
+        .select("*")
+        .eq("presupuesto_id", id);
 
     setItems(itemsData || []);
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (user) {
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("alias")
-        .eq("id", user.id)
-        .single();
+      const {
+        data: profile,
+      } =
+        await supabase
+          .from("profiles")
+          .select("alias")
+          .eq("id", user.id)
+          .single();
 
       setAlias(
-        profile?.alias || user.email
+        profile?.alias ||
+        user.email
       );
     }
 
-    if (data.user_id) {
-
-      const { data: configData } = await supabase
-        .from("configuracion_usuario")
+    const {
+      data: configData,
+    } =
+      await supabase
+        .from("configuracion_empresa")
         .select("*")
-        .eq("user_id", data.user_id)
+        .eq("id", "principal")
         .single();
 
-      setConfiguracion(configData || null);
-    }
+    setConfiguracion(
+      configData || null
+    );
   }
 
   function opcionesPDF() {
@@ -93,8 +113,14 @@ export default function VistaPreviaPresupuesto() {
       },
 
       pagebreak: {
-        mode: ["css", "legacy"],
-        avoid: [".bloque-corto"],
+        mode: [
+          "css",
+          "legacy",
+        ],
+
+        avoid: [
+          ".bloque-corto",
+        ],
       },
     };
   }
@@ -162,9 +188,13 @@ export default function VistaPreviaPresupuesto() {
         user.email;
 
       const estadoActual =
-        presupuesto.estado || "Edición";
+        presupuesto.estado ||
+        "Edición";
 
-      if (estadoActual === "Edición") {
+      if (
+        estadoActual ===
+        "Edición"
+      ) {
 
         await supabase
           .from("presupuestos")
@@ -228,7 +258,8 @@ export default function VistaPreviaPresupuesto() {
   }
 
   const simbolo =
-    presupuesto.moneda === "USD"
+    presupuesto.moneda ===
+    "USD"
       ? "USD $"
       : "$";
 
@@ -244,8 +275,7 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
 
   const generadoPor =
     configuracion?.firma_pdf ||
-    alias ||
-    "MCH Seguridad Electrónica";
+    alias;
 
   const puedeCompartir =
     navigator.canShare &&
@@ -305,31 +335,111 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
           className="bg-white text-black p-10 md:p-12"
         >
 
-          <div className="flex justify-between items-start border-b pb-8 bloque-corto">
+          <div className="flex justify-between items-start border-b pb-8 gap-10 bloque-corto">
 
-            <div>
+            <div className="flex-1">
 
-              <h1 className="text-5xl font-black text-orange-500">
-                MCH
-              </h1>
+              <div className="h-28 flex items-center">
 
-              <p className="text-zinc-600 mt-2 text-lg">
-                Seguridad Electrónica
-              </p>
+                {configuracion?.logo_url ? (
 
-              <p className="text-zinc-500 mt-4">
-                Presupuesto N°
-                {" "}
-                {presupuesto.numero}
-              </p>
+                  <img
+                    src={configuracion.logo_url}
+                    alt="Logo"
+                    className="max-h-24 max-w-[260px] object-contain"
+                  />
+
+                ) : (
+
+                  <div className="h-24 w-[260px]" />
+
+                )}
+
+              </div>
+
+              <div className="mt-4 text-zinc-700 space-y-1">
+
+                {configuracion?.nombre_empresa && (
+
+                  <p className="font-black text-2xl text-black">
+                    {configuracion.nombre_empresa}
+                  </p>
+
+                )}
+
+                {configuracion?.direccion && (
+
+                  <p>
+                    {configuracion.direccion}
+                  </p>
+
+                )}
+
+                {configuracion?.telefono && (
+
+                  <p>
+                    Tel:
+                    {" "}
+                    {configuracion.telefono}
+                  </p>
+
+                )}
+
+                {configuracion?.whatsapp && (
+
+                  <p>
+                    WhatsApp:
+                    {" "}
+                    {configuracion.whatsapp}
+                  </p>
+
+                )}
+
+                {configuracion?.email && (
+
+                  <p>
+                    {configuracion.email}
+                  </p>
+
+                )}
+
+                {configuracion?.cuit && (
+
+                  <p>
+                    CUIT:
+                    {" "}
+                    {configuracion.cuit}
+                  </p>
+
+                )}
+
+              </div>
 
             </div>
 
-            <div className="text-right text-zinc-500">
+            <div className="text-right min-w-[220px]">
 
-              {new Date(
-                presupuesto.created_at
-              ).toLocaleDateString()}
+              <p className="text-zinc-500 text-sm uppercase tracking-wide">
+                Presupuesto
+              </p>
+
+              <p className="text-4xl font-black text-orange-500 mt-1">
+                #{presupuesto.numero}
+              </p>
+
+              <p className="text-zinc-500 mt-5">
+                Fecha
+              </p>
+
+              <p className="font-semibold text-black mt-1">
+
+                {new Date(
+                  presupuesto.created_at
+                ).toLocaleDateString(
+                  "es-AR"
+                )}
+
+              </p>
 
             </div>
 
@@ -344,8 +454,10 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
               </p>
 
               <p className="font-bold text-2xl mt-1">
+
                 {presupuesto.cliente_empresa ||
                   presupuesto.cliente}
+
               </p>
 
               {presupuesto.cliente_contacto && (
@@ -464,9 +576,7 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
                       </td>
 
                       <td className="text-center py-5">
-
                         {item.cantidad}
-
                       </td>
 
                       <td className="text-right py-5">
@@ -540,11 +650,15 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
               {condiciones}
             </p>
 
-            <p className="mt-4 text-zinc-500">
-              Generado por:
-              {" "}
-              {generadoPor}
-            </p>
+            {generadoPor && (
+
+              <p className="mt-4 text-zinc-500">
+                Generado por:
+                {" "}
+                {generadoPor}
+              </p>
+
+            )}
 
             {configuracion?.pie_presupuesto && (
 

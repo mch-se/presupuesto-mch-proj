@@ -3,23 +3,59 @@ import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
 
 export default function MiCuenta() {
-  const [email, setEmail] = React.useState("");
-  const [alias, setAlias] = React.useState("");
 
-  const [nombreEmpresa, setNombreEmpresa] = React.useState("");
-  const [cuit, setCuit] = React.useState("");
-  const [telefono, setTelefono] = React.useState("");
-  const [emailEmpresa, setEmailEmpresa] = React.useState("");
-  const [direccion, setDireccion] = React.useState("");
-  const [whatsapp, setWhatsapp] = React.useState("");
-
-  const [condicionesComerciales, setCondicionesComerciales] =
+  const [email, setEmail] =
     React.useState("");
+
+  const [alias, setAlias] =
+    React.useState("");
+
+  const [rol, setRol] =
+    React.useState("");
+
+  const [nombreEmpresa, setNombreEmpresa] =
+    React.useState("");
+
+  const [cuit, setCuit] =
+    React.useState("");
+
+  const [telefono, setTelefono] =
+    React.useState("");
+
+  const [emailEmpresa, setEmailEmpresa] =
+    React.useState("");
+
+  const [direccion, setDireccion] =
+    React.useState("");
+
+  const [whatsapp, setWhatsapp] =
+    React.useState("");
+
+  const [logoUrl, setLogoUrl] =
+    React.useState("");
+
+  const [subiendoLogo, setSubiendoLogo] =
+    React.useState(false);
+
+  const textoCondicionesDefault =
+`Los importes son válidos por 5 días debido a la inestabilidad monetaria.
+El pago debe estar acreditado al momento de finalizar el trabajo; de lo contrario, se aplicará mora del 3% por día hasta que se acredite el pago.
+Pago efectivo o transferencia.
+Otros medios de pago pueden incluir recargos.
+Incluye configuración y puesta en marcha salvo aclaración previa.
+No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
+
+  const [condicionesComerciales,
+    setCondicionesComerciales] =
+    React.useState(
+      textoCondicionesDefault
+    );
 
   const [firmaPdf, setFirmaPdf] =
     React.useState("");
 
-  const [piePresupuesto, setPiePresupuesto] =
+  const [piePresupuesto,
+    setPiePresupuesto] =
     React.useState("");
 
   const [loading, setLoading] =
@@ -33,25 +69,30 @@ export default function MiCuenta() {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (!user) return;
 
     setEmail(user.email || "");
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("alias")
-      .eq("id", user.id)
-      .single();
+    const { data: profile } =
+      await supabase
+        .from("profiles")
+        .select("alias, rol")
+        .eq("id", user.id)
+        .single();
 
     setAlias(profile?.alias || "");
 
-    const { data: config } = await supabase
-      .from("configuracion_usuario")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    setRol(profile?.rol || "");
+
+    const { data: config } =
+      await supabase
+        .from("configuracion_empresa")
+        .select("*")
+        .eq("id", "principal")
+        .single();
 
     if (config) {
 
@@ -79,8 +120,13 @@ export default function MiCuenta() {
         config.whatsapp || ""
       );
 
+      setLogoUrl(
+        config.logo_url || ""
+      );
+
       setCondicionesComerciales(
-        config.condiciones_comerciales || ""
+        config.condiciones_comerciales ||
+        textoCondicionesDefault
       );
 
       setFirmaPdf(
@@ -95,29 +141,118 @@ export default function MiCuenta() {
     setLoading(false);
   }
 
-  async function guardarConfiguracion() {
+  async function subirLogo(event) {
+
+    if (
+      rol !== "admin" &&
+      rol !== "socio"
+    ) {
+
+      alert(
+        "No tenés permisos para modificar el logo"
+      );
+
+      return;
+    }
+
+    const archivo =
+      event.target.files?.[0];
+
+    if (!archivo) return;
+
+    if (
+      !archivo.type.startsWith(
+        "image/"
+      )
+    ) {
+
+      alert(
+        "El archivo debe ser una imagen"
+      );
+
+      return;
+    }
+
+    setSubiendoLogo(true);
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+
+      setSubiendoLogo(false);
+
+      return;
+    }
+
+    const extension =
+      archivo.name
+        .split(".")
+        .pop();
+
+    const nombreArchivo =
+      `empresa/logo.${extension}`;
+
+    const {
+      error: uploadError,
+    } =
+      await supabase.storage
+        .from("logos")
+        .upload(
+          nombreArchivo,
+          archivo,
+          {
+            cacheControl:
+              "3600",
+
+            upsert: true,
+          }
+        );
+
+    if (uploadError) {
+
+      alert(
+        uploadError.message
+      );
+
+      setSubiendoLogo(false);
+
+      return;
+    }
+
+    const { data } =
+      supabase.storage
+        .from("logos")
+        .getPublicUrl(
+          nombreArchivo
+        );
+
+    setLogoUrl(
+      data.publicUrl
+    );
+
+    setSubiendoLogo(false);
+  }
+
+  async function guardarConfiguracion() {
+
+    if (
+      rol !== "admin" &&
+      rol !== "socio"
+    ) {
+
+      alert(
+        "No tenés permisos para editar esta configuración"
+      );
+
+      return;
+    }
 
     const datos = {
-      user_id: user.id,
 
-      nombre_empresa:
-        nombreEmpresa,
-
-      cuit,
-
-      telefono,
-
-      email: emailEmpresa,
-
-      direccion,
-
-      whatsapp,
+      id: "principal",
 
       condiciones_comerciales:
         condicionesComerciales,
@@ -127,16 +262,54 @@ export default function MiCuenta() {
 
       pie_presupuesto:
         piePresupuesto,
+
+      logo_url:
+        logoUrl,
+
+      updated_at:
+        new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from("configuracion_usuario")
-      .upsert(datos, {
-        onConflict: "user_id",
-      });
+    if (rol === "admin") {
+
+      datos.nombre_empresa =
+        nombreEmpresa;
+
+      datos.cuit =
+        cuit;
+
+      datos.telefono =
+        telefono;
+
+      datos.email =
+        emailEmpresa;
+
+      datos.direccion =
+        direccion;
+
+      datos.whatsapp =
+        whatsapp;
+    }
+
+    const { error } =
+      await supabase
+        .from(
+          "configuracion_empresa"
+        )
+        .upsert(
+          datos,
+          {
+            onConflict:
+              "id",
+          }
+        );
 
     if (error) {
-      alert(error.message);
+
+      alert(
+        error.message
+      );
+
       return;
     }
 
@@ -166,7 +339,11 @@ export default function MiCuenta() {
       );
 
     if (error) {
-      alert(error.message);
+
+      alert(
+        error.message
+      );
+
       return;
     }
 
@@ -184,6 +361,13 @@ export default function MiCuenta() {
     );
   }
 
+  const puedeEditarPdf =
+    rol === "admin" ||
+    rol === "socio";
+
+  const esAdmin =
+    rol === "admin";
+
   return (
     <div className="min-h-screen bg-black text-white p-6">
 
@@ -198,7 +382,7 @@ export default function MiCuenta() {
             </h1>
 
             <p className="text-zinc-400 mt-3">
-              Usuario, empresa y configuración futura
+              Configuración global de empresa
             </p>
 
           </div>
@@ -246,80 +430,166 @@ export default function MiCuenta() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
 
           <h2 className="text-3xl font-bold text-orange-500 mb-6">
-            Empresa
+            Logo
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
 
-            <input
-              placeholder="Nombre comercial"
-              value={nombreEmpresa}
-              onChange={(e) =>
-                setNombreEmpresa(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+            <label className="bg-zinc-950 border-2 border-dashed border-zinc-700 hover:border-orange-500 rounded-3xl p-8 min-h-56 flex flex-col items-center justify-center cursor-pointer">
 
-            <input
-              placeholder="CUIT"
-              value={cuit}
-              onChange={(e) =>
-                setCuit(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+              {logoUrl ? (
 
-            <input
-              placeholder="Teléfono"
-              value={telefono}
-              onChange={(e) =>
-                setTelefono(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="max-h-40 max-w-full object-contain"
+                />
 
-            <input
-              placeholder="Email empresa"
-              value={emailEmpresa}
-              onChange={(e) =>
-                setEmailEmpresa(
-                  e.target.value
-                )
-              }
-              className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+              ) : (
 
-            <input
-              placeholder="Dirección"
-              value={direccion}
-              onChange={(e) =>
-                setDireccion(
-                  e.target.value
-                )
-              }
-              className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+                <>
 
-            <input
-              placeholder="WhatsApp Business"
-              value={whatsapp}
-              onChange={(e) =>
-                setWhatsapp(
-                  e.target.value
-                )
-              }
-              className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-            />
+                  <div className="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
+                    +
+                  </div>
+
+                  <p className="text-zinc-300 font-bold mt-4">
+                    Subir logo
+                  </p>
+
+                  <p className="text-zinc-500 text-sm mt-1 text-center">
+                    Logo global para todo el sistema.
+                  </p>
+
+                </>
+
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={subirLogo}
+                className="hidden"
+              />
+
+            </label>
+
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6">
+
+              <p className="text-zinc-400">
+                Recomendado:
+                PNG transparente.
+              </p>
+
+              {subiendoLogo && (
+
+                <p className="text-orange-400 font-bold mt-4">
+                  Subiendo logo...
+                </p>
+
+              )}
+
+              {logoUrl &&
+                puedeEditarPdf && (
+
+                <button
+                  onClick={() =>
+                    setLogoUrl("")
+                  }
+                  className="mt-5 bg-red-600 hover:bg-red-700 px-5 py-3 rounded-2xl font-bold"
+                >
+                  Quitar logo
+                </button>
+
+              )}
+
+            </div>
 
           </div>
 
         </div>
+
+        {esAdmin && (
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+
+            <h2 className="text-3xl font-bold text-orange-500 mb-6">
+              Empresa
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <input
+                placeholder="Nombre comercial"
+                value={nombreEmpresa}
+                onChange={(e) =>
+                  setNombreEmpresa(
+                    e.target.value
+                  )
+                }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                placeholder="CUIT"
+                value={cuit}
+                onChange={(e) =>
+                  setCuit(
+                    e.target.value
+                  )
+                }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                placeholder="Teléfono"
+                value={telefono}
+                onChange={(e) =>
+                  setTelefono(
+                    e.target.value
+                  )
+                }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                placeholder="Email empresa"
+                value={emailEmpresa}
+                onChange={(e) =>
+                  setEmailEmpresa(
+                    e.target.value
+                  )
+                }
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                placeholder="Dirección"
+                value={direccion}
+                onChange={(e) =>
+                  setDireccion(
+                    e.target.value
+                  )
+                }
+                className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <input
+                placeholder="WhatsApp Business"
+                value={whatsapp}
+                onChange={(e) =>
+                  setWhatsapp(
+                    e.target.value
+                  )
+                }
+                className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+            </div>
+
+          </div>
+
+        )}
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
 
@@ -327,22 +597,32 @@ export default function MiCuenta() {
             PDF / Presupuestos
           </h2>
 
+          {!puedeEditarPdf && (
+
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-6 text-zinc-400">
+              Solo admin y socios pueden modificar esta configuración.
+            </div>
+
+          )}
+
           <div className="space-y-6">
 
             <textarea
               placeholder="Condiciones comerciales"
               value={condicionesComerciales}
+              disabled={!puedeEditarPdf}
               onChange={(e) =>
                 setCondicionesComerciales(
                   e.target.value
                 )
               }
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-32"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-40"
             />
 
             <input
               placeholder="Firma / aclaración PDF"
               value={firmaPdf}
+              disabled={!puedeEditarPdf}
               onChange={(e) =>
                 setFirmaPdf(
                   e.target.value
@@ -354,6 +634,7 @@ export default function MiCuenta() {
             <input
               placeholder="Texto pie de presupuesto"
               value={piePresupuesto}
+              disabled={!puedeEditarPdf}
               onChange={(e) =>
                 setPiePresupuesto(
                   e.target.value
@@ -366,12 +647,16 @@ export default function MiCuenta() {
 
         </div>
 
-        <button
-          onClick={guardarConfiguracion}
-          className="w-full bg-orange-500 hover:bg-orange-600 p-5 rounded-2xl text-xl font-bold"
-        >
-          Guardar Configuración
-        </button>
+        {puedeEditarPdf && (
+
+          <button
+            onClick={guardarConfiguracion}
+            className="w-full bg-orange-500 hover:bg-orange-600 p-5 rounded-2xl text-xl font-bold"
+          >
+            Guardar Configuración
+          </button>
+
+        )}
 
       </div>
 
