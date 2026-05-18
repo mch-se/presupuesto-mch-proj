@@ -28,6 +28,8 @@ export default function Clientes() {
   const [modalVisible, setModalVisible] = React.useState(false);
   const [clienteEliminar, setClienteEliminar] = React.useState(null);
 
+  const formularioRef = React.useRef(null);
+
   React.useEffect(() => {
     obtenerClientes();
   }, []);
@@ -117,9 +119,7 @@ export default function Clientes() {
 
       mostrarToast("Cliente actualizado", "ok");
     } else {
-      const { error } = await supabase
-        .from("clientes")
-        .insert([datosCliente]);
+      const { error } = await supabase.from("clientes").insert([datosCliente]);
 
       if (error) {
         mostrarToast(error.message, "error");
@@ -142,9 +142,15 @@ export default function Clientes() {
     setDireccion(cliente.direccion || "");
     setObservaciones(cliente.observaciones || "");
     setEditandoId(cliente.id);
-
     setMostrarFormulario(true);
     setMenuAbierto(null);
+
+    setTimeout(() => {
+      formularioRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 100);
   }
 
   function solicitarEliminarCliente(id) {
@@ -186,7 +192,6 @@ export default function Clientes() {
     `.toLowerCase();
 
     const coincideBusqueda = texto.includes(busqueda.toLowerCase());
-
     const coincideTipo =
       filtroTipo === "Todos" ? true : cliente.tipo === filtroTipo;
 
@@ -208,11 +213,7 @@ export default function Clientes() {
         onConfirmar={confirmarEliminarCliente}
       />
 
-      <Toast
-        mensaje={toastMensaje}
-        tipo={toastTipo}
-        visible={toastVisible}
-      />
+      <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
       <div className="min-h-screen bg-black text-white p-6">
         <div className="max-w-7xl mx-auto">
@@ -235,7 +236,7 @@ export default function Clientes() {
             </Link>
           </div>
 
-          <div className="mb-10">
+          <div ref={formularioRef} className="mb-10">
             {!mostrarFormulario ? (
               <button
                 onClick={() => setMostrarFormulario(true)}
