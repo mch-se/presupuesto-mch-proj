@@ -32,6 +32,9 @@ export default function Presupuestos() {
   const [plantillas, setPlantillas] = React.useState([]);
   const [busquedaPlantilla, setBusquedaPlantilla] = React.useState("");
 
+  const [categorias, setCategorias] = React.useState([]);
+  const [tipos, setTipos] = React.useState([]);
+
   const [guardando, setGuardando] = React.useState(false);
 
   const [toastVisible, setToastVisible] = React.useState(false);
@@ -39,6 +42,8 @@ export default function Presupuestos() {
   const [toastTipo, setToastTipo] = React.useState("ok");
 
   React.useEffect(() => {
+    obtenerCategorias();
+    obtenerTipos();
     obtenerArticulos();
     obtenerClientes();
     obtenerPlantillas();
@@ -58,6 +63,48 @@ export default function Presupuestos() {
     setTimeout(() => {
       setToastVisible(false);
     }, 2500);
+  }
+
+  async function obtenerCategorias() {
+    const { data, error } = await supabase
+      .from("articulo_categorias")
+      .select("*")
+      .order("nombre");
+
+    if (error) {
+      mostrarToast(error.message, "error");
+      return;
+    }
+
+    setCategorias(data || []);
+  }
+
+  async function obtenerTipos() {
+    const { data, error } = await supabase
+      .from("articulo_tipos")
+      .select("*")
+      .order("nombre");
+
+    if (error) {
+      mostrarToast(error.message, "error");
+      return;
+    }
+
+    setTipos(data || []);
+  }
+
+  function nombreCategoriaPorId(categoriaId) {
+    const encontrada = categorias.find(
+      (categoria) => categoria.id === categoriaId
+    );
+
+    return encontrada?.nombre || "";
+  }
+
+  function nombreTipoPorId(tipoId) {
+    const encontrado = tipos.find((tipo) => tipo.id === tipoId);
+
+    return encontrado?.nombre || "";
   }
 
   async function cargarPresupuesto() {
@@ -89,17 +136,10 @@ export default function Presupuestos() {
 
     const esPropio = data.user_id === user.id;
 
-    const puedeEditar =
-      rol === "admin" ||
-      rol === "socio" ||
-      esPropio;
+    const puedeEditar = rol === "admin" || rol === "socio" || esPropio;
 
     if (!puedeEditar) {
-      mostrarToast(
-        "No tenés permisos para editar este presupuesto",
-        "error"
-      );
-
+      mostrarToast("No tenés permisos para editar este presupuesto", "error");
       navigate("/historial");
       return;
     }
@@ -215,6 +255,10 @@ export default function Presupuestos() {
       {
         descripcion: "",
         detalle: "",
+        categoria_id: "",
+        tipo_id: "",
+        categoria: "",
+        tipo: "",
         cantidad: "",
         precio: "",
       },
@@ -223,7 +267,17 @@ export default function Presupuestos() {
 
   function actualizarItem(index, campo, valor) {
     const nuevosItems = [...items];
+
     nuevosItems[index][campo] = valor;
+
+    if (campo === "categoria_id") {
+      nuevosItems[index].categoria = nombreCategoriaPorId(valor);
+    }
+
+    if (campo === "tipo_id") {
+      nuevosItems[index].tipo = nombreTipoPorId(valor);
+    }
+
     setItems(nuevosItems);
   }
 
@@ -237,6 +291,10 @@ export default function Presupuestos() {
       {
         descripcion: articulo.descripcion,
         detalle: articulo.detalle || "",
+        categoria_id: articulo.categoria_id || "",
+        tipo_id: articulo.tipo_id || "",
+        categoria: articulo.categoria || "",
+        tipo: articulo.tipo || "",
         cantidad: 1,
         precio: articulo.precio || 0,
       },
@@ -260,6 +318,10 @@ export default function Presupuestos() {
     const nuevosItems = (data || []).map((item) => ({
       descripcion: item.descripcion,
       detalle: item.detalle || "",
+      categoria_id: item.categoria_id || "",
+      tipo_id: item.tipo_id || "",
+      categoria: item.categoria || "",
+      tipo: item.tipo || "",
       cantidad: item.cantidad || 1,
       precio: item.precio || 0,
     }));
@@ -350,11 +412,14 @@ export default function Presupuestos() {
           presupuesto_id: id,
           descripcion: item.descripcion,
           detalle: item.detalle || "",
+          categoria_id: item.categoria_id || null,
+          tipo_id: item.tipo_id || null,
+          categoria: item.categoria || nombreCategoriaPorId(item.categoria_id),
+          tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
           subtotal:
-            (Number(item.cantidad) || 0) *
-            (Number(item.precio) || 0),
+            (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
         if (nuevosItems.length > 0) {
@@ -395,11 +460,14 @@ export default function Presupuestos() {
           presupuesto_id: presupuesto.id,
           descripcion: item.descripcion,
           detalle: item.detalle || "",
+          categoria_id: item.categoria_id || null,
+          tipo_id: item.tipo_id || null,
+          categoria: item.categoria || nombreCategoriaPorId(item.categoria_id),
+          tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
           subtotal:
-            (Number(item.cantidad) || 0) *
-            (Number(item.precio) || 0),
+            (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
         if (itemsInsertar.length > 0) {
@@ -443,6 +511,8 @@ export default function Presupuestos() {
     const texto = `
       ${articulo.descripcion || ""}
       ${articulo.detalle || ""}
+      ${articulo.categoria || ""}
+      ${articulo.tipo || ""}
     `.toLowerCase();
 
     return texto.includes(busquedaArticulo.toLowerCase());
@@ -700,6 +770,10 @@ export default function Presupuestos() {
                         </p>
                       )}
 
+                      <p className="text-zinc-500 text-sm mt-2">
+                        {articulo.categoria || "-"} / {articulo.tipo || "-"}
+                      </p>
+
                       <p className="text-zinc-400 mt-2">
                         {moneda === "USD" ? "USD $" : "$"}
                         {Number(articulo.precio).toLocaleString()}
@@ -745,7 +819,43 @@ export default function Presupuestos() {
                   />
                 </div>
 
-                <div className="col-span-4 md:col-span-2">
+                <div className="col-span-6 md:col-span-2">
+                  <select
+                    value={item.categoria_id || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "categoria_id", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+                    <option value="">Categoría</option>
+
+                    {categorias.map((categoria) => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-6 md:col-span-2">
+                  <select
+                    value={item.tipo_id || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "tipo_id", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+                    <option value="">Tipo</option>
+
+                    {tipos.map((tipo) => (
+                      <option key={tipo.id} value={tipo.id}>
+                        {tipo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="col-span-6 md:col-span-1">
                   <input
                     type="number"
                     placeholder="Cant."
@@ -757,7 +867,7 @@ export default function Presupuestos() {
                   />
                 </div>
 
-                <div className="col-span-4 md:col-span-2">
+                <div className="col-span-6 md:col-span-1">
                   <input
                     type="number"
                     placeholder="Precio"
@@ -769,7 +879,7 @@ export default function Presupuestos() {
                   />
                 </div>
 
-                <div className="col-span-3 md:col-span-1 flex items-center justify-center font-bold text-orange-500">
+                <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
                   {moneda === "USD" ? "USD $" : "$"}
                   {(
                     (Number(item.cantidad) || 0) *
@@ -777,7 +887,7 @@ export default function Presupuestos() {
                   ).toLocaleString()}
                 </div>
 
-                <div className="col-span-1 flex items-center justify-end">
+                <div className="col-span-2 flex items-center justify-end">
                   <button
                     onClick={() => eliminarItem(index)}
                     className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
