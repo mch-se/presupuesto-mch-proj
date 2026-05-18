@@ -13,6 +13,7 @@ export default function Articulos() {
   const [tipoId, setTipoId] = React.useState("");
   const [proveedor, setProveedor] = React.useState("");
   const [moneda, setMoneda] = React.useState("ARS");
+  const [usadoCount, setUsadoCount] = React.useState(0);
 
   const [articulos, setArticulos] = React.useState([]);
   const [categorias, setCategorias] = React.useState([]);
@@ -82,8 +83,7 @@ export default function Articulos() {
   async function obtenerArticulos() {
     const { data, error } = await supabase
       .from("articulos")
-      .select("*")
-      .order("descripcion");
+      .select("*");
 
     if (error) {
       mostrarToast(error.message, "error");
@@ -116,6 +116,7 @@ export default function Articulos() {
     setTipoId("");
     setProveedor("");
     setMoneda("ARS");
+    setUsadoCount(0);
     setEditandoId(null);
     setMostrarFormulario(false);
   }
@@ -147,10 +148,11 @@ export default function Articulos() {
     const datosArticulo = {
       descripcion,
       detalle,
-      precio,
-      costo,
+      precio: precio === "" ? 0 : precio,
+      costo: costo === "" ? 0 : costo,
       proveedor,
       moneda,
+      usado_count: Number(usadoCount) || 0,
       categoria_id: categoriaId || null,
       tipo_id: tipoId || null,
       categoria: categoriaSeleccionada?.nombre || "",
@@ -218,6 +220,7 @@ export default function Articulos() {
     setTipoId(tipoEncontrado);
     setProveedor(articulo.proveedor || "");
     setMoneda(articulo.moneda || "ARS");
+    setUsadoCount(articulo.usado_count || 0);
     setEditandoId(articulo.id);
     setMostrarFormulario(true);
     setMenuAbierto(null);
@@ -266,33 +269,44 @@ export default function Articulos() {
     return `${texto.slice(0, 120)}...`;
   }
 
-  const articulosFiltrados = articulos.filter((articulo) => {
-    const categoriaTexto = nombreCategoria(articulo);
-    const tipoTexto = nombreTipo(articulo);
+  const articulosFiltrados = articulos
+    .filter((articulo) => {
+      const categoriaTexto = nombreCategoria(articulo);
+      const tipoTexto = nombreTipo(articulo);
 
-    const texto = `
-      ${articulo.descripcion || ""}
-      ${articulo.detalle || ""}
-      ${categoriaTexto || ""}
-      ${tipoTexto || ""}
-      ${articulo.proveedor || ""}
-      ${articulo.cargado_por_alias || ""}
-    `.toLowerCase();
+      const texto = `
+        ${articulo.descripcion || ""}
+        ${articulo.detalle || ""}
+        ${categoriaTexto || ""}
+        ${tipoTexto || ""}
+        ${articulo.proveedor || ""}
+        ${articulo.cargado_por_alias || ""}
+      `.toLowerCase();
 
-    const coincideBusqueda = texto.includes(busqueda.toLowerCase());
+      const coincideBusqueda = texto.includes(busqueda.toLowerCase());
 
-    const coincideCategoria =
-      filtroCategoria === "Todas"
-        ? true
-        : categoriaTexto.toLowerCase() === filtroCategoria.toLowerCase();
+      const coincideCategoria =
+        filtroCategoria === "Todas"
+          ? true
+          : categoriaTexto.toLowerCase() === filtroCategoria.toLowerCase();
 
-    const coincideTipo =
-      filtroTipo === "Todos"
-        ? true
-        : tipoTexto.toLowerCase() === filtroTipo.toLowerCase();
+      const coincideTipo =
+        filtroTipo === "Todos"
+          ? true
+          : tipoTexto.toLowerCase() === filtroTipo.toLowerCase();
 
-    return coincideBusqueda && coincideCategoria && coincideTipo;
-  });
+      return coincideBusqueda && coincideCategoria && coincideTipo;
+    })
+    .sort((a, b) => {
+      const usoA = Number(a.usado_count) || 0;
+      const usoB = Number(b.usado_count) || 0;
+
+      if (usoB !== usoA) {
+        return usoB - usoA;
+      }
+
+      return (a.descripcion || "").localeCompare(b.descripcion || "");
+    });
 
   return (
     <>
@@ -459,11 +473,19 @@ export default function Articulos() {
                     <option value="USD">USD $</option>
                   </select>
 
+                  <input
+                    type="number"
+                    placeholder="Usos"
+                    value={usadoCount}
+                    onChange={(e) => setUsadoCount(e.target.value)}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+
                   <textarea
                     placeholder="Descripción larga / detalle"
                     value={detalle}
                     onChange={(e) => setDetalle(e.target.value)}
-                    className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
+                    className="md:col-span-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
                   />
                 </div>
 
@@ -540,13 +562,21 @@ export default function Articulos() {
                 className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
               >
                 <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-6 w-full">
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-6 w-full">
                     <div>
                       <p className="text-zinc-500 text-sm">Descripción</p>
 
-                      <p className="text-xl font-bold mt-2">
-                        {articulo.descripcion}
-                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <p className="text-xl font-bold">
+                          {articulo.descripcion}
+                        </p>
+
+                        {(Number(articulo.usado_count) || 0) >= 11 && (
+                          <span title="Artículo frecuente" className="text-xl">
+                            🔥
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -585,8 +615,16 @@ export default function Articulos() {
                       </p>
                     </div>
 
+                    <div>
+                      <p className="text-zinc-500 text-sm">Usos</p>
+
+                      <p className="mt-2">
+                        {Number(articulo.usado_count) || 0}
+                      </p>
+                    </div>
+
                     {articulo.detalle && (
-                      <div className="md:col-span-6 border-t border-zinc-800 pt-4">
+                      <div className="md:col-span-7 border-t border-zinc-800 pt-4">
                         <p className="text-zinc-500 text-sm mb-2">
                           Descripción larga
                         </p>
@@ -597,7 +635,7 @@ export default function Articulos() {
                       </div>
                     )}
 
-                    <div className="md:col-span-6">
+                    <div className="md:col-span-7">
                       <p className="text-zinc-500 text-sm mt-2">
                         Cargado por:{" "}
                         {articulo.cargado_por_alias || "Administrador"}
