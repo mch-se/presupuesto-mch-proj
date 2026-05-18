@@ -387,6 +387,35 @@ export default function Presupuestos() {
         .single();
 
       const alias = perfil?.alias || "Administrador";
+if (modoEdicion) {
+
+  const {
+    data: presupuestoActual,
+  } =
+    await supabase
+      .from("presupuestos")
+      .select("estado")
+      .eq("id", id)
+      .single();
+
+  if (
+    presupuestoActual?.estado ===
+    "Finalizado"
+  ) {
+
+    const confirmar =
+      window.confirm(
+        "Este presupuesto está FINALIZADO.\n\nGuardar cambios puede afectar información operativa o histórica.\n\n¿Deseás continuar?"
+      );
+
+    if (!confirmar) {
+
+      setGuardando(false);
+
+      return;
+    }
+  }
+}
 
       const datosCliente = {
         cliente_id: clienteSeleccionado?.id || null,

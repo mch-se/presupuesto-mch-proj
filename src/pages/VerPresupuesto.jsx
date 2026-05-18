@@ -339,24 +339,40 @@ export default function VerPresupuesto() {
 
             {presupuesto.cerrado ? (
 
-              <button
-                onClick={abrirParaEditar}
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-              >
-                Abrir para editar
-              </button>
+  <button
+    onClick={abrirParaEditar}
+    className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+  >
+    Abrir para editar
+  </button>
 
-            ) : (
+) : (
 
-              <Link
-                to={`/presupuestos/${id}`}
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-              >
-                Editar
-              </Link>
+  <button
+    onClick={() => {
 
-            )}
+      if (
+        presupuesto.estado ===
+        "Finalizado"
+      ) {
 
+        const confirmar =
+          window.confirm(
+            "Este presupuesto está FINALIZADO.\n\nModificarlo puede afectar el historial y el cierre operativo.\n\n¿Deseás editarlo igualmente?"
+          );
+
+        if (!confirmar) return;
+      }
+
+      window.location.href =
+        `/presupuestos/${id}`;
+    }}
+    className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+  >
+    Editar
+  </button>
+
+)}
             <Link
               to="/historial"
               className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
