@@ -4,12 +4,27 @@ import { supabase } from "../lib/supabase";
 import ConfirmModal from "./ConfirmModal";
 
 export default function Layout({ children }) {
-  const location = useLocation();
 
-  const [alias, setAlias] = React.useState("");
-  const [rol, setRol] = React.useState("");
-  const [modalSalir, setModalSalir] = React.useState(false);
-  const [menuMobileAbierto, setMenuMobileAbierto] = React.useState(false);
+  const location =
+    useLocation();
+
+  const [alias, setAlias] =
+    React.useState("");
+
+  const [rol, setRol] =
+    React.useState("");
+
+  const [configuracion,
+    setConfiguracion] =
+    React.useState(null);
+
+  const [modalSalir,
+    setModalSalir] =
+    React.useState(false);
+
+  const [menuMobileAbierto,
+    setMenuMobileAbierto] =
+    React.useState(false);
 
   React.useEffect(() => {
     cargarPerfil();
@@ -20,49 +35,150 @@ export default function Layout({ children }) {
   }, [location.pathname]);
 
   async function cargarPerfil() {
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (!user) return;
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("alias, rol")
-      .eq("id", user.id)
-      .single();
+    const { data } =
+      await supabase
+        .from("profiles")
+        .select("alias, rol")
+        .eq("id", user.id)
+        .single();
 
-    setAlias(data?.alias || user.email);
-    setRol(data?.rol || "pendiente");
+    setAlias(
+      data?.alias ||
+      user.email
+    );
+
+    setRol(
+      data?.rol ||
+      "pendiente"
+    );
+
+    const {
+      data: configData,
+    } =
+      await supabase
+        .from("configuracion_empresa")
+        .select("*")
+        .eq("id", "principal")
+        .single();
+
+    setConfiguracion(
+      configData || null
+    );
   }
 
   async function confirmarCerrarSesion() {
+
     await supabase.auth.signOut();
   }
 
   const links = [
-    { texto: "Dashboard", url: "/" },
-    { texto: "Nuevo", url: "/presupuestos" },
-    { texto: "Historial", url: "/historial" },
-    { texto: "Clientes", url: "/clientes" },
-    { texto: "Artículos", url: "/articulos" },
-    { texto: "Plantillas", url: "/plantillas" },
-    { texto: "Estadísticas", url: "/estadisticas" },
-    { texto: "Mi Cuenta", url: "/micuenta" },
+    {
+      texto: "Dashboard",
+      url: "/",
+    },
+
+    {
+      texto: "Nuevo",
+      url: "/presupuestos",
+    },
+
+    {
+      texto: "Historial",
+      url: "/historial",
+    },
+
+    {
+      texto: "Clientes",
+      url: "/clientes",
+    },
+
+    {
+      texto: "Artículos",
+      url: "/articulos",
+    },
+
+    {
+      texto: "Plantillas",
+      url: "/plantillas",
+    },
+
+    {
+      texto: "Estadísticas",
+      url: "/estadisticas",
+    },
+
+    {
+      texto: "Mi Cuenta",
+      url: "/micuenta",
+    },
   ];
 
   if (rol === "admin") {
+
     links.push({
       texto: "Admin",
       url: "/admin/usuarios",
     });
   }
 
+  function HeaderLogo() {
+
+    return (
+      <Link
+        to="/micuenta"
+        className="block mb-10"
+      >
+
+        {configuracion?.logo_url ? (
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex items-center justify-center min-h-[120px]">
+
+            <img
+              src={configuracion.logo_url}
+              alt="Logo"
+              className="max-h-24 max-w-full object-contain"
+            />
+
+          </div>
+
+        ) : (
+
+          <div className="border-2 border-dashed border-zinc-700 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[120px] hover:border-orange-500 transition-all">
+
+            <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-3xl font-black">
+              +
+            </div>
+
+            <p className="text-zinc-300 font-bold mt-4">
+              Mi Cuenta
+            </p>
+
+          </div>
+
+        )}
+
+      </Link>
+    );
+  }
+
   function NavLinks() {
+
     return (
       <nav className="space-y-2">
+
         {links.map((link) => {
-          const activo = location.pathname === link.url;
+
+          const activo =
+            location.pathname ===
+            link.url;
 
           return (
             <Link
@@ -78,117 +194,177 @@ export default function Layout({ children }) {
             </Link>
           );
         })}
+
       </nav>
     );
   }
 
   function UserBox() {
+
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
-        <p className="text-zinc-500 text-xs">Usuario</p>
 
-        <p className="font-bold text-lg truncate">{alias || "-"}</p>
+        <p className="text-zinc-500 text-xs">
+          Usuario
+        </p>
+
+        <p className="font-bold text-lg truncate">
+          {alias || "-"}
+        </p>
 
         <p className="text-orange-400 text-xs uppercase mt-1">
           {rol || "-"}
         </p>
 
         <button
-          onClick={() => setModalSalir(true)}
+          onClick={() =>
+            setModalSalir(true)
+          }
           className="mt-4 w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl font-bold"
         >
           Salir
         </button>
+
       </div>
     );
   }
 
   return (
     <>
+
       <ConfirmModal
         visible={modalSalir}
         titulo="Cerrar sesión"
         mensaje="¿Deseás salir del sistema?"
         textoConfirmar="Salir"
         textoCancelar="Cancelar"
-        onCancelar={() => setModalSalir(false)}
-        onConfirmar={confirmarCerrarSesion}
+        onCancelar={() =>
+          setModalSalir(false)
+        }
+        onConfirmar={
+          confirmarCerrarSesion
+        }
       />
 
       {menuMobileAbierto && (
+
         <div
-          onClick={() => setMenuMobileAbierto(false)}
+          onClick={() =>
+            setMenuMobileAbierto(
+              false
+            )
+          }
           className="fixed inset-0 bg-black/70 z-[70] lg:hidden"
         />
+
       )}
 
       <div
         className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 p-5 z-[80] flex flex-col justify-between transform transition-transform duration-300 lg:hidden ${
-          menuMobileAbierto ? "translate-x-0" : "-translate-x-full"
+          menuMobileAbierto
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
       >
-        <div>
-          <div className="flex justify-between items-start mb-10">
-            <div>
-              <h1 className="text-4xl font-black text-orange-500">MCH</h1>
 
-              <p className="text-zinc-500 text-sm mt-1">
-                Seguridad Electrónica
-              </p>
+        <div>
+
+          <div className="flex justify-between items-start mb-6">
+
+            <div className="flex-1 mr-4">
+
+              <HeaderLogo />
+
             </div>
 
             <button
-              onClick={() => setMenuMobileAbierto(false)}
+              onClick={() =>
+                setMenuMobileAbierto(
+                  false
+                )
+              }
               className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-bold"
             >
               X
             </button>
+
           </div>
 
           <NavLinks />
+
         </div>
 
         <UserBox />
+
       </div>
 
       <div className="min-h-screen bg-black text-white flex">
-        <aside className="hidden lg:flex w-72 bg-zinc-950 border-r border-zinc-800 p-5 flex-col justify-between">
-          <div>
-            <div className="mb-10">
-              <h1 className="text-4xl font-black text-orange-500">MCH</h1>
 
-              <p className="text-zinc-500 text-sm mt-1">
-                Seguridad Electrónica
-              </p>
-            </div>
+        <aside className="hidden lg:flex w-72 bg-zinc-950 border-r border-zinc-800 p-5 flex-col justify-between">
+
+          <div>
+
+            <HeaderLogo />
 
             <NavLinks />
+
           </div>
 
           <UserBox />
+
         </aside>
 
         <main className="flex-1 min-w-0">
-          <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-50">
-            <div>
-              <h1 className="text-2xl font-black text-orange-500">MCH</h1>
 
-              <p className="text-zinc-500 text-xs uppercase">
-                {rol || "-"}
-              </p>
+          <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-50">
+
+            <div className="flex items-center gap-3">
+
+              {configuracion?.logo_url ? (
+
+                <img
+                  src={configuracion.logo_url}
+                  alt="Logo"
+                  className="h-12 max-w-[140px] object-contain"
+                />
+
+              ) : (
+
+                <div className="w-12 h-12 border-2 border-dashed border-zinc-700 rounded-2xl flex items-center justify-center text-orange-500 font-black">
+                  +
+                </div>
+
+              )}
+
+              <div>
+
+                <p className="text-zinc-500 text-xs uppercase">
+                  {rol || "-"}
+                </p>
+
+              </div>
+
             </div>
 
             <button
-              onClick={() => setMenuMobileAbierto(true)}
+              onClick={() =>
+                setMenuMobileAbierto(
+                  true
+                )
+              }
               className="bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-2xl font-bold"
             >
               Menú
             </button>
+
           </div>
 
           {children}
+
         </main>
+
       </div>
+
     </>
   );
 }
