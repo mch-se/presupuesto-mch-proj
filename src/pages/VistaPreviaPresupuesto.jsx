@@ -10,6 +10,7 @@ export default function VistaPreviaPresupuesto() {
   const [items, setItems] = React.useState([]);
   const [configuracion, setConfiguracion] = React.useState(null);
   const [alias, setAlias] = React.useState("");
+  const [mensaje, setMensaje] = React.useState("");
 
   const hojaRef = React.useRef(null);
 
@@ -122,7 +123,7 @@ export default function VistaPreviaPresupuesto() {
 
       const estadoActual = presupuesto.estado || "Edición";
 
-      if (estadoActual === "Edición") {
+      if (estadoActual === "Edición" || estadoActual === "Cerrado") {
         await supabase
           .from("presupuestos")
           .update({
@@ -143,7 +144,13 @@ export default function VistaPreviaPresupuesto() {
         ]);
       }
 
-      alert("PDF compartido correctamente");
+      setMensaje("Presupuesto enviado correctamente");
+
+      setTimeout(() => {
+        setMensaje("");
+      }, 3000);
+
+      await cargarPresupuesto();
     } catch (error) {
       console.error(error);
     }
@@ -183,6 +190,12 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
   return (
     <div className="min-h-screen bg-zinc-400 overflow-x-auto p-3 md:p-8">
       <div className="w-fit mx-auto">
+        {mensaje && (
+          <div className="mb-5 bg-green-600 text-white px-5 py-4 rounded-2xl font-bold shadow-xl text-center">
+            {mensaje}
+          </div>
+        )}
+
         <div className="no-print flex flex-wrap justify-between items-center gap-4 mb-6">
           <Link
             to={`/presupuesto/${id}`}
