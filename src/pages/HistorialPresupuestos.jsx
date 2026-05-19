@@ -291,12 +291,12 @@ export default function HistorialPresupuestos() {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl md:text-5xl font-black text-orange-500">
-                Historial
-              </h1>
+  Presupuestos
+</h1>
 
-              <p className="text-zinc-400 mt-2">
-                Administración de presupuestos
-              </p>
+<p className="text-zinc-400 mt-2">
+  Presupuestos guardados
+</p>              
             </div>
 
             <Link
@@ -311,8 +311,8 @@ export default function HistorialPresupuestos() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <input
                 type="text"
-                placeholder="Buscar presupuesto..."
-                value={busqueda}
+placeholder="Buscar presupuestos..."
+                                value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
               />

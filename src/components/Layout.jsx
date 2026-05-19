@@ -4,22 +4,15 @@ import { supabase } from "../lib/supabase";
 import ConfirmModal from "./ConfirmModal";
 
 export default function Layout({ children }) {
+  const location = useLocation();
 
-  const location =
-    useLocation();
+  const [alias, setAlias] = React.useState("");
+  const [rol, setRol] = React.useState("");
 
-  const [alias, setAlias] =
-    React.useState("");
-
-  const [rol, setRol] =
-    React.useState("");
-
-  const [configuracion,
-    setConfiguracion] =
+  const [configuracion, setConfiguracion] =
     React.useState(null);
 
-  const [modalSalir,
-    setModalSalir] =
+  const [modalSalir, setModalSalir] =
     React.useState(false);
 
   const [menuMobileAbierto,
@@ -38,8 +31,7 @@ export default function Layout({ children }) {
 
     const {
       data: { user },
-    } =
-      await supabase.auth.getUser();
+    } = await supabase.auth.getUser();
 
     if (!user) return;
 
@@ -51,13 +43,11 @@ export default function Layout({ children }) {
         .single();
 
     setAlias(
-      data?.alias ||
-      user.email
+      data?.alias || user.email
     );
 
     setRol(
-      data?.rol ||
-      "pendiente"
+      data?.rol || "pendiente"
     );
 
     const {
@@ -75,15 +65,14 @@ export default function Layout({ children }) {
   }
 
   async function confirmarCerrarSesion() {
-
     await supabase.auth.signOut();
   }
 
   const links = [
     {
-      texto: "Dashboard",
-      url: "/",
-    },
+  texto: "Inicio",
+  url: "/",
+},
 
     {
       texto: "Nuevo",
@@ -91,10 +80,9 @@ export default function Layout({ children }) {
     },
 
     {
-      texto: "Historial",
-      url: "/historial",
-    },
-
+  texto: "Presupuestos",
+  url: "/historial",
+},
     {
       texto: "Clientes",
       url: "/clientes",
@@ -134,30 +122,30 @@ export default function Layout({ children }) {
     return (
       <Link
         to="/micuenta"
-        className="block mb-10"
+        className="block mb-8"
       >
 
         {configuracion?.logo_url ? (
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 flex items-center justify-center min-h-[120px]">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 flex items-center justify-center min-h-[100px]">
 
             <img
               src={configuracion.logo_url}
               alt="Logo"
-              className="max-h-24 max-w-full object-contain"
+              className="max-h-20 max-w-full object-contain"
             />
 
           </div>
 
         ) : (
 
-          <div className="border-2 border-dashed border-zinc-700 rounded-3xl p-6 flex flex-col items-center justify-center min-h-[120px] hover:border-orange-500 transition-all">
+          <div className="border-2 border-dashed border-zinc-700 rounded-3xl p-5 flex flex-col items-center justify-center min-h-[100px] hover:border-orange-500 transition-all">
 
-            <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-3xl font-black">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-2xl font-black">
               +
             </div>
 
-            <p className="text-zinc-300 font-bold mt-4">
+            <p className="text-zinc-300 font-bold mt-3">
               Mi Cuenta
             </p>
 
@@ -184,7 +172,7 @@ export default function Layout({ children }) {
             <Link
               key={link.url}
               to={link.url}
-              className={`block px-4 py-3 rounded-2xl font-bold transition-all ${
+              className={`block px-4 py-4 rounded-2xl font-bold transition-all text-base ${
                 activo
                   ? "bg-orange-500 text-white"
                   : "bg-zinc-900 hover:bg-zinc-800 text-zinc-300"
@@ -202,13 +190,13 @@ export default function Layout({ children }) {
   function UserBox() {
 
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 mt-6">
 
         <p className="text-zinc-500 text-xs">
           Usuario
         </p>
 
-        <p className="font-bold text-lg truncate">
+        <p className="font-bold text-lg truncate mt-1">
           {alias || "-"}
         </p>
 
@@ -220,7 +208,7 @@ export default function Layout({ children }) {
           onClick={() =>
             setModalSalir(true)
           }
-          className="mt-4 w-full bg-red-600 hover:bg-red-700 py-3 rounded-2xl font-bold"
+          className="mt-4 w-full bg-red-600 hover:bg-red-700 py-4 rounded-2xl font-bold text-base"
         >
           Salir
         </button>
@@ -250,17 +238,15 @@ export default function Layout({ children }) {
 
         <div
           onClick={() =>
-            setMenuMobileAbierto(
-              false
-            )
+            setMenuMobileAbierto(false)
           }
-          className="fixed inset-0 bg-black/70 z-[70] lg:hidden"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] lg:hidden"
         />
 
       )}
 
       <div
-        className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-zinc-950 border-r border-zinc-800 p-5 z-[80] flex flex-col justify-between transform transition-transform duration-300 lg:hidden ${
+        className={`fixed top-0 left-0 h-screen w-[86vw] max-w-[340px] bg-zinc-950 border-r border-zinc-800 p-5 z-[80] flex flex-col justify-between transform transition-transform duration-300 lg:hidden overflow-y-auto ${
           menuMobileAbierto
             ? "translate-x-0"
             : "-translate-x-full"
@@ -269,9 +255,9 @@ export default function Layout({ children }) {
 
         <div>
 
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start gap-3 mb-5">
 
-            <div className="flex-1 mr-4">
+            <div className="flex-1">
 
               <HeaderLogo />
 
@@ -279,13 +265,11 @@ export default function Layout({ children }) {
 
             <button
               onClick={() =>
-                setMenuMobileAbierto(
-                  false
-                )
+                setMenuMobileAbierto(false)
               }
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl font-bold"
+              className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl font-black text-lg flex items-center justify-center shrink-0"
             >
-              X
+              ✕
             </button>
 
           </div>
@@ -314,32 +298,36 @@ export default function Layout({ children }) {
 
         </aside>
 
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 overflow-x-hidden">
 
-          <div className="lg:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-50">
+          <div className="lg:hidden sticky top-0 z-50 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
 
               {configuracion?.logo_url ? (
 
                 <img
                   src={configuracion.logo_url}
                   alt="Logo"
-                  className="h-12 max-w-[140px] object-contain"
+                  className="h-11 max-w-[130px] object-contain shrink-0"
                 />
 
               ) : (
 
-                <div className="w-12 h-12 border-2 border-dashed border-zinc-700 rounded-2xl flex items-center justify-center text-orange-500 font-black">
+                <div className="w-11 h-11 border-2 border-dashed border-zinc-700 rounded-2xl flex items-center justify-center text-orange-500 font-black shrink-0">
                   +
                 </div>
 
               )}
 
-              <div>
+              <div className="min-w-0">
 
-                <p className="text-zinc-500 text-xs uppercase">
+                <p className="text-zinc-500 text-[11px] uppercase truncate">
                   {rol || "-"}
+                </p>
+
+                <p className="text-sm font-bold truncate">
+                  {alias || "-"}
                 </p>
 
               </div>
@@ -348,18 +336,18 @@ export default function Layout({ children }) {
 
             <button
               onClick={() =>
-                setMenuMobileAbierto(
-                  true
-                )
+                setMenuMobileAbierto(true)
               }
-              className="bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-2xl font-bold"
+              className="bg-zinc-800 active:bg-zinc-700 px-5 py-3 rounded-2xl font-bold text-sm shrink-0"
             >
               Menú
             </button>
 
           </div>
 
-          {children}
+          <div className="pb-24">
+            {children}
+          </div>
 
         </main>
 

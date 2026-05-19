@@ -613,58 +613,56 @@ if (modoEdicion) {
 
       <div className="min-h-screen bg-black text-white p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-black text-orange-500">
-                {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
-              </h1>
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-5 mb-6">
+  <div>
+    <h1 className="text-3xl md:text-5xl font-black text-orange-500 leading-tight">
+      {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
+    </h1>
 
-              <p className="text-zinc-400 mt-2">
-                Presupuesto N° {numeroPresupuesto}
-              </p>
-            </div>
+    <p className="text-zinc-400 mt-2 text-sm md:text-base">
+      Presupuesto N° {numeroPresupuesto}
+    </p>
+  </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={guardarPresupuesto}
-                disabled={guardando}
-                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-5 py-3 rounded-2xl font-bold"
-              >
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
+  <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
+    <button
+      onClick={guardarPresupuesto}
+      disabled={guardando}
+      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-4 py-4 rounded-2xl font-bold text-center"
+    >
+      {guardando ? "Guardando..." : "Guardar"}
+    </button>
 
-              <Link
-                to="/"
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-              >
-                Volver
-              </Link>
-            </div>
-          </div>
-
+    <Link
+      to="/"
+      className="bg-zinc-700 hover:bg-zinc-600 px-4 py-4 rounded-2xl font-bold text-center"
+    >
+      Volver
+    </Link>
+  </div>
+</div>
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-3">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="Cliente"
-                    value={cliente}
-                    onChange={(e) => {
-                      setCliente(e.target.value);
-                      setClienteSeleccionado(null);
-                    }}
-                    className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+  <input
+    type="text"
+    placeholder="Cliente"
+    value={cliente}
+    onChange={(e) => {
+      setCliente(e.target.value);
+      setClienteSeleccionado(null);
+    }}
+    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+  />
 
-                  <button
-                    onClick={() => setMostrarClientes(!mostrarClientes)}
-                    className="bg-zinc-700 hover:bg-zinc-600 px-5 rounded-2xl font-bold"
-                  >
-                    Buscar
-                  </button>
-                </div>
-
+  <button
+    onClick={() => setMostrarClientes(!mostrarClientes)}
+    className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold w-full sm:w-auto"
+  >
+    Buscar
+  </button>
+</div>
                 {clienteSeleccionado && (
                   <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-green-400 font-bold">

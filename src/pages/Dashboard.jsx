@@ -262,10 +262,10 @@ export default function Dashboard() {
       contador: null,
     },
 
-    {
-      titulo: "Historial",
-      subtitulo: "Presupuestos",
-      link: "/historial",
+{
+  titulo: "Presupuestos",
+  subtitulo: "Guardados",
+  link: "/historial",    
       color:
         "bg-zinc-800 hover:bg-zinc-700",
       contador:
@@ -327,10 +327,9 @@ export default function Dashboard() {
 
           <div>
 
-            <h1 className="text-4xl md:text-6xl font-black text-orange-500">
-              Dashboard
-            </h1>
-
+           <h1 className="text-4xl md:text-6xl font-black text-orange-500">
+  Inicio
+</h1>
             <p className="text-zinc-400 text-sm md:text-lg mt-2">
 
               Bienvenido,
@@ -533,141 +532,68 @@ export default function Dashboard() {
 
                 <div className="space-y-4">
 
-                  {ultimosPresupuestos.map(
-                    (presupuesto) => (
+                 {ultimosPresupuestos.map(
+  (presupuesto) => (
 
-                      <div
-                        key={presupuesto.id}
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      >
+    <Link
+      to={`/presupuesto/${presupuesto.id}`}
+      key={presupuesto.id}
+      className="block bg-zinc-950 border border-zinc-800 rounded-2xl p-4 hover:border-orange-500 transition-all"
+    >
 
-                        <div className="flex justify-between gap-4">
+      <div className="flex justify-between gap-4">
 
-                          <div>
+        <div>
 
-                            <p className="font-bold text-lg">
+          <p className="font-bold text-lg">
 
-                              {presupuesto.cliente ||
-                                "Sin cliente"}
+            {presupuesto.cliente ||
+              "Sin cliente"}
 
-                            </p>
+          </p>
 
-                            <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-zinc-500 text-sm mt-1">
 
-                              Generado por:
-                              {" "}
-                              {presupuesto.generado_por_alias ||
-                                "Administrador"}
+            Generado por:
+            {" "}
+            {presupuesto.generado_por_alias ||
+              "Administrador"}
 
-                            </p>
+          </p>
 
-                          </div>
+        </div>
 
-                          <div className="text-right">
+        <div className="text-right">
 
-                            <p className="text-orange-500 font-black text-xl">
+          <p className="text-orange-500 font-black text-xl">
 
-                              $
-                              {Number(
-                                presupuesto.total || 0
-                              ).toLocaleString()}
+            $
+            {Number(
+              presupuesto.total || 0
+            ).toLocaleString()}
 
-                            </p>
+          </p>
 
-                            <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-zinc-500 text-sm mt-1">
 
-                              {new Date(
-                                presupuesto.created_at
-                              ).toLocaleDateString()}
+            {new Date(
+              presupuesto.created_at
+            ).toLocaleDateString()}
 
-                            </p>
+          </p>
 
-                          </div>
+        </div>
 
-                        </div>
+      </div>
 
-                      </div>
-                    )
-                  )}
-
+    </Link>
+  )
+)}
                 </div>
 
               </div>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
-
-                <div className="flex justify-between items-center mb-6">
-
-                  <h2 className="text-2xl font-black">
-                    Últimos clientes
-                  </h2>
-
-                  <Link
-                    to="/clientes"
-                    className="text-orange-500 font-bold"
-                  >
-                    Ver todos
-                  </Link>
-
-                </div>
-
-                <div className="space-y-4">
-
-                  {ultimosClientes.map(
-                    (cliente) => (
-
-                      <div
-                        key={cliente.id}
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      >
-
-                        <div className="flex justify-between gap-4">
-
-                          <div>
-
-                            <p className="font-bold text-lg">
-
-                              {cliente.empresa}
-
-                            </p>
-
-                            <p className="text-zinc-500 text-sm mt-1">
-
-                              {cliente.tipo}
-
-                            </p>
-
-                          </div>
-
-                          <div className="text-right">
-
-                            <p className="text-orange-500 font-bold">
-
-                              {cliente.cargado_por_alias ||
-                                "Administrador"}
-
-                            </p>
-
-                            <p className="text-zinc-500 text-sm mt-1">
-
-                              {new Date(
-                                cliente.created_at
-                              ).toLocaleDateString()}
-
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </div>
-                    )
-                  )}
-
-                </div>
-
-              </div>
-
+            
             </div>
 
           </>
