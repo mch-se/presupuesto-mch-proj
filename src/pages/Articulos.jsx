@@ -25,6 +25,7 @@ export default function Articulos() {
 
   const [editandoId, setEditandoId] = React.useState(null);
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
+  const [mostrarFiltros, setMostrarFiltros] = React.useState(false);
   const [menuAbierto, setMenuAbierto] = React.useState(null);
   const [menuConfigAbierto, setMenuConfigAbierto] = React.useState(false);
   const [articuloVer, setArticuloVer] = React.useState(null);
@@ -83,9 +84,7 @@ export default function Articulos() {
   }
 
   async function obtenerArticulos() {
-    const { data, error } = await supabase
-      .from("articulos")
-      .select("*");
+    const { data, error } = await supabase.from("articulos").select("*");
 
     if (error) {
       mostrarToast(error.message, "error");
@@ -121,6 +120,12 @@ export default function Articulos() {
     setUsadoCount(0);
     setEditandoId(null);
     setMostrarFormulario(false);
+  }
+
+  function limpiarFiltros() {
+    setBusqueda("");
+    setFiltroCategoria("Todas");
+    setFiltroTipo("Todos");
   }
 
   async function guardarArticulo() {
@@ -209,8 +214,7 @@ export default function Articulos() {
       articulo.tipo_id ||
       tipos.find(
         (tipo) =>
-          tipo.nombre.toLowerCase() ===
-          (articulo.tipo || "").toLowerCase()
+          tipo.nombre.toLowerCase() === (articulo.tipo || "").toLowerCase()
       )?.id ||
       "";
 
@@ -263,9 +267,7 @@ export default function Articulos() {
 
   function detalleCorto(texto) {
     if (!texto) return "";
-
     if (texto.length <= 140) return texto;
-
     return `${texto.slice(0, 140)}...`;
   }
 
@@ -458,26 +460,20 @@ export default function Articulos() {
             </div>
           </div>
 
-          <div ref={formularioRef} className="mb-8">
+          <div ref={formularioRef} className="mb-6">
             {!mostrarFormulario ? (
               <button
                 onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-6 md:p-8 transition-all"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
               >
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-2xl font-black">
                     +
                   </div>
 
-                  <div className="text-left">
-                    <p className="text-2xl font-black text-white">
-                      Agregar artículo
-                    </p>
-
-                    <p className="text-zinc-500 mt-1">
-                      Crear nuevo artículo para presupuestos
-                    </p>
-                  </div>
+                  <p className="text-lg font-black text-white">
+                    Agregar artículo
+                  </p>
                 </div>
               </button>
             ) : (
@@ -607,50 +603,57 @@ export default function Articulos() {
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex gap-3">
+              <button
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-2xl text-2xl"
+              >
+                🔍
+              </button>
+
               <input
                 type="text"
-                placeholder="Buscar artículo..."
+                placeholder="Buscar artículos..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               />
-
-              <select
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              >
-                <option>Todas</option>
-
-                {categorias.map((categoria) => (
-                  <option key={categoria.id}>{categoria.nombre}</option>
-                ))}
-              </select>
-
-              <select
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              >
-                <option>Todos</option>
-
-                {tipos.map((tipo) => (
-                  <option key={tipo.id}>{tipo.nombre}</option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => {
-                  setBusqueda("");
-                  setFiltroCategoria("Todas");
-                  setFiltroTipo("Todos");
-                }}
-                className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
-              >
-                Limpiar filtros
-              </button>
             </div>
+
+            {mostrarFiltros && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <select
+                  value={filtroCategoria}
+                  onChange={(e) => setFiltroCategoria(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                >
+                  <option>Todas</option>
+
+                  {categorias.map((categoria) => (
+                    <option key={categoria.id}>{categoria.nombre}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={filtroTipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                >
+                  <option>Todos</option>
+
+                  {tipos.map((tipo) => (
+                    <option key={tipo.id}>{tipo.nombre}</option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={limpiarFiltros}
+                  className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">

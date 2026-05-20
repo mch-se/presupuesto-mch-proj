@@ -19,6 +19,7 @@ export default function Clientes() {
   const [editandoId, setEditandoId] = React.useState(null);
 
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
+  const [mostrarFiltros, setMostrarFiltros] = React.useState(false);
   const [menuAbierto, setMenuAbierto] = React.useState(null);
   const [clienteVer, setClienteVer] = React.useState(null);
 
@@ -69,6 +70,11 @@ export default function Clientes() {
     setObservaciones("");
     setEditandoId(null);
     setMostrarFormulario(false);
+  }
+
+  function limpiarFiltros() {
+    setBusqueda("");
+    setFiltroTipo("Todos");
   }
 
   async function guardarCliente() {
@@ -311,26 +317,20 @@ export default function Clientes() {
             </Link>
           </div>
 
-          <div ref={formularioRef} className="mb-8">
+          <div ref={formularioRef} className="mb-6">
             {!mostrarFormulario ? (
               <button
                 onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-6 md:p-8 transition-all"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
               >
-                <div className="flex items-center justify-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-2xl font-black">
                     +
                   </div>
 
-                  <div className="text-left">
-                    <p className="text-2xl font-black text-white">
-                      Agregar cliente
-                    </p>
-
-                    <p className="text-zinc-500 mt-1">
-                      Crear nuevo cliente o contacto
-                    </p>
-                  </div>
+                  <p className="text-lg font-black text-white">
+                    Agregar cliente
+                  </p>
                 </div>
               </button>
             ) : (
@@ -447,35 +447,43 @@ export default function Clientes() {
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex gap-3">
+              <button
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-2xl text-2xl"
+              >
+                🔍
+              </button>
+
               <input
                 type="text"
-                placeholder="Buscar cliente..."
+                placeholder="Buscar clientes..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
               />
-
-              <select
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
-                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              >
-                <option>Todos</option>
-                <option>Empresa</option>
-                <option>Particular</option>
-              </select>
-
-              <button
-                onClick={() => {
-                  setBusqueda("");
-                  setFiltroTipo("Todos");
-                }}
-                className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
-              >
-                Limpiar filtros
-              </button>
             </div>
+
+            {mostrarFiltros && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <select
+                  value={filtroTipo}
+                  onChange={(e) => setFiltroTipo(e.target.value)}
+                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                >
+                  <option>Todos</option>
+                  <option>Empresa</option>
+                  <option>Particular</option>
+                </select>
+
+                <button
+                  onClick={limpiarFiltros}
+                  className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
