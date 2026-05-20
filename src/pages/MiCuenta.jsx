@@ -188,13 +188,12 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
     }
 
     const extension =
-      archivo.name
-        .split(".")
-        .pop();
+  archivo.name
+    .split(".")
+    .pop();
 
-    const nombreArchivo =
-      `empresa/logo.${extension}`;
-
+const nombreArchivo =
+  `empresa/logo-${Date.now()}.${extension}`;
     const {
       error: uploadError,
     } =
