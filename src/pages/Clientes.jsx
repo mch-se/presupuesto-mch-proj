@@ -20,6 +20,7 @@ export default function Clientes() {
 
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [menuAbierto, setMenuAbierto] = React.useState(null);
+  const [clienteVer, setClienteVer] = React.useState(null);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
@@ -192,6 +193,7 @@ export default function Clientes() {
     `.toLowerCase();
 
     const coincideBusqueda = texto.includes(busqueda.toLowerCase());
+
     const coincideTipo =
       filtroTipo === "Todos" ? true : cliente.tipo === filtroTipo;
 
@@ -215,11 +217,84 @@ export default function Clientes() {
 
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
-      <div className="min-h-screen bg-black text-white p-6">
+      {menuAbierto && (
+        <div
+          onClick={() => setMenuAbierto(null)}
+          className="fixed inset-0 z-40 bg-transparent"
+        />
+      )}
+
+      {clienteVer && (
+        <div className="fixed inset-0 z-[90] bg-black/80 p-4 flex items-center justify-center">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-start gap-4 mb-6">
+              <div>
+                <h2 className="text-3xl font-black text-orange-500">
+                  {clienteVer.empresa || "-"}
+                </h2>
+
+                <p className="text-zinc-500 mt-2">
+                  Detalle completo del cliente
+                </p>
+              </div>
+
+              <button
+                onClick={() => setClienteVer(null)}
+                className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Tipo</p>
+                <p className="font-bold mt-1">{clienteVer.tipo || "-"}</p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Contacto</p>
+                <p className="font-bold mt-1">{clienteVer.contacto || "-"}</p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Teléfono</p>
+                <p className="font-bold mt-1">{clienteVer.telefono || "-"}</p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Email</p>
+                <p className="font-bold mt-1 break-words">
+                  {clienteVer.email || "-"}
+                </p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4 md:col-span-2">
+                <p className="text-zinc-500 text-sm">Dirección</p>
+                <p className="font-bold mt-1">{clienteVer.direccion || "-"}</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+              <p className="text-zinc-500 text-sm mb-2">Observaciones</p>
+
+              <p className="text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                {clienteVer.observaciones || "-"}
+              </p>
+            </div>
+
+            <p className="text-zinc-500 text-sm mt-5">
+              Cargado por: {clienteVer.cargado_por_alias || "Administrador"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen bg-black text-white p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-5 mb-10">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-5 mb-8">
             <div>
-              <h1 className="text-5xl font-bold text-orange-500">
+              <h1 className="text-4xl md:text-5xl font-bold text-orange-500">
                 Clientes
               </h1>
 
@@ -230,17 +305,17 @@ export default function Clientes() {
 
             <Link
               to="/"
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold text-center"
             >
               Volver
             </Link>
           </div>
 
-          <div ref={formularioRef} className="mb-10">
+          <div ref={formularioRef} className="mb-8">
             {!mostrarFormulario ? (
               <button
                 onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-8 transition-all"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-6 md:p-8 transition-all"
               >
                 <div className="flex items-center justify-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
@@ -259,8 +334,8 @@ export default function Clientes() {
                 </div>
               </button>
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-                <div className="flex items-center justify-between mb-8">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
+                <div className="flex items-center justify-between mb-8 gap-4">
                   <div>
                     <h2 className="text-3xl font-black text-orange-500">
                       {editandoId ? "Editar cliente" : "Nuevo cliente"}
@@ -352,7 +427,7 @@ export default function Clientes() {
                   />
                 </div>
 
-                <div className="flex gap-4 mt-8">
+                <div className="flex flex-col sm:flex-row gap-4 mt-8">
                   <button
                     onClick={guardarCliente}
                     className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
@@ -371,7 +446,7 @@ export default function Clientes() {
             )}
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <input
                 type="text"
@@ -403,68 +478,55 @@ export default function Clientes() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {clientesFiltrados.map((cliente) => (
               <div
                 key={cliente.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-5"
               >
-                <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
-                  <div>
+                <div className="flex justify-between gap-4">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="bg-orange-500 text-white px-3 py-1 rounded-xl text-sm font-bold">
                         {cliente.tipo}
                       </span>
 
-                      <h2 className="text-2xl font-bold">
+                      <h2 className="text-xl md:text-2xl font-bold truncate">
                         {cliente.empresa || "-"}
                       </h2>
                     </div>
 
-                    {cliente.tipo === "Empresa" && (
-                      <p className="text-zinc-400 mt-3">
-                        Contacto: {cliente.contacto || "-"}
-                      </p>
-                    )}
-
-                    <p className="text-zinc-400 mt-3">
-                      Teléfono: {cliente.telefono || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Email: {cliente.email || "-"}
-                    </p>
-
-                    <p className="text-zinc-400">
-                      Dirección: {cliente.direccion || "-"}
-                    </p>
-
-                    <p className="text-zinc-500 mt-3 text-sm">
-                      Cargado por:{" "}
-                      {cliente.cargado_por_alias || "Administrador"}
-                    </p>
-
-                    {cliente.observaciones && (
-                      <p className="text-zinc-500 mt-3">
-                        {cliente.observaciones}
+                    {cliente.tipo === "Empresa" && cliente.contacto && (
+                      <p className="text-zinc-500 text-sm mt-2 truncate">
+                        Contacto: {cliente.contacto}
                       </p>
                     )}
                   </div>
 
-                  <div className="relative lg:self-start">
+                  <div className="relative shrink-0">
                     <button
                       onClick={() =>
                         setMenuAbierto(
                           menuAbierto === cliente.id ? null : cliente.id
                         )
                       }
-                      className="w-14 h-14 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
+                      className="w-12 h-12 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
                     >
                       ⋮
                     </button>
 
                     {menuAbierto === cliente.id && (
-                      <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
+                      <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
+                        <button
+                          onClick={() => {
+                            setClienteVer(cliente);
+                            setMenuAbierto(null);
+                          }}
+                          className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                        >
+                          Ver
+                        </button>
+
                         <button
                           onClick={() => editarCliente(cliente)}
                           className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"

@@ -246,6 +246,12 @@ export default function VerPresupuesto() {
           <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
             <div>
               <p className="text-zinc-400 text-sm">Estado actual</p>
+<p className="text-zinc-400 mt-4">
+  Generado por{" "}
+  <span className="text-orange-500 font-bold">
+    {presupuesto.generado_por_alias || "Administrador"}
+  </span>
+</p>
 
               <p
                 className={`text-3xl font-black mt-1 ${

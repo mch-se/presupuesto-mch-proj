@@ -15,6 +15,8 @@ export default function HistorialPresupuestos() {
   const [filtroEstado, setFiltroEstado] = React.useState("Todos");
   const [filtroMoneda, setFiltroMoneda] = React.useState("Todas");
 
+  const [mostrarFiltros, setMostrarFiltros] = React.useState(false);
+
   const [modalVisible, setModalVisible] = React.useState(false);
   const [modalTitulo, setModalTitulo] = React.useState("");
   const [modalMensaje, setModalMensaje] = React.useState("");
@@ -97,10 +99,13 @@ export default function HistorialPresupuestos() {
       });
 
       setModalTitulo("Presupuesto finalizado");
+
       setModalMensaje(
         "Este presupuesto está finalizado. ¿Deseás abrirlo igualmente?"
       );
+
       setModalVisible(true);
+
       return;
     }
 
@@ -116,7 +121,11 @@ export default function HistorialPresupuestos() {
     });
 
     setModalTitulo("Eliminar presupuesto");
-    setModalMensaje("Esta acción eliminará el presupuesto definitivamente.");
+
+    setModalMensaje(
+      "Esta acción eliminará el presupuesto definitivamente."
+    );
+
     setModalVisible(true);
   }
 
@@ -130,6 +139,7 @@ export default function HistorialPresupuestos() {
       setAccionPendiente(null);
 
       navigate(`/presupuesto/${idAbrir}`);
+
       return;
     }
 
@@ -258,7 +268,9 @@ export default function HistorialPresupuestos() {
         : (presupuesto.estado || "Edición") === filtroEstado;
 
     const coincideMoneda =
-      filtroMoneda === "Todas" ? true : presupuesto.moneda === filtroMoneda;
+      filtroMoneda === "Todas"
+        ? true
+        : presupuesto.moneda === filtroMoneda;
 
     return coincideBusqueda && coincideEstado && coincideMoneda;
   });
@@ -286,17 +298,24 @@ export default function HistorialPresupuestos() {
         onConfirmar={confirmarAccion}
       />
 
+      {menuAbierto && (
+        <div
+          onClick={() => setMenuAbierto(null)}
+          className="fixed inset-0 z-40 bg-transparent"
+        />
+      )}
+
       <div className="min-h-screen bg-black text-white p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl md:text-5xl font-black text-orange-500">
-  Presupuestos
-</h1>
+                Presupuestos
+              </h1>
 
-<p className="text-zinc-400 mt-2">
-  Presupuestos guardados
-</p>              
+              <p className="text-zinc-400 mt-2">
+                Presupuestos guardados
+              </p>
             </div>
 
             <Link
@@ -308,141 +327,166 @@ export default function HistorialPresupuestos() {
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  setMostrarFiltros(!mostrarFiltros)
+                }
+                className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-2xl text-2xl"
+              >
+                🔍
+              </button>
+
               <input
                 type="text"
-placeholder="Buscar presupuestos..."
-                                value={busqueda}
+                placeholder="Buscar presupuestos..."
+                value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+                className="flex-1 bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
               />
-
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
-              >
-                <option>Todos</option>
-                <option>Edición</option>
-                <option>Cerrado</option>
-                <option>Enviado</option>
-                <option>Aprobado</option>
-                <option>Finalizado</option>
-              </select>
-
-              <select
-                value={filtroMoneda}
-                onChange={(e) => setFiltroMoneda(e.target.value)}
-                className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
-              >
-                <option>Todas</option>
-                <option>ARS</option>
-                <option>USD</option>
-              </select>
-
-              <button
-                onClick={limpiarFiltros}
-                className="bg-orange-500 hover:bg-orange-600 rounded-2xl px-4 py-3 font-bold"
-              >
-                Limpiar filtros
-              </button>
             </div>
+
+            {mostrarFiltros && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <select
+                  value={filtroEstado}
+                  onChange={(e) =>
+                    setFiltroEstado(e.target.value)
+                  }
+                  className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+                >
+                  <option>Todos</option>
+                  <option>Edición</option>
+                  <option>Cerrado</option>
+                  <option>Enviado</option>
+                  <option>Aprobado</option>
+                  <option>Finalizado</option>
+                </select>
+
+                <select
+                  value={filtroMoneda}
+                  onChange={(e) =>
+                    setFiltroMoneda(e.target.value)
+                  }
+                  className="bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 text-white outline-none"
+                >
+                  <option>Todas</option>
+                  <option>ARS</option>
+                  <option>USD</option>
+                </select>
+
+                <button
+                  onClick={limpiarFiltros}
+                  className="bg-orange-500 hover:bg-orange-600 rounded-2xl px-4 py-3 font-bold"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {presupuestosFiltrados.map((presupuesto) => (
               <div
                 key={presupuesto.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 md:p-6"
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
-                  <div className="lg:col-span-4">
-                    <h2 className="text-2xl md:text-3xl font-black">
-                      {presupuesto.numero}
-                    </h2>
+                <div className="flex justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-xl md:text-2xl font-black">
+                        {presupuesto.numero}
+                      </h2>
+                    </div>
 
-                    <p className="text-zinc-400 mt-2 text-lg">
-                      {presupuesto.cliente_empresa || presupuesto.cliente}
+                    <p className="text-zinc-300 mt-1 text-lg truncate">
+                      {presupuesto.cliente_empresa ||
+                        presupuesto.cliente}
                     </p>
 
-                    <p className="text-zinc-500 mt-1">
+                    <p className="text-zinc-500 text-sm mt-1 truncate">
                       {presupuesto.descripcion_corta || "-"}
                     </p>
-
-                    <p className="text-xs text-orange-400 mt-3 uppercase">
-                      Generado por:{" "}
-                      {presupuesto.generado_por_alias || "Administrador"}
-                    </p>
                   </div>
 
-                  <div className="lg:col-span-3">
-                    <p className="text-zinc-500 text-sm mb-2">Estado</p>
+                  <div className="flex items-start gap-3 shrink-0">
+                    <div className="text-right">
+                      <span
+                        className={`${colorEstado(
+                          presupuesto.estado
+                        )} inline-block px-3 py-1 rounded-xl text-sm font-bold`}
+                      >
+                        {presupuesto.estado || "Edición"}
+                      </span>
 
-                    <span
-                      className={`${colorEstado(
-                        presupuesto.estado
-                      )} inline-block px-4 py-2 rounded-2xl font-bold`}
-                    >
-                      {presupuesto.estado || "Edición"}
-                    </span>
-                  </div>
+                      <p className="text-orange-500 font-black text-xl mt-2">
+                        {presupuesto.moneda === "USD"
+                          ? "USD $"
+                          : "$"}
+                        {Number(
+                          presupuesto.total
+                        ).toLocaleString()}
+                      </p>
+                    </div>
 
-                  <div className="lg:col-span-2 lg:text-right">
-                    <p className="text-zinc-500 text-sm">Total</p>
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setMenuAbierto(
+                            menuAbierto === presupuesto.id
+                              ? null
+                              : presupuesto.id
+                          )
+                        }
+                        className="w-12 h-12 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
+                      >
+                        ⋮
+                      </button>
 
-                    <p className="text-3xl md:text-4xl font-black text-orange-500">
-                      {presupuesto.moneda === "USD" ? "USD $" : "$"}
-                      {Number(presupuesto.total).toLocaleString()}
-                    </p>
-                  </div>
+                      {menuAbierto === presupuesto.id && (
+                        <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-48 shadow-2xl">
+                          <button
+                            onClick={() =>
+                              abrirPresupuesto(
+                                presupuesto
+                              )
+                            }
+                            className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                          >
+                            Abrir
+                          </button>
 
-                  <div className="lg:col-span-3 flex gap-3 lg:justify-end relative">
-                    <button
-                      onClick={() => abrirPresupuesto(presupuesto)}
-                      className="bg-blue-500 hover:bg-blue-600 px-5 py-3 rounded-2xl font-bold"
-                    >
-                      Abrir
-                    </button>
+                          <Link
+                            to={`/presupuestos/${presupuesto.id}`}
+                            className="block px-5 py-4 hover:bg-zinc-800 font-bold"
+                          >
+                            Editar
+                          </Link>
 
-                    <button
-                      onClick={() =>
-                        setMenuAbierto(
-                          menuAbierto === presupuesto.id
-                            ? null
-                            : presupuesto.id
-                        )
-                      }
-                      className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
-                    >
-                      ⋮
-                    </button>
+                          <button
+                            onClick={() =>
+                              duplicarPresupuesto(
+                                presupuesto
+                              )
+                            }
+                            className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                          >
+                            Duplicar
+                          </button>
 
-                    {menuAbierto === presupuesto.id && (
-                      <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl p-3 flex flex-col gap-3 min-w-[220px] z-50 shadow-2xl">
-                        <Link
-                          to={`/presupuestos/${presupuesto.id}`}
-                          className="bg-yellow-500 hover:bg-yellow-600 px-4 py-3 rounded-xl font-bold text-center"
-                        >
-                          Editar
-                        </Link>
-
-                        <button
-                          onClick={() => duplicarPresupuesto(presupuesto)}
-                          className="bg-orange-500 hover:bg-orange-600 px-4 py-3 rounded-xl font-bold"
-                        >
-                          Duplicar
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            solicitarEliminarPresupuesto(presupuesto.id)
-                          }
-                          className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
+                          <button
+                            onClick={() =>
+                              solicitarEliminarPresupuesto(
+                                presupuesto.id
+                              )
+                            }
+                            className="w-full text-left px-5 py-4 hover:bg-red-500/20 text-red-400 font-bold"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

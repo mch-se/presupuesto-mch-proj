@@ -26,6 +26,8 @@ export default function Articulos() {
   const [editandoId, setEditandoId] = React.useState(null);
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [menuAbierto, setMenuAbierto] = React.useState(null);
+  const [menuConfigAbierto, setMenuConfigAbierto] = React.useState(false);
+  const [articuloVer, setArticuloVer] = React.useState(null);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
@@ -262,11 +264,9 @@ export default function Articulos() {
   function detalleCorto(texto) {
     if (!texto) return "";
 
-    if (texto.length <= 120) {
-      return texto;
-    }
+    if (texto.length <= 140) return texto;
 
-    return `${texto.slice(0, 120)}...`;
+    return `${texto.slice(0, 140)}...`;
   }
 
   const articulosFiltrados = articulos
@@ -301,9 +301,7 @@ export default function Articulos() {
       const usoA = Number(a.usado_count) || 0;
       const usoB = Number(b.usado_count) || 0;
 
-      if (usoB !== usoA) {
-        return usoB - usoA;
-      }
+      if (usoB !== usoA) return usoB - usoA;
 
       return (a.descripcion || "").localeCompare(b.descripcion || "");
     });
@@ -325,46 +323,146 @@ export default function Articulos() {
 
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
-      <div className="min-h-screen bg-black text-white p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-5 mb-10">
-            <div>
-              <h1 className="text-5xl font-bold text-orange-500">
-                Artículos
-              </h1>
+      {(menuAbierto || menuConfigAbierto) && (
+        <div
+          onClick={() => {
+            setMenuAbierto(null);
+            setMenuConfigAbierto(false);
+          }}
+          className="fixed inset-0 z-40 bg-transparent"
+        />
+      )}
 
-              <p className="text-zinc-400 mt-3">Biblioteca profesional</p>
+      {articuloVer && (
+        <div className="fixed inset-0 z-[90] bg-black/80 p-4 flex items-center justify-center">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-start gap-4 mb-6">
+              <div>
+                <h2 className="text-3xl font-black text-orange-500">
+                  {articuloVer.descripcion}
+                </h2>
+
+                <p className="text-zinc-500 mt-2">
+                  Detalle completo del artículo
+                </p>
+              </div>
+
+              <button
+                onClick={() => setArticuloVer(null)}
+                className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl font-black"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                to="/config/categorias"
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-5 py-3 rounded-xl font-bold"
-              >
-                Categorías
-              </Link>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Categoría</p>
+                <p className="font-bold mt-1">{nombreCategoria(articuloVer)}</p>
+              </div>
 
-              <Link
-                to="/config/tipos"
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-5 py-3 rounded-xl font-bold"
-              >
-                Tipos
-              </Link>
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Tipo</p>
+                <p className="font-bold mt-1">{nombreTipo(articuloVer)}</p>
+              </div>
 
-              <Link
-                to="/"
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
-              >
-                Volver
-              </Link>
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Proveedor</p>
+                <p className="font-bold mt-1">{articuloVer.proveedor || "-"}</p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Usos</p>
+                <p className="font-bold mt-1">
+                  {Number(articuloVer.usado_count) || 0}
+                </p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Costo</p>
+                <p className="font-bold mt-1">
+                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
+                  {Number(articuloVer.costo || 0).toLocaleString()}
+                </p>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Venta</p>
+                <p className="font-black text-orange-500 text-2xl mt-1">
+                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
+                  {Number(articuloVer.precio || 0).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+              <p className="text-zinc-500 text-sm mb-2">Descripción larga</p>
+
+              <p className="text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                {articuloVer.detalle || "-"}
+              </p>
+            </div>
+
+            <p className="text-zinc-500 text-sm mt-5">
+              Cargado por: {articuloVer.cargado_por_alias || "Administrador"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen bg-black text-white p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col gap-5 mb-8">
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold text-orange-500">
+                  Artículos
+                </h1>
+
+                <p className="text-zinc-400 mt-3">Biblioteca profesional</p>
+              </div>
+
+              <div className="relative flex gap-3 shrink-0">
+                <Link
+                  to="/"
+                  className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
+                >
+                  Volver
+                </Link>
+
+                <button
+                  onClick={() => setMenuConfigAbierto(!menuConfigAbierto)}
+                  className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl font-black text-2xl leading-none"
+                >
+                  ⋮
+                </button>
+
+                {menuConfigAbierto && (
+                  <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-48 shadow-2xl">
+                    <Link
+                      to="/config/categorias"
+                      className="block px-5 py-4 hover:bg-zinc-800 font-bold"
+                    >
+                      Categorías
+                    </Link>
+
+                    <Link
+                      to="/config/tipos"
+                      className="block px-5 py-4 hover:bg-zinc-800 font-bold"
+                    >
+                      Tipos
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div ref={formularioRef} className="mb-10">
+          <div ref={formularioRef} className="mb-8">
             {!mostrarFormulario ? (
               <button
                 onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-8 transition-all"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-3xl p-6 md:p-8 transition-all"
               >
                 <div className="flex items-center justify-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-4xl font-black">
@@ -383,7 +481,7 @@ export default function Articulos() {
                 </div>
               </button>
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
                 <div className="flex items-center justify-between mb-8">
                   <div>
                     <h2 className="text-3xl font-black text-orange-500">
@@ -508,7 +606,7 @@ export default function Articulos() {
             )}
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-8">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <input
                 type="text"
@@ -555,108 +653,62 @@ export default function Articulos() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {articulosFiltrados.map((articulo) => (
               <div
                 key={articulo.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6"
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-5"
               >
-                <div className="flex flex-col xl:flex-row xl:justify-between gap-6">
-                  <div className="grid grid-cols-1 md:grid-cols-7 gap-6 w-full">
-                    <div>
-                      <p className="text-zinc-500 text-sm">Descripción</p>
-
-                      <div className="flex items-center gap-2 mt-2">
-                        <p className="text-xl font-bold">
-                          {articulo.descripcion}
-                        </p>
-
-                        {(Number(articulo.usado_count) || 0) >= 11 && (
-                          <span title="Artículo frecuente" className="text-xl">
-                            🔥
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-500 text-sm">Categoría</p>
-
-                      <p className="mt-2">{nombreCategoria(articulo)}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-500 text-sm">Tipo</p>
-
-                      <p className="mt-2">{nombreTipo(articulo)}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-500 text-sm">Proveedor</p>
-
-                      <p className="mt-2">{articulo.proveedor || "-"}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-500 text-sm">Costo</p>
-
-                      <p className="mt-2">
-                        {articulo.moneda === "USD" ? "USD $" : "$"}
-                        {Number(articulo.costo).toLocaleString()}
+                <div className="flex justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg md:text-xl font-bold truncate">
+                        {articulo.descripcion}
                       </p>
-                    </div>
 
-                    <div>
-                      <p className="text-zinc-500 text-sm">Venta</p>
-
-                      <p className="mt-2 text-orange-500 font-bold">
-                        {articulo.moneda === "USD" ? "USD $" : "$"}
-                        {Number(articulo.precio).toLocaleString()}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-zinc-500 text-sm">Usos</p>
-
-                      <p className="mt-2">
-                        {Number(articulo.usado_count) || 0}
-                      </p>
+                      {(Number(articulo.usado_count) || 0) >= 11 && (
+                        <span title="Artículo frecuente" className="text-xl">
+                          🔥
+                        </span>
+                      )}
                     </div>
 
                     {articulo.detalle && (
-                      <div className="md:col-span-7 border-t border-zinc-800 pt-4">
-                        <p className="text-zinc-500 text-sm mb-2">
-                          Descripción larga
-                        </p>
-
-                        <p className="text-zinc-300 leading-relaxed">
-                          {detalleCorto(articulo.detalle)}
-                        </p>
-                      </div>
+                      <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+                        {detalleCorto(articulo.detalle)}
+                      </p>
                     )}
 
-                    <div className="md:col-span-7">
-                      <p className="text-zinc-500 text-sm mt-2">
-                        Cargado por:{" "}
-                        {articulo.cargado_por_alias || "Administrador"}
-                      </p>
-                    </div>
+                    <p className="text-orange-500 font-black text-xl mt-3">
+                      {articulo.moneda === "USD" ? "USD $" : "$"}
+                      {Number(articulo.precio || 0).toLocaleString()}
+                    </p>
                   </div>
 
-                  <div className="relative xl:ml-8 xl:self-center">
+                  <div className="relative shrink-0">
                     <button
                       onClick={() =>
                         setMenuAbierto(
                           menuAbierto === articulo.id ? null : articulo.id
                         )
                       }
-                      className="w-14 h-14 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
+                      className="w-12 h-12 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
                     >
                       ⋮
                     </button>
 
                     {menuAbierto === articulo.id && (
-                      <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
+                      <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
+                        <button
+                          onClick={() => {
+                            setArticuloVer(articulo);
+                            setMenuAbierto(null);
+                          }}
+                          className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                        >
+                          Ver
+                        </button>
+
                         <button
                           onClick={() => editarArticulo(articulo)}
                           className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
