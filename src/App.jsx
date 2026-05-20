@@ -28,9 +28,7 @@ import TiposArticulos from "./pages/TiposArticulos";
 import Estadisticas from "./pages/Estadisticas";
 
 export default function App() {
-
-  const [session, setSession] =
-    React.useState(null);
+  const [session, setSession] = React.useState(null);
 
   const [rol, setRol] =
     React.useState("pendiente");
@@ -39,14 +37,13 @@ export default function App() {
     React.useState(true);
 
   React.useEffect(() => {
-
     iniciar();
 
     const {
       data: { subscription },
     } =
       supabase.auth.onAuthStateChange(
-        (_event, sessionNueva) => {
+        async (_event, sessionNueva) => {
 
           setSession(sessionNueva);
 
@@ -79,18 +76,32 @@ export default function App() {
       } =
         await supabase.auth.getSession();
 
-      setSession(session);
+      setSession(
+        session || null
+      );
 
       if (session?.user) {
 
         cargarRol(
           session.user.id
         );
+
+      } else {
+
+        setRol(
+          "pendiente"
+        );
       }
 
     } catch (error) {
 
       console.error(error);
+
+      setSession(null);
+
+      setRol(
+        "pendiente"
+      );
     }
 
     setLoading(false);
@@ -142,10 +153,11 @@ export default function App() {
     children,
   }) {
 
-    if (
-      rol ===
-      "pendiente"
-    ) {
+    if (loading) {
+      return null;
+    }
+
+    if (!session) {
 
       return (
         <Navigate
@@ -161,6 +173,20 @@ export default function App() {
   function RutaAdmin({
     children,
   }) {
+
+    if (loading) {
+      return null;
+    }
+
+    if (!session) {
+
+      return (
+        <Navigate
+          to="/"
+          replace
+        />
+      );
+    }
 
     if (
       rol !==
