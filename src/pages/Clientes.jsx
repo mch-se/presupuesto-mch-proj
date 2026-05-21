@@ -77,6 +77,58 @@ export default function Clientes() {
     setFiltroTipo("Todos");
   }
 
+  async function importarContacto() {
+    if (!("contacts" in navigator) || !navigator.contacts?.select) {
+      mostrarToast(
+        "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      const contactos = await navigator.contacts.select(
+        ["name", "tel", "email"],
+        { multiple: false }
+      );
+
+      const contactoImportado = contactos?.[0];
+
+      if (!contactoImportado) {
+        return;
+      }
+
+      const nombre = contactoImportado.name?.[0] || "";
+      const telefonoContacto = contactoImportado.tel?.[0] || "";
+      const emailContacto = contactoImportado.email?.[0] || "";
+
+      setTipo("Particular");
+      setEmpresa(nombre);
+      setContacto("");
+      setTelefono(telefonoContacto);
+      setEmail(emailContacto);
+      setDireccion("");
+      setObservaciones("");
+      setEditandoId(null);
+      setMostrarFormulario(true);
+
+      mostrarToast("Contacto importado. Revisá y guardá el cliente.", "ok");
+
+      setTimeout(() => {
+        formularioRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
+      mostrarToast("No se pudo importar el contacto", "error");
+    }
+  }
+
   async function guardarCliente() {
     if (tipo === "Empresa" && !empresa) {
       mostrarToast("Ingresar empresa", "error");
@@ -319,20 +371,37 @@ export default function Clientes() {
 
           <div ref={formularioRef} className="mb-6">
             {!mostrarFormulario ? (
-              <button
-                onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-2xl font-black">
-                    +
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setMostrarFormulario(true)}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-2xl font-black">
+                      +
+                    </div>
 
-                  <p className="text-lg font-black text-white">
-                    Agregar cliente
-                  </p>
-                </div>
-              </button>
+                    <p className="text-lg font-black text-white">
+                      Agregar cliente
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={importarContacto}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-2xl">
+                      👤
+                    </div>
+
+                    <p className="text-lg font-black text-white">
+                      Importar contacto
+                    </p>
+                  </div>
+                </button>
+              </div>
             ) : (
               <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
                 <div className="flex items-center justify-between mb-8 gap-4">
