@@ -36,6 +36,15 @@ export default function App() {
   const [loading, setLoading] =
     React.useState(true);
 
+  const [mostrarAvisoInactividad, setMostrarAvisoInactividad] =
+    React.useState(false);
+
+  const temporizadorLogoutRef = React.useRef(null);
+  const temporizadorAvisoRef = React.useRef(null);
+
+  const TIEMPO_INACTIVIDAD_MS = 40 * 60 * 1000;
+  const TIEMPO_AVISO_MS = 38 * 60 * 1000;
+
   React.useEffect(() => {
     iniciar();
 
@@ -66,6 +75,83 @@ export default function App() {
       subscription.unsubscribe();
 
   }, []);
+
+
+  React.useEffect(() => {
+    if (!session) {
+      limpiarTemporizadoresInactividad();
+      setMostrarAvisoInactividad(false);
+      return;
+    }
+
+    reiniciarTemporizadoresInactividad();
+
+    const eventos = [
+      "click",
+      "keydown",
+      "mousemove",
+      "scroll",
+      "touchstart",
+    ];
+
+    eventos.forEach((evento) => {
+      window.addEventListener(
+        evento,
+        reiniciarTemporizadoresInactividad,
+        { passive: true }
+      );
+    });
+
+    return () => {
+      eventos.forEach((evento) => {
+        window.removeEventListener(
+          evento,
+          reiniciarTemporizadoresInactividad
+        );
+      });
+
+      limpiarTemporizadoresInactividad();
+    };
+  }, [session]);
+
+  function limpiarTemporizadoresInactividad() {
+    if (temporizadorLogoutRef.current) {
+      clearTimeout(temporizadorLogoutRef.current);
+    }
+
+    if (temporizadorAvisoRef.current) {
+      clearTimeout(temporizadorAvisoRef.current);
+    }
+  }
+
+  function reiniciarTemporizadoresInactividad() {
+    if (!session) return;
+
+    limpiarTemporizadoresInactividad();
+    setMostrarAvisoInactividad(false);
+
+    temporizadorAvisoRef.current = setTimeout(() => {
+      setMostrarAvisoInactividad(true);
+    }, TIEMPO_AVISO_MS);
+
+    temporizadorLogoutRef.current = setTimeout(() => {
+      cerrarSesionPorInactividad();
+    }, TIEMPO_INACTIVIDAD_MS);
+  }
+
+  async function cerrarSesionPorInactividad() {
+    limpiarTemporizadoresInactividad();
+    setMostrarAvisoInactividad(false);
+
+    await supabase.auth.signOut();
+
+    setSession(null);
+    setRol("pendiente");
+  }
+
+  function continuarSesion() {
+    reiniciarTemporizadoresInactividad();
+  }
 
   async function iniciar() {
 
@@ -256,6 +342,40 @@ export default function App() {
 
   return (
     <BrowserRouter>
+
+      {mostrarAvisoInactividad && (
+        <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 max-w-md w-full text-white shadow-2xl">
+            <h2 className="text-2xl font-black text-orange-500">
+              Sesión por expirar
+            </h2>
+
+            <p className="text-zinc-300 mt-4 leading-relaxed">
+              Tu sesión se cerrará automáticamente por inactividad.
+            </p>
+
+            <p className="text-zinc-500 mt-2 text-sm">
+              Tocá continuar para mantener la sesión abierta.
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={continuarSesion}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 px-5 py-4 rounded-2xl font-bold"
+              >
+                Continuar
+              </button>
+
+              <button
+                onClick={cerrarSesionPorInactividad}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 px-5 py-4 rounded-2xl font-bold"
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Layout>
 
