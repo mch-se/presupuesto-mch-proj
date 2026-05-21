@@ -17,6 +17,7 @@ export default function Presupuestos() {
   const [clienteSeleccionado, setClienteSeleccionado] = React.useState(null);
   const [clientes, setClientes] = React.useState([]);
   const [mostrarClientes, setMostrarClientes] = React.useState(false);
+  const [mostrarDatosCliente, setMostrarDatosCliente] = React.useState(false);
   const [busquedaCliente, setBusquedaCliente] = React.useState("");
   const [clienteTelefono, setClienteTelefono] = React.useState("");
   const [clienteEmail, setClienteEmail] = React.useState("");
@@ -26,6 +27,8 @@ export default function Presupuestos() {
   const [numeroPresupuesto, setNumeroPresupuesto] = React.useState("");
 
   const [mostrarBiblioteca, setMostrarBiblioteca] = React.useState(false);
+  const [mostrarSelectorBiblioteca, setMostrarSelectorBiblioteca] =
+    React.useState(false);
   const [articulos, setArticulos] = React.useState([]);
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
 
@@ -111,12 +114,8 @@ export default function Presupuestos() {
 
   function generarValidezDefault() {
     const hoy = new Date();
-
     hoy.setDate(hoy.getDate() + 7);
-
-    const fecha = hoy.toISOString().split("T")[0];
-
-    setValidoHasta(fecha);
+    setValidoHasta(hoy.toISOString().split("T")[0]);
   }
 
   async function cargarPresupuesto() {
@@ -147,7 +146,6 @@ export default function Presupuestos() {
     }
 
     const esPropio = data.user_id === user.id;
-
     const puedeEditar = rol === "admin" || rol === "socio" || esPropio;
 
     if (!puedeEditar) {
@@ -259,6 +257,7 @@ export default function Presupuestos() {
     setClienteEmail(clienteElegido.email || "");
     setClienteDireccion(clienteElegido.direccion || "");
     setMostrarClientes(false);
+    setMostrarDatosCliente(false);
   }
 
   function limpiarClienteSeleccionado() {
@@ -358,7 +357,6 @@ export default function Presupuestos() {
 
   const iva = 0;
   const total = subtotal;
-
   async function guardarPresupuesto() {
     if (guardando) return;
 
@@ -387,35 +385,25 @@ export default function Presupuestos() {
         .single();
 
       const alias = perfil?.alias || "Administrador";
-if (modoEdicion) {
 
-  const {
-    data: presupuestoActual,
-  } =
-    await supabase
-      .from("presupuestos")
-      .select("estado")
-      .eq("id", id)
-      .single();
+      if (modoEdicion) {
+        const { data: presupuestoActual } = await supabase
+          .from("presupuestos")
+          .select("estado")
+          .eq("id", id)
+          .single();
 
-  if (
-    presupuestoActual?.estado ===
-    "Finalizado"
-  ) {
+        if (presupuestoActual?.estado === "Finalizado") {
+          const confirmar = window.confirm(
+            "Este presupuesto está FINALIZADO.\n\nGuardar cambios puede afectar información operativa o histórica.\n\n¿Deseás continuar?"
+          );
 
-    const confirmar =
-      window.confirm(
-        "Este presupuesto está FINALIZADO.\n\nGuardar cambios puede afectar información operativa o histórica.\n\n¿Deseás continuar?"
-      );
-
-    if (!confirmar) {
-
-      setGuardando(false);
-
-      return;
-    }
-  }
-}
+          if (!confirmar) {
+            setGuardando(false);
+            return;
+          }
+        }
+      }
 
       const datosCliente = {
         cliente_id: clienteSeleccionado?.id || null,
@@ -496,8 +484,7 @@ if (modoEdicion) {
           tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
-          subtotal:
-            (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
+          subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
         if (nuevosItems.length > 0) {
@@ -545,8 +532,7 @@ if (modoEdicion) {
           tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
-          subtotal:
-            (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
+          subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
         if (itemsInsertar.length > 0) {
@@ -605,109 +591,132 @@ if (modoEdicion) {
 
   return (
     <>
-      <Toast
-        mensaje={toastMensaje}
-        tipo={toastTipo}
-        visible={toastVisible}
-      />
+      <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
       <div className="min-h-screen bg-black text-white p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-5 mb-6">
-  <div>
-    <h1 className="text-3xl md:text-5xl font-black text-orange-500 leading-tight">
-      {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
-    </h1>
+            <div>
+              <h1 className="text-3xl md:text-5xl font-black text-orange-500 leading-tight">
+                {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
+              </h1>
 
-    <p className="text-zinc-400 mt-2 text-sm md:text-base">
-      Presupuesto N° {numeroPresupuesto}
-    </p>
-  </div>
+              <p className="text-zinc-400 mt-2 text-sm md:text-base">
+                Presupuesto N° {numeroPresupuesto}
+              </p>
+            </div>
 
-  <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
-    <button
-      onClick={guardarPresupuesto}
-      disabled={guardando}
-      className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-4 py-4 rounded-2xl font-bold text-center"
-    >
-      {guardando ? "Guardando..." : "Guardar"}
-    </button>
+            <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
+              <button
+                onClick={guardarPresupuesto}
+                disabled={guardando}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-4 py-4 rounded-2xl font-bold text-center"
+              >
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
 
-    <Link
-      to="/"
-      className="bg-zinc-700 hover:bg-zinc-600 px-4 py-4 rounded-2xl font-bold text-center"
-    >
-      Volver
-    </Link>
-  </div>
-</div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
-  <input
-    type="text"
-    placeholder="Cliente"
-    value={cliente}
-    onChange={(e) => {
-      setCliente(e.target.value);
-      setClienteSeleccionado(null);
-    }}
-    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-  />
+              <Link
+                to="/"
+                className="bg-zinc-700 hover:bg-zinc-600 px-4 py-4 rounded-2xl font-bold text-center"
+              >
+                Volver
+              </Link>
+            </div>
+          </div>
 
-  <button
-    onClick={() => setMostrarClientes(!mostrarClientes)}
-    className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold w-full sm:w-auto"
-  >
-    Buscar
-  </button>
-</div>
-                {clienteSeleccionado && (
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                    <p className="text-green-400 font-bold">
-                      Cliente seleccionado
-                    </p>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 mb-6">
+            <div className="flex justify-between items-center gap-4 mb-4">
+              <div>
+                <h2 className="text-xl font-black text-orange-500">
+                  Cliente
+                </h2>
 
+                <p className="text-zinc-500 text-sm">
+                  Datos principales del presupuesto
+                </p>
+              </div>
+
+              <button
+                onClick={() => setMostrarDatosCliente(!mostrarDatosCliente)}
+                className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl text-2xl font-black"
+              >
+                🔍
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <input
+                type="text"
+                placeholder="Cliente"
+                value={cliente}
+                onChange={(e) => {
+                  setCliente(e.target.value);
+                  setClienteSeleccionado(null);
+                }}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+              />
+
+              <button
+                onClick={() => setMostrarClientes(!mostrarClientes)}
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold w-full sm:w-auto"
+              >
+                Buscar
+              </button>
+            </div>
+
+            {clienteSeleccionado && (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                <div>
+                  <p className="text-green-400 font-bold">
+                    Cliente seleccionado
+                  </p>
+
+                  <p className="text-zinc-300 mt-1">
+                    {clienteSeleccionado.empresa}
+                  </p>
+                </div>
+
+                <button
+                  onClick={limpiarClienteSeleccionado}
+                  className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                >
+                  Limpiar cliente
+                </button>
+              </div>
+            )}
+
+            {mostrarClientes && (
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3 mt-4">
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={busquedaCliente}
+                  onChange={(e) => setBusquedaCliente(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4"
+                />
+
+                <div className="max-h-72 overflow-auto space-y-2">
+                  {clientesFiltrados.map((clienteItem) => (
                     <button
-                      onClick={limpiarClienteSeleccionado}
-                      className="mt-3 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-xl font-bold"
+                      key={clienteItem.id}
+                      onClick={() => seleccionarCliente(clienteItem)}
+                      className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl p-4"
                     >
-                      Limpiar cliente
+                      <p className="font-bold">{clienteItem.empresa}</p>
+
+                      {clienteItem.contacto && (
+                        <p className="text-zinc-400 text-sm mt-1">
+                          {clienteItem.contacto}
+                        </p>
+                      )}
                     </button>
-                  </div>
-                )}
+                  ))}
+                </div>
+              </div>
+            )}
 
-                {mostrarClientes && (
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
-                    <input
-                      type="text"
-                      placeholder="Buscar cliente..."
-                      value={busquedaCliente}
-                      onChange={(e) => setBusquedaCliente(e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl p-4"
-                    />
-
-                    <div className="max-h-72 overflow-auto space-y-2">
-                      {clientesFiltrados.map((clienteItem) => (
-                        <button
-                          key={clienteItem.id}
-                          onClick={() => seleccionarCliente(clienteItem)}
-                          className="w-full text-left bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl p-4"
-                        >
-                          <p className="font-bold">{clienteItem.empresa}</p>
-
-                          {clienteItem.contacto && (
-                            <p className="text-zinc-400 text-sm mt-1">
-                              {clienteItem.contacto}
-                            </p>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+            {mostrarDatosCliente && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
                 <input
                   type="text"
                   placeholder="Teléfono"
@@ -729,24 +738,7 @@ if (modoEdicion) {
                   placeholder="Dirección"
                   value={clienteDireccion}
                   onChange={(e) => setClienteDireccion(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Descripción corta"
-                  value={descripcionCorta}
-                  onChange={(e) => setDescripcionCorta(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-
-                <textarea
-                  placeholder="Descripción larga"
-                  value={descripcionLarga}
-                  onChange={(e) => setDescripcionLarga(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[220px]"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 md:col-span-2"
                 />
 
                 <select
@@ -759,78 +751,100 @@ if (modoEdicion) {
                 </select>
 
                 <div>
+                  <label className="block text-zinc-400 mb-2">
+                    Presupuesto válido hasta
+                  </label>
 
-  <label className="block text-zinc-400 mb-2">
-    Presupuesto válido hasta
-  </label>
+                  <div className="relative">
+                    <input
+                      id="validoHasta"
+                      type="date"
+                      value={validoHasta}
+                      onChange={(e) => setValidoHasta(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 pr-16 text-white"
+                    />
 
-  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById("validoHasta");
+                        if (!input) return;
+                        input.showPicker?.();
+                        input.focus();
+                        input.click();
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-xl text-lg"
+                    >
+                      📅
+                    </button>
+                  </div>
+                </div>
 
-    <input
-      id="validoHasta"
-      type="date"
-      value={validoHasta}
-      onChange={(e) =>
-        setValidoHasta(
-          e.target.value
-        )
-      }
-      className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 pr-16 text-white"
-    />
+                <input
+                  type="text"
+                  placeholder="Descripción corta"
+                  value={descripcionCorta}
+                  onChange={(e) => setDescripcionCorta(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 md:col-span-2"
+                />
 
-    <button
-      type="button"
-      onClick={() => {
+                <textarea
+                  placeholder="Descripción larga"
+                  value={descripcionLarga}
+                  onChange={(e) => setDescripcionLarga(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[160px] md:col-span-2"
+                />
 
-        const input =
-          document.getElementById(
-            "validoHasta"
-          );
-
-        if (!input) return;
-
-        input.showPicker?.();
-
-        input.focus();
-
-        input.click();
-      }}
-      className="absolute right-3 top-1/2 -translate-y-1/2 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-xl text-lg"
-    >
-      📅
-    </button>
-
-  </div>
-
-  <p className="text-zinc-500 text-sm mt-2">
-    Por defecto: 7 días desde la creación del presupuesto.
-  </p>
-
-</div>
+                <p className="text-zinc-500 text-sm md:col-span-2">
+                  Por defecto: 7 días desde la creación del presupuesto.
+                </p>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-6">
-            <button
-              onClick={() => setMostrarBiblioteca(!mostrarBiblioteca)}
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-            >
-              Biblioteca de artículos
-            </button>
+          <div className="flex flex-wrap gap-3 mb-6 relative">
+            <div className="relative">
+              <button
+                onClick={() =>
+                  setMostrarSelectorBiblioteca(!mostrarSelectorBiblioteca)
+                }
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
+              >
+                Biblioteca artículos ▾
+              </button>
+
+              {mostrarSelectorBiblioteca && (
+                <div className="absolute left-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-60 shadow-2xl">
+                  <button
+                    onClick={() => {
+                      setMostrarBiblioteca(!mostrarBiblioteca);
+                      setMostrarPlantillas(false);
+                      setMostrarSelectorBiblioteca(false);
+                    }}
+                    className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                  >
+                    Biblioteca artículos
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMostrarPlantillas(!mostrarPlantillas);
+                      setMostrarBiblioteca(false);
+                      setMostrarSelectorBiblioteca(false);
+                    }}
+                    className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                  >
+                    Agregar plantilla
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={agregarItemManual}
               className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
             >
               Agregar ítem manual
-            </button>
-
-            <button
-              onClick={() => setMostrarPlantillas(!mostrarPlantillas)}
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-            >
-              Agregar plantilla
             </button>
           </div>
 
@@ -889,7 +903,9 @@ if (modoEdicion) {
                     className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between gap-4"
                   >
                     <div>
-                      <p className="font-bold text-lg">{articulo.descripcion}</p>
+                      <p className="font-bold text-lg">
+                        {articulo.descripcion}
+                      </p>
 
                       {articulo.detalle && (
                         <p className="text-zinc-500 text-sm mt-1 whitespace-pre-wrap">
@@ -919,112 +935,112 @@ if (modoEdicion) {
             </div>
           )}
 
-     <div className="space-y-4">
-  {items.map((item, index) => (
-    <div
-      key={index}
-      className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
-    >
-      <div className="col-span-12 md:col-span-6">
-        <input
-          type="text"
-          placeholder="Descripción"
-          value={item.descripcion}
-          onChange={(e) =>
-            actualizarItem(index, "descripcion", e.target.value)
-          }
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-        />
+          <div className="space-y-4">
+            {items.map((item, index) => (
+              <div
+                key={index}
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
+              >
+                <div className="col-span-12 md:col-span-6">
+                  <input
+                    type="text"
+                    placeholder="Descripción"
+                    value={item.descripcion}
+                    onChange={(e) =>
+                      actualizarItem(index, "descripcion", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
 
-        <textarea
-          placeholder="Descripción larga / detalle"
-          value={item.detalle || ""}
-          onChange={(e) =>
-            actualizarItem(index, "detalle", e.target.value)
-          }
-          className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
-        />
-      </div>
+                  <textarea
+                    placeholder="Descripción larga / detalle"
+                    value={item.detalle || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "detalle", e.target.value)
+                    }
+                    className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
+                  />
+                </div>
 
-      <div className="col-span-6 md:col-span-2">
-        <select
-          value={item.categoria_id || ""}
-          onChange={(e) =>
-            actualizarItem(index, "categoria_id", e.target.value)
-          }
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-        >
-          <option value="">Categoría</option>
+                <div className="col-span-6 md:col-span-2">
+                  <select
+                    value={item.categoria_id || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "categoria_id", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+                    <option value="">Categoría</option>
 
-          {categorias.map((categoria) => (
-            <option key={categoria.id} value={categoria.id}>
-              {categoria.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
+                    {categorias.map((categoria) => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-      <div className="col-span-6 md:col-span-2">
-        <select
-          value={item.tipo_id || ""}
-          onChange={(e) =>
-            actualizarItem(index, "tipo_id", e.target.value)
-          }
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-        >
-          <option value="">Tipo</option>
+                <div className="col-span-6 md:col-span-2">
+                  <select
+                    value={item.tipo_id || ""}
+                    onChange={(e) =>
+                      actualizarItem(index, "tipo_id", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  >
+                    <option value="">Tipo</option>
 
-          {tipos.map((tipo) => (
-            <option key={tipo.id} value={tipo.id}>
-              {tipo.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
+                    {tipos.map((tipo) => (
+                      <option key={tipo.id} value={tipo.id}>
+                        {tipo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-      <div className="col-span-6 md:col-span-1">
-        <input
-          type="number"
-          placeholder="Cant."
-          value={item.cantidad}
-          onChange={(e) =>
-            actualizarItem(index, "cantidad", e.target.value)
-          }
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-        />
-      </div>
+                <div className="col-span-6 md:col-span-1">
+                  <input
+                    type="number"
+                    placeholder="Cant."
+                    value={item.cantidad}
+                    onChange={(e) =>
+                      actualizarItem(index, "cantidad", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+                </div>
 
-      <div className="col-span-6 md:col-span-1">
-        <input
-          type="number"
-          placeholder="Precio"
-          value={item.precio}
-          onChange={(e) =>
-            actualizarItem(index, "precio", e.target.value)
-          }
-          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-        />
-      </div>
+                <div className="col-span-6 md:col-span-1">
+                  <input
+                    type="number"
+                    placeholder="Precio"
+                    value={item.precio}
+                    onChange={(e) =>
+                      actualizarItem(index, "precio", e.target.value)
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                  />
+                </div>
 
-      <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
-        {moneda === "USD" ? "USD $" : "$"}
-        {(
-          (Number(item.cantidad) || 0) *
-          (Number(item.precio) || 0)
-        ).toLocaleString()}
-      </div>
+                <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
+                  {moneda === "USD" ? "USD $" : "$"}
+                  {(
+                    (Number(item.cantidad) || 0) *
+                    (Number(item.precio) || 0)
+                  ).toLocaleString()}
+                </div>
 
-      <div className="col-span-2 flex items-center justify-end">
-        <button
-          onClick={() => eliminarItem(index)}
-          className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-        >
-          X
-        </button>
-      </div>
-    </div>
-  ))}
-</div>
+                <div className="col-span-2 flex items-center justify-end">
+                  <button
+                    onClick={() => eliminarItem(index)}
+                    className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
+                  >
+                    X
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
 
           <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
             <div className="space-y-4 text-xl">
