@@ -34,6 +34,7 @@ export default function Presupuestos() {
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
 
   const [mostrarPlantillas, setMostrarPlantillas] = React.useState(false);
+  const [mostrarMenuFlotante, setMostrarMenuFlotante] = React.useState(false);
   const [plantillas, setPlantillas] = React.useState([]);
   const [busquedaPlantilla, setBusquedaPlantilla] = React.useState("");
 
@@ -595,79 +596,73 @@ export default function Presupuestos() {
     <>
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
-      <div className="min-h-screen bg-black text-white p-4 md:p-6">
+      <div className="min-h-screen bg-black text-white p-4 md:p-6 pb-32">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-5 mb-6">
-            <div>
-              <h1 className="text-3xl md:text-5xl font-black text-orange-500 leading-tight">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl md:text-5xl font-black text-orange-500 leading-tight">
                 {modoEdicion ? "Editar Presupuesto" : "Nuevo Presupuesto"}
               </h1>
 
-              <p className="text-zinc-400 mt-2 text-sm md:text-base">
+              <p className="text-zinc-400 mt-1 text-xs md:text-base">
                 Presupuesto N° {numeroPresupuesto}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
+            <div className="flex flex-col gap-2 shrink-0 md:grid md:grid-cols-2 md:w-auto">
               <button
                 onClick={guardarPresupuesto}
                 disabled={guardando}
-                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-4 py-4 rounded-2xl font-bold text-center"
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:hover:bg-orange-500 px-3 md:px-4 py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-sm md:text-base text-center"
               >
-                {guardando ? "Guardando..." : "Guardar"}
+                {guardando ? "..." : "Guardar"}
               </button>
 
               <Link
                 to="/"
-                className="bg-zinc-700 hover:bg-zinc-600 px-4 py-4 rounded-2xl font-bold text-center"
+                className="bg-zinc-700 hover:bg-zinc-600 px-3 md:px-4 py-2 md:py-4 rounded-xl md:rounded-2xl font-bold text-sm md:text-base text-center"
               >
                 Volver
               </Link>
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 mb-6">
-            <div className="flex justify-between items-center gap-4 mb-4">
-              <div>
-                <h2 className="text-xl font-black text-orange-500">
-                  Cliente
-                </h2>
-              </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-2 md:p-3 mb-4">
+            <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-1.5 md:gap-2 items-center">
+              <span className="text-orange-500 font-black text-sm md:text-base shrink-0">
+                Cliente:
+              </span>
 
-              <button
-                onClick={() => setMostrarDatosCliente(!mostrarDatosCliente)}
-                className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl text-2xl font-black"
-              >
-                🔍
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex-1 min-w-[260px]">
-                <input
-                  type="text"
-                  placeholder="Cliente seleccionado"
-                  value={cliente}
-                  onChange={(e) => {
-                    setCliente(e.target.value);
-                    setClienteSeleccionado(null);
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                />
-              </div>
-
-              <button
-                onClick={limpiarClienteSeleccionado}
-                className="bg-red-500 hover:bg-red-600 px-5 py-4 rounded-2xl font-bold"
-              >
-                Limpiar
-              </button>
+              <input
+                type="text"
+                placeholder="Seleccionar"
+                value={cliente}
+                onChange={(e) => {
+                  setCliente(e.target.value);
+                  setClienteSeleccionado(null);
+                }}
+                className="min-w-0 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 md:px-3 py-2 text-sm"
+              />
 
               <button
                 onClick={() => setMostrarClientes(!mostrarClientes)}
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold"
+                className="bg-zinc-800 hover:bg-zinc-700 w-9 md:w-10 h-9 md:h-10 rounded-xl text-base md:text-lg shrink-0"
               >
-                Buscar
+                🔍
+              </button>
+
+              <button
+                onClick={limpiarClienteSeleccionado}
+                className="bg-red-500 hover:bg-red-600 w-9 md:w-10 h-9 md:h-10 rounded-xl font-black shrink-0 text-sm md:text-base"
+              >
+                ✕
+              </button>
+
+              <button
+                onClick={() => setMostrarDatosCliente(!mostrarDatosCliente)}
+                className="bg-zinc-800 hover:bg-zinc-700 w-9 md:w-10 h-9 md:h-10 rounded-xl text-sm md:text-lg shrink-0"
+              >
+                {mostrarDatosCliente ? "▲" : "▼"}
               </button>
             </div>
 
@@ -784,51 +779,6 @@ export default function Presupuestos() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-6 relative">
-            <div className="relative">
-              <button
-                onClick={() =>
-                  setMostrarSelectorBiblioteca(!mostrarSelectorBiblioteca)
-                }
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-              >
-                Biblioteca artículos ▾
-              </button>
-
-              {mostrarSelectorBiblioteca && (
-                <div className="absolute left-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-60 shadow-2xl">
-                  <button
-                    onClick={() => {
-                      setMostrarBiblioteca(!mostrarBiblioteca);
-                      setMostrarPlantillas(false);
-                      setMostrarSelectorBiblioteca(false);
-                    }}
-                    className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                  >
-                    Biblioteca artículos
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setMostrarPlantillas(!mostrarPlantillas);
-                      setMostrarBiblioteca(false);
-                      setMostrarSelectorBiblioteca(false);
-                    }}
-                    className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                  >
-                    Agregar plantilla
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={agregarItemManual}
-              className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-2xl font-bold"
-            >
-              Agregar ítem manual
-            </button>
-          </div>
 
           {mostrarPlantillas && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
@@ -917,133 +867,247 @@ export default function Presupuestos() {
             </div>
           )}
 
-          <div className="space-y-3">
-            {items.map((item, index) => (
-              <div
-                key={index}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4"
-              >
-                <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
-                  <div
-                    className="flex-1 cursor-pointer"
-                    onClick={() =>
-                      setItemExpandido(itemExpandido === index ? null : index)
-                    }
-                  >
-                    <div className="flex items-center gap-3">
-                      <p className="font-bold text-lg text-white">
-                        {item.descripcion || "Artículo"}
-                      </p>
+          <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl overflow-hidden">
+            <div className="hidden md:grid grid-cols-[90px_1fr_160px_80px] gap-4 px-4 py-3 text-sm text-zinc-500 border-b border-zinc-800">
+              <span>Cant.</span>
+              <span>Artículo</span>
+              <span className="text-right">Total</span>
+              <span className="text-right">Acción</span>
+            </div>
 
-                      <span className="text-zinc-500 text-sm">
-                        {itemExpandido === index ? "▲" : "▼"}
-                      </span>
-                    </div>
+            {items.length === 0 && (
+              <div className="p-6 text-center text-zinc-500">
+                No hay ítems cargados.
+              </div>
+            )}
 
-                    <div className="flex flex-wrap gap-4 mt-1 text-sm">
-                      <span className="text-orange-400">
-                        Tipo: {item.tipo || "-"}
-                      </span>
+            {items.map((item, index) => {
+              const subtotalItem =
+                (Number(item.cantidad) || 0) *
+                (Number(item.precio) || 0);
 
-                      <span className="text-orange-400">
-                        Categoría: {item.categoria || "-"}
-                      </span>
-                    </div>
+              const expandido =
+                itemExpandido === index;
 
-                    {itemExpandido === index && (
-                      <textarea
-                        placeholder="Descripción larga"
-                        value={item.detalle || ""}
-                        onChange={(e) =>
-                          actualizarItem(index, "detalle", e.target.value)
-                        }
-                        className="w-full mt-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28 text-zinc-300"
-                      />
-                    )}
-                  </div>
+              return (
+                <div
+                  key={index}
+                  className="border-b border-zinc-800 last:border-b-0"
+                >
+                  <div className="grid grid-cols-[64px_1fr_auto_auto] md:grid-cols-[90px_1fr_160px_80px] gap-3 md:gap-4 items-center p-3 md:p-4">
+                    <input
+                      type="number"
+                      value={item.cantidad}
+                      onChange={(e) =>
+                        actualizarItem(
+                          index,
+                          "cantidad",
+                          e.target.value
+                        )
+                      }
+                      className="w-16 md:w-20 bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-center font-bold"
+                    />
 
-                  <div className="flex flex-wrap gap-3 items-end">
-                    <div>
-                      <label className="block text-zinc-500 text-sm mb-2">
-                        Cantidad
-                      </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setItemExpandido(
+                          expandido ? null : index
+                        )
+                      }
+                      className="min-w-0 text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-bold text-white truncate">
+                          {item.descripcion || "Artículo sin descripción"}
+                        </p>
 
-                      <input
-                        type="number"
-                        value={item.cantidad}
-                        onChange={(e) =>
-                          actualizarItem(index, "cantidad", e.target.value)
-                        }
-                        className="w-24 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-                    </div>
+                        <span className="text-zinc-500 text-xs shrink-0">
+                          {expandido ? "▲" : "▼"}
+                        </span>
+                      </div>
 
-                    <div>
-                      <label className="block text-zinc-500 text-sm mb-2">
-                        Precio
-                      </label>
+                      <div className="flex flex-wrap gap-2 mt-1 text-xs">
+                        <span className="text-orange-400">
+                          Tipo: {item.tipo || "-"}
+                        </span>
 
-                      <input
-                        type="number"
-                        value={item.precio}
-                        onChange={(e) =>
-                          actualizarItem(index, "precio", e.target.value)
-                        }
-                        className="w-32 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-                    </div>
+                        <span className="text-zinc-500">
+                          ·
+                        </span>
 
-                    <div className="text-right min-w-[120px]">
-                      <p className="text-zinc-500 text-sm mb-2">
-                        Subtotal
-                      </p>
+                        <span className="text-zinc-400">
+                          Categoría: {item.categoria || "-"}
+                        </span>
+                      </div>
+                    </button>
 
-                      <p className="font-black text-orange-500 text-lg">
+                    <div className="text-right">
+                      <p className="text-orange-500 font-black whitespace-nowrap">
                         {moneda === "USD" ? "USD $" : "$"}
-                        {(
-                          (Number(item.cantidad) || 0) *
-                          (Number(item.precio) || 0)
-                        ).toLocaleString()}
+                        {subtotalItem.toLocaleString()}
+                      </p>
+
+                      <p className="text-zinc-600 text-xs md:hidden">
+                        Total
                       </p>
                     </div>
 
                     <button
-                      onClick={() => eliminarItem(index)}
-                      className="bg-red-500 hover:bg-red-600 px-4 py-4 rounded-2xl font-bold"
+                      type="button"
+                      onClick={() =>
+                        eliminarItem(index)
+                      }
+                      className="bg-red-500 hover:bg-red-600 w-11 h-11 rounded-xl font-black"
                     >
                       X
                     </button>
                   </div>
+
+                  {expandido && (
+                    <div className="bg-zinc-950/70 border-t border-zinc-800 px-3 md:px-4 py-4">
+                      <div className="grid grid-cols-1 md:grid-cols-[1fr_160px] gap-4">
+                        <textarea
+                          placeholder="Descripción larga / detalle"
+                          value={item.detalle || ""}
+                          onChange={(e) =>
+                            actualizarItem(
+                              index,
+                              "detalle",
+                              e.target.value
+                            )
+                          }
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
+                        />
+
+                        <div>
+                          <label className="block text-zinc-500 text-sm mb-2">
+                            Precio unitario
+                          </label>
+
+                          <input
+                            type="number"
+                            value={item.precio}
+                            onChange={(e) =>
+                              actualizarItem(
+                                index,
+                                "precio",
+                                e.target.value
+                              )
+                            }
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+
+          {mostrarMenuFlotante && (
+            <div className="fixed bottom-28 right-4 z-[90] flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setMostrarBiblioteca(!mostrarBiblioteca);
+                  setMostrarPlantillas(false);
+                  setMostrarMenuFlotante(false);
+                }}
+                className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
+              >
+                📚 Biblioteca
+              </button>
+
+              <button
+                onClick={() => {
+                  setMostrarPlantillas(!mostrarPlantillas);
+                  setMostrarBiblioteca(false);
+                  setMostrarMenuFlotante(false);
+                }}
+                className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
+              >
+                📋 Plantilla
+              </button>
+
+              <button
+                onClick={() => {
+                  agregarItemManual();
+                  setMostrarMenuFlotante(false);
+                }}
+                className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
+              >
+                ✍ Manual
+              </button>
+
+              <button
+                onClick={() => {
+                  setMostrarMenuFlotante(false);
+                  mostrarToast("Importador PDF próximamente", "ok");
+                }}
+                className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
+              >
+                📄 Importar proveedor
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={() => setMostrarMenuFlotante(!mostrarMenuFlotante)}
+            className="fixed bottom-28 right-4 z-[95] bg-orange-500 hover:bg-orange-600 w-16 h-16 rounded-full text-4xl font-light shadow-2xl"
+          >
+            +
+          </button>
+
+          <div className="fixed left-0 right-0 bottom-0 z-50 bg-black/90 border-t border-zinc-800 backdrop-blur">
+            <div className="max-w-7xl mx-auto p-3 md:p-4">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 md:p-4 flex items-center justify-between gap-3">
+                <div className="text-sm text-zinc-400">
+                  <p>
+                    {items.length} ítems
+                  </p>
+
+                  <p className="hidden sm:block">
+                    Factura C - IVA no discriminado
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4 md:gap-8">
+                  <div className="hidden sm:block text-right">
+                    <p className="text-zinc-500 text-sm">
+                      Subtotal
+                    </p>
+
+                    <p className="font-bold">
+                      {moneda === "USD" ? "USD $" : "$"}
+                      {subtotal.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-zinc-500 text-sm">
+                      Total
+                    </p>
+
+                    <p className="text-orange-500 font-black text-xl md:text-2xl">
+                      {moneda === "USD" ? "USD $" : "$"}
+                      {total.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={guardarPresupuesto}
+                    disabled={guardando}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-4 md:px-6 py-3 rounded-xl font-bold"
+                  >
+                    {guardando ? "..." : "Guardar"}
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md ml-auto">
-            <div className="space-y-4 text-xl">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-
-                <span>
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {subtotal.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-3xl font-black text-orange-500 border-t border-zinc-800 pt-5">
-                <span>Total</span>
-
-                <span>
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {total.toLocaleString()}
-                </span>
-              </div>
-
-              <p className="text-zinc-500 text-sm">
-                Factura C - IVA no discriminado
-              </p>
             </div>
           </div>
+
         </div>
       </div>
     </>
