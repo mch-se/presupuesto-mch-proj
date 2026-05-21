@@ -17,6 +17,7 @@ export default function Presupuestos() {
   const [clienteSeleccionado, setClienteSeleccionado] = React.useState(null);
   const [clientes, setClientes] = React.useState([]);
   const [mostrarClientes, setMostrarClientes] = React.useState(false);
+  const [mostrarMenuCliente, setMostrarMenuCliente] = React.useState(false);
   const [mostrarDatosCliente, setMostrarDatosCliente] = React.useState(false);
   const [busquedaCliente, setBusquedaCliente] = React.useState("");
   const [clienteTelefono, setClienteTelefono] = React.useState("");
@@ -259,7 +260,94 @@ export default function Presupuestos() {
     setClienteEmail(clienteElegido.email || "");
     setClienteDireccion(clienteElegido.direccion || "");
     setMostrarClientes(false);
+    setMostrarMenuCliente(false);
     setMostrarDatosCliente(false);
+  }
+
+  async function importarContactoCliente() {
+    setMostrarMenuCliente(false);
+
+    if (!("contacts" in navigator) || !navigator.contacts?.select) {
+      mostrarToast(
+        "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      const contactos = await navigator.contacts.select(
+        ["name", "tel", "email"],
+        { multiple: false }
+      );
+
+      const contactoImportado = contactos?.[0];
+
+      if (!contactoImportado) {
+        return;
+      }
+
+      const nombre = contactoImportado.name?.[0] || "";
+      const telefonoContacto = contactoImportado.tel?.[0] || "";
+      const emailContacto = contactoImportado.email?.[0] || "";
+
+      if (!nombre) {
+        mostrarToast("El contacto no tiene nombre válido", "error");
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        mostrarToast("Sesión no válida", "error");
+        return;
+      }
+
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("alias")
+        .eq("id", user.id)
+        .single();
+
+      const alias = perfil?.alias || "Administrador";
+
+      const datosCliente = {
+        tipo: "Particular",
+        empresa: nombre,
+        contacto: "",
+        telefono: telefonoContacto,
+        email: emailContacto,
+        direccion: "",
+        observaciones: "Importado desde contactos",
+        user_id: user.id,
+        cargado_por: user.id,
+        cargado_por_alias: alias,
+      };
+
+      const { data: clienteCreado, error } = await supabase
+        .from("clientes")
+        .insert([datosCliente])
+        .select()
+        .single();
+
+      if (error) {
+        mostrarToast(error.message, "error");
+        return;
+      }
+
+      setClientes((actuales) => [clienteCreado, ...actuales]);
+      seleccionarCliente(clienteCreado);
+
+      mostrarToast("Contacto importado y seleccionado", "ok");
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
+      mostrarToast("No se pudo importar el contacto", "error");
+    }
   }
 
   function limpiarClienteSeleccionado() {
@@ -268,6 +356,7 @@ export default function Presupuestos() {
     setClienteTelefono("");
     setClienteEmail("");
     setClienteDireccion("");
+    setMostrarMenuCliente(false);
   }
 
   function agregarItemManual() {
@@ -644,12 +733,35 @@ export default function Presupuestos() {
                 className="min-w-0 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2 md:px-3 py-2 text-sm"
               />
 
-              <button
-                onClick={() => setMostrarClientes(!mostrarClientes)}
-                className="bg-zinc-800 hover:bg-zinc-700 w-9 md:w-10 h-9 md:h-10 rounded-xl text-base md:text-lg shrink-0"
-              >
-                🔍
-              </button>
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setMostrarMenuCliente(!mostrarMenuCliente)}
+                  className="bg-zinc-800 hover:bg-zinc-700 w-9 md:w-10 h-9 md:h-10 rounded-xl text-base md:text-lg shrink-0"
+                >
+                  🔍
+                </button>
+
+                {mostrarMenuCliente && (
+                  <div className="absolute right-0 top-11 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-[90] min-w-64 shadow-2xl">
+                    <button
+                      onClick={() => {
+                        setMostrarClientes(!mostrarClientes);
+                        setMostrarMenuCliente(false);
+                      }}
+                      className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                    >
+                      👥 Buscar cliente existente
+                    </button>
+
+                    <button
+                      onClick={importarContactoCliente}
+                      className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                    >
+                      👤 Importar contacto
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={limpiarClienteSeleccionado}
