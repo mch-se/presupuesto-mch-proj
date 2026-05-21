@@ -1,8 +1,12 @@
 import React from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
 import Toast from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function Articulos() {
   const [descripcion, setDescripcion] = React.useState("");
@@ -33,6 +37,15 @@ export default function Articulos() {
   const [menuConfigAbierto, setMenuConfigAbierto] = React.useState(false);
   const [articuloVer, setArticuloVer] = React.useState(null);
 
+  const [menuImportarAbierto, setMenuImportarAbierto] = React.useState(false);
+  const [tipoImportacion, setTipoImportacion] = React.useState(null);
+  const [previewImportacion, setPreviewImportacion] = React.useState([]);
+  const [mostrarPreviewImportacion, setMostrarPreviewImportacion] =
+    React.useState(false);
+  const [categoriaImportacionId, setCategoriaImportacionId] =
+    React.useState("");
+  const [procesandoPdf, setProcesandoPdf] = React.useState(false);
+
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
   const [toastTipo, setToastTipo] = React.useState("ok");
@@ -41,6 +54,7 @@ export default function Articulos() {
   const [articuloEliminar, setArticuloEliminar] = React.useState(null);
 
   const formularioRef = React.useRef(null);
+  const inputPdfRef = React.useRef(null);
 
   React.useEffect(() => {
     obtenerCategorias();
@@ -309,6 +323,385 @@ export default function Articulos() {
     );
   }
 
+  function normalizarSku(sku) {
+    return `${sku || ""}`.trim().toUpperCase();
+  }
+
+  function normalizarPrecio(precioTexto) {
+    return Number(`${precioTexto || ""}`.replace(/\$/g, "").replace(/\./g, "").replace(/,/g, ".")) || 0;
+  }
+
+  function obtenerTipoMaterial() {
+    return (
+      tipos.find((tipo) =>
+        `${tipo.nombre || ""}`.toLowerCase().includes("material")
+      ) || null
+    );
+  }
+
+  function iniciarImportacion(tipo) {
+    setTipoImportacion(tipo);
+    setPreviewImportacion([]);
+    setCategoriaImportacionId("");
+    setMostrarPreviewImportacion(false);
+    setMenuImportarAbierto(false);
+
+    setTimeout(() => {
+      inputPdfRef.current?.click();
+    }, 50);
+  }
+
+  async function leerTextoPdf(archivo) {
+    const buffer = await archivo.arrayBuffer();
+
+    const pdf = await pdfjsLib.getDocument({
+      data: buffer,
+    }).promise;
+
+    let textoCompleto = "";
+
+    for (let numeroPagina = 1; numeroPagina <= pdf.numPages; numeroPagina++) {
+      const pagina = await pdf.getPage(numeroPagina);
+      const contenido = await pagina.getTextContent();
+
+      const items = contenido.items
+        .map((item) => ({
+          texto: item.str,
+          x: item.transform[4],
+          y: item.transform[5],
+        }))
+        .filter((item) => item.texto && item.texto.trim());
+
+      const lineas = [];
+
+      items.forEach((item) => {
+        const lineaExistente = lineas.find(
+          (linea) => Math.abs(linea.y - item.y) < 4
+        );
+
+        if (lineaExistente) {
+          lineaExistente.items.push(item);
+        } else {
+          lineas.push({
+            y: item.y,
+            items: [item],
+          });
+        }
+      });
+
+      const textoPagina = lineas
+        .sort((a, b) => b.y - a.y)
+        .map((linea) =>
+          linea.items
+            .sort((a, b) => a.x - b.x)
+            .map((item) => item.texto)
+            .join(" ")
+        )
+        .join("\n");
+
+      textoCompleto += `\n${textoPagina}`;
+    }
+
+    return textoCompleto;
+  }
+
+  function parsearPdfIntegra(textoPdf, modo) {
+    const lineas = textoPdf
+      .split("\n")
+      .map((linea) => linea.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    const filas = [];
+    let filaActual = null;
+    let dentroTabla = false;
+
+    lineas.forEach((linea) => {
+      if (/Cant\.\s+SKU\s+Producto\s+Precio\s+Subtotal/i.test(linea)) {
+        dentroTabla = true;
+        return;
+      }
+
+      if (/^Total:/i.test(linea)) {
+        if (filaActual) {
+          filas.push(filaActual.trim());
+          filaActual = null;
+        }
+
+        dentroTabla = false;
+        return;
+      }
+
+      if (!dentroTabla) return;
+
+      if (/^\d+\s+/.test(linea)) {
+        if (filaActual) {
+          filas.push(filaActual.trim());
+        }
+
+        filaActual = linea;
+      } else if (filaActual) {
+        filaActual += ` ${linea}`;
+      }
+    });
+
+    if (filaActual) {
+      filas.push(filaActual.trim());
+    }
+
+    return filas
+      .map((fila) => {
+        const precios = fila.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
+
+        if (precios.length === 0) return null;
+
+        const sinPrecios = fila
+          .replace(/\$\s*[\d.]+(?:,\d+)?/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        const matchBase = sinPrecios.match(/^(\d+)\s+(.+)$/);
+
+        if (!matchBase) return null;
+
+        const cantidad = Number(matchBase[1]) || 1;
+        const resto = matchBase[2];
+
+        let sku = "";
+        let descripcion = "";
+
+        const matchPack = resto.match(/^(PACK\s+10\s+TAGS\s+MIFARE\s+BLANCO)\s+(.+)$/i);
+
+        if (matchPack) {
+          sku = matchPack[1];
+          descripcion = matchPack[2];
+        } else {
+          const partes = resto.split(" ");
+          sku = partes.shift() || "";
+          descripcion = partes.join(" ");
+        }
+
+        const precioElegido =
+          modo === "gremio" && precios.length >= 2
+            ? normalizarPrecio(precios[1])
+            : normalizarPrecio(precios[0]);
+
+        return {
+          cantidad,
+          sku: normalizarSku(sku),
+          descripcion: descripcion.trim(),
+          precio: precioElegido,
+        };
+      })
+      .filter((item) => item && item.sku && item.descripcion && item.precio > 0);
+  }
+
+  function detectarCategoriaInicial(item, existente) {
+    if (existente?.categoria_id) {
+      return existente.categoria_id;
+    }
+
+    const texto = `${item.sku || ""} ${item.descripcion || ""}`.toLowerCase();
+
+    const buscarCategoria = (palabras) =>
+      categorias.find((categoria) =>
+        palabras.some((palabra) =>
+          `${categoria.nombre || ""}`.toLowerCase().includes(palabra)
+        )
+      );
+
+    if (
+      texto.includes("cerradura") ||
+      texto.includes("hikvision") ||
+      texto.includes("access") ||
+      texto.includes("wiegand") ||
+      texto.includes("mifare") ||
+      texto.includes("reader") ||
+      texto.includes("control")
+    ) {
+      return buscarCategoria(["acceso", "control"])?.id || "";
+    }
+
+    if (
+      texto.includes("bateria") ||
+      texto.includes("batería") ||
+      texto.includes("soporte") ||
+      texto.includes("fuente") ||
+      texto.includes("gabinete") ||
+      texto.includes("tag")
+    ) {
+      return (
+        buscarCategoria(["accesorio", "generico", "genérico", "varios"])?.id ||
+        ""
+      );
+    }
+
+    return "";
+  }
+
+  function actualizarCategoriaPreview(index, categoriaIdNueva) {
+    setPreviewImportacion((actual) =>
+      actual.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              categoria_id: categoriaIdNueva,
+            }
+          : item
+      )
+    );
+  }
+
+  async function procesarArchivoPdf(evento) {
+    const archivo = evento.target.files?.[0];
+
+    evento.target.value = "";
+
+    if (!archivo || !tipoImportacion) return;
+
+    setProcesandoPdf(true);
+
+    try {
+      const textoPdf = await leerTextoPdf(archivo);
+      const itemsDetectados = parsearPdfIntegra(textoPdf, tipoImportacion);
+
+      if (itemsDetectados.length === 0) {
+        mostrarToast("No se detectaron artículos en el PDF", "error");
+        return;
+      }
+
+      const preview = itemsDetectados.map((item) => {
+        const existente = articulos.find(
+          (articulo) => normalizarSku(articulo.sku) === item.sku
+        );
+
+        return {
+          ...item,
+          existe: Boolean(existente),
+          articuloId: existente?.id || null,
+          categoria_id: detectarCategoriaInicial(item, existente),
+          precioActualCosto: precioCostoArticulo(existente || {}),
+          precioActualFinal: precioFinalArticulo(existente || {}),
+        };
+      });
+
+      setPreviewImportacion(preview);
+      setMostrarPreviewImportacion(true);
+      mostrarToast("PDF leído correctamente", "ok");
+    } catch (error) {
+      console.error(error);
+      mostrarToast("No se pudo leer el PDF", "error");
+    } finally {
+      setProcesandoPdf(false);
+    }
+  }
+
+  async function confirmarImportacionPdf() {
+    if (previewImportacion.length === 0) {
+      mostrarToast("No hay artículos para importar", "error");
+      return;
+    }
+
+    const faltanCategorias = previewImportacion.some(
+      (item) => !item.categoria_id
+    );
+
+    if (faltanCategorias) {
+      mostrarToast("Seleccioná categoría en todos los artículos", "error");
+      return;
+    }
+
+    const tipoMaterial = obtenerTipoMaterial();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      mostrarToast("Sesión no válida", "error");
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("alias")
+      .eq("id", user.id)
+      .single();
+
+    const alias = profile?.alias || "Administrador";
+    const origen = tipoImportacion === "gremio" ? "PDF gremio" : "PDF final";
+
+    try {
+      for (const item of previewImportacion) {
+        const categoriaSeleccionada = categorias.find(
+          (categoria) => categoria.id === item.categoria_id
+        );
+
+        const datosBase = {
+          sku: item.sku,
+          descripcion: item.descripcion,
+          detalle: "",
+          proveedor: "Integra",
+          moneda: "ARS",
+          categoria_id: item.categoria_id || null,
+          categoria: categoriaSeleccionada?.nombre || "",
+          tipo_id: tipoMaterial?.id || null,
+          tipo: tipoMaterial?.nombre || "Material",
+          frecuente: true,
+          importado_proveedor: true,
+          origen_pdf: origen,
+          usado_count: 11,
+        };
+
+        if (tipoImportacion === "gremio") {
+          datosBase.precio_costo = item.precio;
+          datosBase.costo = item.precio;
+        }
+
+        if (tipoImportacion === "final") {
+          datosBase.precio_final = item.precio;
+          datosBase.precio = item.precio;
+        }
+
+        if (item.existe && item.articuloId) {
+          const { error } = await supabase
+            .from("articulos")
+            .update(datosBase)
+            .eq("id", item.articuloId);
+
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("articulos").insert([
+            {
+              ...datosBase,
+              user_id: user.id,
+              cargado_por: user.id,
+              cargado_por_alias: alias,
+              precio_costo:
+                tipoImportacion === "gremio" ? item.precio : 0,
+              costo:
+                tipoImportacion === "gremio" ? item.precio : 0,
+              precio_final:
+                tipoImportacion === "final" ? item.precio : 0,
+              precio:
+                tipoImportacion === "final" ? item.precio : 0,
+            },
+          ]);
+
+          if (error) throw error;
+        }
+      }
+
+      mostrarToast("Importación completada", "ok");
+      setMostrarPreviewImportacion(false);
+      setPreviewImportacion([]);
+      setTipoImportacion(null);
+      obtenerArticulos();
+    } catch (error) {
+      console.error(error);
+      mostrarToast(error.message || "Error al importar artículos", "error");
+    }
+  }
+
   function detalleCorto(texto) {
     if (!texto) return "";
     if (texto.length <= 140) return texto;
@@ -370,14 +763,142 @@ export default function Articulos() {
 
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
-      {(menuAbierto || menuConfigAbierto) && (
+      <input
+        ref={inputPdfRef}
+        type="file"
+        accept="application/pdf"
+        onChange={procesarArchivoPdf}
+        className="hidden"
+      />
+
+      {(menuAbierto || menuConfigAbierto || menuImportarAbierto) && (
         <div
           onClick={() => {
             setMenuAbierto(null);
             setMenuConfigAbierto(false);
+            setMenuImportarAbierto(false);
+            setMenuImportarAbierto(false);
           }}
           className="fixed inset-0 z-40 bg-transparent"
         />
+      )}
+
+      {mostrarPreviewImportacion && (
+        <div className="fixed inset-0 z-[95] bg-black/80 p-4 flex items-center justify-center">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 md:p-6 w-full max-w-5xl max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-start gap-4 mb-5">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black text-orange-500">
+                  Preview importación {tipoImportacion === "gremio" ? "gremio" : "final"}
+                </h2>
+
+                <p className="text-zinc-500 mt-1">
+                  Revisá los artículos antes de guardar.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setMostrarPreviewImportacion(false);
+                  setPreviewImportacion([]);
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 w-11 h-11 rounded-2xl font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+              <p className="text-zinc-300 font-bold">
+                Categoría individual por artículo
+              </p>
+
+              <p className="text-zinc-500 text-sm mt-2">
+                Seleccioná la categoría en cada fila. Tipo automático: Material.
+                Proveedor: Integra. Los importados quedan marcados como frecuentes.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {previewImportacion.map((item, index) => (
+                <div
+                  key={`${item.sku}-${item.descripcion}`}
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[110px_1fr_150px_220px_120px] gap-3 md:items-center"
+                >
+                  <div>
+                    <p className="text-zinc-500 text-xs">SKU</p>
+                    <p className="font-bold">{item.sku}</p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-zinc-500 text-xs">Artículo</p>
+                    <p className="font-bold truncate">{item.descripcion}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-zinc-500 text-xs">
+                      {tipoImportacion === "gremio" ? "Costo gremio" : "Precio final"}
+                    </p>
+                    <p className="font-black text-green-400">
+                      ${Number(item.precio || 0).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-zinc-500 text-xs mb-1">Categoría</p>
+
+                    <select
+                      value={item.categoria_id || ""}
+                      onChange={(e) =>
+                        actualizarCategoriaPreview(index, e.target.value)
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"
+                    >
+                      <option value="">Seleccionar</option>
+
+                      {categorias.map((categoria) => (
+                        <option key={categoria.id} value={categoria.id}>
+                          {categoria.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <span
+                      className={
+                        item.existe
+                          ? "inline-block bg-blue-500/20 text-blue-300 px-3 py-2 rounded-xl text-sm font-bold"
+                          : "inline-block bg-green-500/20 text-green-300 px-3 py-2 rounded-xl text-sm font-bold"
+                      }
+                    >
+                      {item.existe ? "Actualizar" : "Nuevo"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <button
+                onClick={confirmarImportacionPdf}
+                className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
+              >
+                Importar {previewImportacion.length} artículos
+              </button>
+
+              <button
+                onClick={() => {
+                  setMostrarPreviewImportacion(false);
+                  setPreviewImportacion([]);
+                }}
+                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {articuloVer && (
@@ -486,14 +1007,33 @@ export default function Articulos() {
               </div>
 
               <div className="relative flex gap-3 shrink-0">
-                <button
-                  onClick={() =>
-                    mostrarToast("Importador PDF próximamente", "ok")
-                  }
-                  className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
-                >
-                  Importar ▾
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuImportarAbierto(!menuImportarAbierto)}
+                    disabled={procesandoPdf}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-5 py-3 rounded-xl font-bold"
+                  >
+                    {procesandoPdf ? "Leyendo..." : "Importar ▾"}
+                  </button>
+
+                  {menuImportarAbierto && (
+                    <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-52 shadow-2xl">
+                      <button
+                        onClick={() => iniciarImportacion("gremio")}
+                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                      >
+                        📥 Importar gremio
+                      </button>
+
+                      <button
+                        onClick={() => iniciarImportacion("final")}
+                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                      >
+                        📥 Importar final
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <Link
                   to="/"
