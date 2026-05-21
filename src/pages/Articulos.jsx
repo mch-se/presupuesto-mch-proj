@@ -7,8 +7,11 @@ import ConfirmModal from "../components/ConfirmModal";
 export default function Articulos() {
   const [descripcion, setDescripcion] = React.useState("");
   const [detalle, setDetalle] = React.useState("");
-  const [precio, setPrecio] = React.useState("");
-  const [costo, setCosto] = React.useState("");
+  const [precioCosto, setPrecioCosto] = React.useState("");
+  const [precioFinal, setPrecioFinal] = React.useState("");
+  const [frecuente, setFrecuente] = React.useState(false);
+  const [importadoProveedor, setImportadoProveedor] = React.useState(false);
+  const [origenPdf, setOrigenPdf] = React.useState("");
   const [categoriaId, setCategoriaId] = React.useState("");
   const [tipoId, setTipoId] = React.useState("");
   const [proveedor, setProveedor] = React.useState("");
@@ -111,8 +114,11 @@ export default function Articulos() {
   function limpiarFormulario() {
     setDescripcion("");
     setDetalle("");
-    setPrecio("");
-    setCosto("");
+    setPrecioCosto("");
+    setPrecioFinal("");
+    setFrecuente(false);
+    setImportadoProveedor(false);
+    setOrigenPdf("");
     setCategoriaId("");
     setTipoId("");
     setProveedor("");
@@ -152,14 +158,22 @@ export default function Articulos() {
 
     const alias = profile?.alias || "Administrador";
 
+    const costoNumerico = precioCosto === "" ? 0 : Number(precioCosto) || 0;
+    const finalNumerico = precioFinal === "" ? 0 : Number(precioFinal) || 0;
+
     const datosArticulo = {
       descripcion,
       detalle,
-      precio: precio === "" ? 0 : precio,
-      costo: costo === "" ? 0 : costo,
+      precio: finalNumerico,
+      costo: costoNumerico,
+      precio_costo: costoNumerico,
+      precio_final: finalNumerico,
+      frecuente,
+      importado_proveedor: importadoProveedor,
+      origen_pdf: origenPdf,
       proveedor,
       moneda,
-      usado_count: Number(usadoCount) || 0,
+      usado_count: frecuente ? Math.max(Number(usadoCount) || 0, 11) : Number(usadoCount) || 0,
       categoria_id: categoriaId || null,
       tipo_id: tipoId || null,
       categoria: categoriaSeleccionada?.nombre || "",
@@ -220,8 +234,11 @@ export default function Articulos() {
 
     setDescripcion(articulo.descripcion || "");
     setDetalle(articulo.detalle || "");
-    setPrecio(articulo.precio || "");
-    setCosto(articulo.costo || "");
+    setPrecioCosto(articulo.precio_costo ?? articulo.costo ?? "");
+    setPrecioFinal(articulo.precio_final ?? articulo.precio ?? "");
+    setFrecuente(Boolean(articulo.frecuente) || (Number(articulo.usado_count) || 0) >= 11);
+    setImportadoProveedor(Boolean(articulo.importado_proveedor));
+    setOrigenPdf(articulo.origen_pdf || "");
     setCategoriaId(categoriaEncontrada);
     setTipoId(tipoEncontrado);
     setProveedor(articulo.proveedor || "");
@@ -265,6 +282,33 @@ export default function Articulos() {
     obtenerArticulos();
   }
 
+  function esFrecuente(articulo) {
+    return Boolean(articulo.frecuente) || (Number(articulo.usado_count) || 0) >= 11;
+  }
+
+  function esImportadoProveedor(articulo) {
+    return Boolean(articulo.importado_proveedor);
+  }
+
+  function precioCostoArticulo(articulo) {
+    return Number(articulo.precio_costo ?? articulo.costo ?? 0) || 0;
+  }
+
+  function precioFinalArticulo(articulo) {
+    return Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
+  }
+
+  function IconoImportadoProveedor() {
+    return (
+      <span
+        title="Importado proveedor"
+        className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-lg font-black leading-none shrink-0"
+      >
+        ↪
+      </span>
+    );
+  }
+
   function detalleCorto(texto) {
     if (!texto) return "";
     if (texto.length <= 140) return texto;
@@ -282,6 +326,7 @@ export default function Articulos() {
         ${categoriaTexto || ""}
         ${tipoTexto || ""}
         ${articulo.proveedor || ""}
+        ${articulo.origen_pdf || ""}
         ${articulo.cargado_por_alias || ""}
       `.toLowerCase();
 
@@ -374,25 +419,35 @@ export default function Articulos() {
               </div>
 
               <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Usos</p>
-                <p className="font-bold mt-1">
-                  {Number(articuloVer.usado_count) || 0}
+                <p className="text-zinc-500 text-sm">Estado</p>
+                <div className="flex items-center gap-2 mt-2">
+                  {esFrecuente(articuloVer) && (
+                    <span title="Artículo frecuente" className="text-2xl">
+                      🔥
+                    </span>
+                  )}
+
+                  {esImportadoProveedor(articuloVer) && <IconoImportadoProveedor />}
+
+                  {!esFrecuente(articuloVer) && !esImportadoProveedor(articuloVer) && (
+                    <span className="text-zinc-500">Manual</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-zinc-900 rounded-2xl p-4">
+                <p className="text-zinc-500 text-sm">Costo gremio</p>
+                <p className="font-bold mt-1 text-red-400">
+                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
+                  {precioCostoArticulo(articuloVer).toLocaleString()}
                 </p>
               </div>
 
               <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Costo</p>
-                <p className="font-bold mt-1">
+                <p className="text-zinc-500 text-sm">Precio final</p>
+                <p className="font-black text-green-400 text-2xl mt-1">
                   {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                  {Number(articuloVer.costo || 0).toLocaleString()}
-                </p>
-              </div>
-
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Venta</p>
-                <p className="font-black text-orange-500 text-2xl mt-1">
-                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                  {Number(articuloVer.precio || 0).toLocaleString()}
+                  {precioFinalArticulo(articuloVer).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -405,7 +460,13 @@ export default function Articulos() {
               </p>
             </div>
 
-            <p className="text-zinc-500 text-sm mt-5">
+            {articuloVer.origen_pdf && (
+              <p className="text-zinc-500 text-sm mt-5">
+                Origen PDF: {articuloVer.origen_pdf}
+              </p>
+            )}
+
+            <p className="text-zinc-500 text-sm mt-2">
               Cargado por: {articuloVer.cargado_por_alias || "Administrador"}
             </p>
           </div>
@@ -425,6 +486,15 @@ export default function Articulos() {
               </div>
 
               <div className="relative flex gap-3 shrink-0">
+                <button
+                  onClick={() =>
+                    mostrarToast("Importador PDF próximamente", "ok")
+                  }
+                  className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
+                >
+                  Importar ▾
+                </button>
+
                 <Link
                   to="/"
                   className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
@@ -544,17 +614,17 @@ export default function Articulos() {
 
                   <input
                     type="number"
-                    placeholder="Costo"
-                    value={costo}
-                    onChange={(e) => setCosto(e.target.value)}
+                    placeholder="Costo gremio"
+                    value={precioCosto}
+                    onChange={(e) => setPrecioCosto(e.target.value)}
                     className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   />
 
                   <input
                     type="number"
-                    placeholder="Precio Venta"
-                    value={precio}
-                    onChange={(e) => setPrecio(e.target.value)}
+                    placeholder="Precio final"
+                    value={precioFinal}
+                    onChange={(e) => setPrecioFinal(e.target.value)}
                     className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   />
 
@@ -568,18 +638,45 @@ export default function Articulos() {
                   </select>
 
                   <input
-                    type="number"
-                    placeholder="Usos"
-                    value={usadoCount}
-                    onChange={(e) => setUsadoCount(e.target.value)}
+                    type="text"
+                    placeholder="Origen PDF / proveedor"
+                    value={origenPdf}
+                    onChange={(e) => setOrigenPdf(e.target.value)}
                     className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   />
+
+                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3">
+                    <label className="flex items-center gap-3 font-bold">
+                      <input
+                        type="checkbox"
+                        checked={frecuente}
+                        onChange={(e) => setFrecuente(e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      🔥 Frecuente
+                    </label>
+
+                    <label className="flex items-center gap-3 font-bold">
+                      <input
+                        type="checkbox"
+                        checked={importadoProveedor}
+                        onChange={(e) => setImportadoProveedor(e.target.checked)}
+                        className="w-5 h-5"
+                      />
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-white font-black">
+                          ↪
+                        </span>
+                        Importado proveedor
+                      </span>
+                    </label>
+                  </div>
 
                   <textarea
                     placeholder="Descripción larga / detalle"
                     value={detalle}
                     onChange={(e) => setDetalle(e.target.value)}
-                    className="md:col-span-1 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
+                    className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
                   />
                 </div>
 
@@ -669,10 +766,14 @@ export default function Articulos() {
                         {articulo.descripcion}
                       </p>
 
-                      {(Number(articulo.usado_count) || 0) >= 11 && (
-                        <span title="Artículo frecuente" className="text-xl">
+                      {esFrecuente(articulo) && (
+                        <span title="Artículo frecuente" className="text-xl shrink-0">
                           🔥
                         </span>
+                      )}
+
+                      {esImportadoProveedor(articulo) && (
+                        <IconoImportadoProveedor />
                       )}
                     </div>
 
@@ -682,10 +783,23 @@ export default function Articulos() {
                       </p>
                     )}
 
-                    <p className="text-orange-500 font-black text-xl mt-3">
-                      {articulo.moneda === "USD" ? "USD $" : "$"}
-                      {Number(articulo.precio || 0).toLocaleString()}
-                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 max-w-lg">
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                        <p className="text-zinc-500 text-xs">Costo gremio</p>
+                        <p className="text-red-400 font-bold">
+                          {articulo.moneda === "USD" ? "USD $" : "$"}
+                          {precioCostoArticulo(articulo).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                        <p className="text-zinc-500 text-xs">Precio final</p>
+                        <p className="text-green-400 font-black">
+                          {articulo.moneda === "USD" ? "USD $" : "$"}
+                          {precioFinalArticulo(articulo).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="relative shrink-0">
