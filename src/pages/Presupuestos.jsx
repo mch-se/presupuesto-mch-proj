@@ -24,6 +24,7 @@ export default function Presupuestos() {
   const [clienteDireccion, setClienteDireccion] = React.useState("");
 
   const [items, setItems] = React.useState([]);
+  const [itemExpandido, setItemExpandido] = React.useState(null);
   const [numeroPresupuesto, setNumeroPresupuesto] = React.useState("");
 
   const [mostrarBiblioteca, setMostrarBiblioteca] = React.useState(false);
@@ -278,8 +279,8 @@ export default function Presupuestos() {
         tipo_id: "",
         categoria: "",
         tipo: "",
-        cantidad: "",
-        precio: "",
+        cantidad: 1,
+        precio: 0,
       },
     ]);
   }
@@ -308,7 +309,7 @@ export default function Presupuestos() {
     setItems([
       ...items,
       {
-        descripcion: articulo.descripcion,
+        descripcion: articulo.descripcion || "",
         detalle: articulo.detalle || "",
         categoria_id: articulo.categoria_id || "",
         tipo_id: articulo.tipo_id || "",
@@ -335,7 +336,7 @@ export default function Presupuestos() {
     }
 
     const nuevosItems = (data || []).map((item) => ({
-      descripcion: item.descripcion,
+      descripcion: item.descripcion || "",
       detalle: item.detalle || "",
       categoria_id: item.categoria_id || "",
       tipo_id: item.tipo_id || "",
@@ -357,6 +358,7 @@ export default function Presupuestos() {
 
   const iva = 0;
   const total = subtotal;
+
   async function guardarPresupuesto() {
     if (guardando) return;
 
@@ -630,10 +632,6 @@ export default function Presupuestos() {
                 <h2 className="text-xl font-black text-orange-500">
                   Cliente
                 </h2>
-
-                <p className="text-zinc-500 text-sm">
-                  Datos principales del presupuesto
-                </p>
               </div>
 
               <button
@@ -644,46 +642,34 @@ export default function Presupuestos() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
-              <input
-                type="text"
-                placeholder="Cliente"
-                value={cliente}
-                onChange={(e) => {
-                  setCliente(e.target.value);
-                  setClienteSeleccionado(null);
-                }}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
+            <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex-1 min-w-[260px]">
+                <input
+                  type="text"
+                  placeholder="Cliente seleccionado"
+                  value={cliente}
+                  onChange={(e) => {
+                    setCliente(e.target.value);
+                    setClienteSeleccionado(null);
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+              </div>
+
+              <button
+                onClick={limpiarClienteSeleccionado}
+                className="bg-red-500 hover:bg-red-600 px-5 py-4 rounded-2xl font-bold"
+              >
+                Limpiar
+              </button>
 
               <button
                 onClick={() => setMostrarClientes(!mostrarClientes)}
-                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold w-full sm:w-auto"
+                className="bg-zinc-700 hover:bg-zinc-600 px-5 py-4 rounded-2xl font-bold"
               >
                 Buscar
               </button>
             </div>
-
-            {clienteSeleccionado && (
-              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mt-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <div>
-                  <p className="text-green-400 font-bold">
-                    Cliente seleccionado
-                  </p>
-
-                  <p className="text-zinc-300 mt-1">
-                    {clienteSeleccionado.empresa}
-                  </p>
-                </div>
-
-                <button
-                  onClick={limpiarClienteSeleccionado}
-                  className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                >
-                  Limpiar cliente
-                </button>
-              </div>
-            )}
 
             {mostrarClientes && (
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3 mt-4">
@@ -794,10 +780,6 @@ export default function Presupuestos() {
                   onChange={(e) => setDescripcionLarga(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-[160px] md:col-span-2"
                 />
-
-                <p className="text-zinc-500 text-sm md:col-span-2">
-                  Por defecto: 7 días desde la creación del presupuesto.
-                </p>
               </div>
             )}
           </div>
@@ -900,32 +882,32 @@ export default function Presupuestos() {
                 {articulosFiltrados.map((articulo) => (
                   <div
                     key={articulo.id}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between gap-4"
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center gap-4"
                   >
-                    <div>
+                    <div className="flex-1">
                       <p className="font-bold text-lg">
                         {articulo.descripcion}
                       </p>
 
-                      {articulo.detalle && (
-                        <p className="text-zinc-500 text-sm mt-1 whitespace-pre-wrap">
-                          {articulo.detalle}
-                        </p>
-                      )}
+                      <div className="flex gap-4 mt-2 text-sm">
+                        <span className="text-orange-400">
+                          {articulo.tipo || "-"}
+                        </span>
 
-                      <p className="text-zinc-500 text-sm mt-2">
-                        {articulo.categoria || "-"} / {articulo.tipo || "-"}
-                      </p>
+                        <span className="text-orange-400">
+                          {articulo.categoria || "-"}
+                        </span>
+                      </div>
 
                       <p className="text-zinc-400 mt-2">
                         {moneda === "USD" ? "USD $" : "$"}
-                        {Number(articulo.precio).toLocaleString()}
+                        {Number(articulo.precio || 0).toLocaleString()}
                       </p>
                     </div>
 
                     <button
                       onClick={() => agregarArticuloAlPresupuesto(articulo)}
-                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold self-center"
+                      className="bg-orange-500 hover:bg-orange-600 px-5 py-3 rounded-xl font-bold"
                     >
                       Agregar
                     </button>
@@ -935,108 +917,103 @@ export default function Presupuestos() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {items.map((item, index) => (
               <div
                 key={index}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 grid grid-cols-12 gap-4"
+                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4"
               >
-                <div className="col-span-12 md:col-span-6">
-                  <input
-                    type="text"
-                    placeholder="Descripción"
-                    value={item.descripcion}
-                    onChange={(e) =>
-                      actualizarItem(index, "descripcion", e.target.value)
+                <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+                  <div
+                    className="flex-1 cursor-pointer"
+                    onClick={() =>
+                      setItemExpandido(itemExpandido === index ? null : index)
                     }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-
-                  <textarea
-                    placeholder="Descripción larga / detalle"
-                    value={item.detalle || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "detalle", e.target.value)
-                    }
-                    className="w-full mt-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
-                  />
-                </div>
-
-                <div className="col-span-6 md:col-span-2">
-                  <select
-                    value={item.categoria_id || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "categoria_id", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   >
-                    <option value="">Categoría</option>
+                    <div className="flex items-center gap-3">
+                      <p className="font-bold text-lg text-white">
+                        {item.descripcion || "Artículo"}
+                      </p>
 
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      <span className="text-zinc-500 text-sm">
+                        {itemExpandido === index ? "▲" : "▼"}
+                      </span>
+                    </div>
 
-                <div className="col-span-6 md:col-span-2">
-                  <select
-                    value={item.tipo_id || ""}
-                    onChange={(e) =>
-                      actualizarItem(index, "tipo_id", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="">Tipo</option>
+                    <div className="flex flex-wrap gap-4 mt-1 text-sm">
+                      <span className="text-orange-400">
+                        Tipo: {item.tipo || "-"}
+                      </span>
 
-                    {tipos.map((tipo) => (
-                      <option key={tipo.id} value={tipo.id}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      <span className="text-orange-400">
+                        Categoría: {item.categoria || "-"}
+                      </span>
+                    </div>
 
-                <div className="col-span-6 md:col-span-1">
-                  <input
-                    type="number"
-                    placeholder="Cant."
-                    value={item.cantidad}
-                    onChange={(e) =>
-                      actualizarItem(index, "cantidad", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-                </div>
+                    {itemExpandido === index && (
+                      <textarea
+                        placeholder="Descripción larga"
+                        value={item.detalle || ""}
+                        onChange={(e) =>
+                          actualizarItem(index, "detalle", e.target.value)
+                        }
+                        className="w-full mt-4 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28 text-zinc-300"
+                      />
+                    )}
+                  </div>
 
-                <div className="col-span-6 md:col-span-1">
-                  <input
-                    type="number"
-                    placeholder="Precio"
-                    value={item.precio}
-                    onChange={(e) =>
-                      actualizarItem(index, "precio", e.target.value)
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-                </div>
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div>
+                      <label className="block text-zinc-500 text-sm mb-2">
+                        Cantidad
+                      </label>
 
-                <div className="col-span-10 flex items-center justify-end font-bold text-orange-500">
-                  {moneda === "USD" ? "USD $" : "$"}
-                  {(
-                    (Number(item.cantidad) || 0) *
-                    (Number(item.precio) || 0)
-                  ).toLocaleString()}
-                </div>
+                      <input
+                        type="number"
+                        value={item.cantidad}
+                        onChange={(e) =>
+                          actualizarItem(index, "cantidad", e.target.value)
+                        }
+                        className="w-24 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+                    </div>
 
-                <div className="col-span-2 flex items-center justify-end">
-                  <button
-                    onClick={() => eliminarItem(index)}
-                    className="bg-red-500 hover:bg-red-600 px-4 py-3 rounded-xl font-bold"
-                  >
-                    X
-                  </button>
+                    <div>
+                      <label className="block text-zinc-500 text-sm mb-2">
+                        Precio
+                      </label>
+
+                      <input
+                        type="number"
+                        value={item.precio}
+                        onChange={(e) =>
+                          actualizarItem(index, "precio", e.target.value)
+                        }
+                        className="w-32 bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+                    </div>
+
+                    <div className="text-right min-w-[120px]">
+                      <p className="text-zinc-500 text-sm mb-2">
+                        Subtotal
+                      </p>
+
+                      <p className="font-black text-orange-500 text-lg">
+                        {moneda === "USD" ? "USD $" : "$"}
+                        {(
+                          (Number(item.cantidad) || 0) *
+                          (Number(item.precio) || 0)
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => eliminarItem(index)}
+                      className="bg-red-500 hover:bg-red-600 px-4 py-4 rounded-2xl font-bold"
+                    >
+                      X
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
