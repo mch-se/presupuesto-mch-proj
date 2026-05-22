@@ -1,7 +1,11 @@
 import React from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "../lib/supabase";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Toast from "../components/Toast";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function Presupuestos() {
   const navigate = useNavigate();
@@ -42,11 +46,24 @@ export default function Presupuestos() {
   const [categorias, setCategorias] = React.useState([]);
   const [tipos, setTipos] = React.useState([]);
 
+  const [menuImportarProveedorAbierto, setMenuImportarProveedorAbierto] =
+    React.useState(false);
+  const [tipoImportacionProveedor, setTipoImportacionProveedor] =
+    React.useState(null);
+  const [previewImportacionProveedor, setPreviewImportacionProveedor] =
+    React.useState([]);
+  const [mostrarPreviewImportacionProveedor, setMostrarPreviewImportacionProveedor] =
+    React.useState(false);
+  const [procesandoPdfProveedor, setProcesandoPdfProveedor] =
+    React.useState(false);
+
   const [guardando, setGuardando] = React.useState(false);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
   const [toastTipo, setToastTipo] = React.useState("ok");
+
+  const inputPdfProveedorRef = React.useRef(null);
 
   React.useEffect(() => {
     obtenerCategorias();
@@ -357,6 +374,491 @@ export default function Presupuestos() {
     setClienteEmail("");
     setClienteDireccion("");
     setMostrarMenuCliente(false);
+  }
+
+  function normalizarSku(sku) {
+    return `${sku || ""}`.trim().toUpperCase();
+  }
+
+  function normalizarPrecio(precioTexto) {
+    return Number(
+      `${precioTexto || ""}`
+        .replace(/\$/g, "")
+        .replace(/\./g, "")
+        .replace(/,/g, ".")
+    ) || 0;
+  }
+
+  function obtenerTipoMaterial() {
+    return (
+      tipos.find((tipo) =>
+        `${tipo.nombre || ""}`.toLowerCase().includes("material")
+      ) || null
+    );
+  }
+
+  function precioFinalArticulo(articulo) {
+    return Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
+  }
+
+  function detectarCategoriaInicial(item, existente) {
+    if (existente?.categoria_id) {
+      return existente.categoria_id;
+    }
+
+    const texto = `${item.sku || ""} ${item.descripcion || ""}`.toLowerCase();
+
+    const buscarCategoria = (palabras) =>
+      categorias.find((categoria) =>
+        palabras.some((palabra) =>
+          `${categoria.nombre || ""}`.toLowerCase().includes(palabra)
+        )
+      );
+
+    if (
+      texto.includes("cerradura") ||
+      texto.includes("hikvision") ||
+      texto.includes("access") ||
+      texto.includes("wiegand") ||
+      texto.includes("mifare") ||
+      texto.includes("reader") ||
+      texto.includes("control")
+    ) {
+      return buscarCategoria(["acceso", "control"])?.id || "";
+    }
+
+    if (
+      texto.includes("bateria") ||
+      texto.includes("batería") ||
+      texto.includes("soporte") ||
+      texto.includes("fuente") ||
+      texto.includes("gabinete") ||
+      texto.includes("tag")
+    ) {
+      return (
+        buscarCategoria(["accesorio", "generico", "genérico", "varios"])?.id ||
+        ""
+      );
+    }
+
+    return "";
+  }
+
+  function actualizarCategoriaPreviewProveedor(index, categoriaIdNueva) {
+    setPreviewImportacionProveedor((actual) =>
+      actual.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              categoria_id: categoriaIdNueva,
+            }
+          : item
+      )
+    );
+  }
+
+  function iniciarImportacionProveedor(tipo) {
+    setTipoImportacionProveedor(tipo);
+    setPreviewImportacionProveedor([]);
+    setMostrarPreviewImportacionProveedor(false);
+    setMenuImportarProveedorAbierto(false);
+    setMostrarMenuFlotante(false);
+
+    setTimeout(() => {
+      inputPdfProveedorRef.current?.click();
+    }, 50);
+  }
+
+  async function leerTextoPdfProveedor(archivo) {
+    const buffer = await archivo.arrayBuffer();
+
+    const pdf = await pdfjsLib.getDocument({
+      data: buffer,
+    }).promise;
+
+    const todasLasLineas = [];
+
+    for (let numeroPagina = 1; numeroPagina <= pdf.numPages; numeroPagina++) {
+      const pagina = await pdf.getPage(numeroPagina);
+      const contenido = await pagina.getTextContent();
+
+      const itemsPdf = contenido.items
+        .map((item) => ({
+          texto: item.str,
+          x: item.transform[4],
+          y: item.transform[5],
+        }))
+        .filter((item) => item.texto && item.texto.trim());
+
+      const lineas = [];
+
+      itemsPdf.forEach((item) => {
+        const lineaExistente = lineas.find(
+          (linea) => Math.abs(linea.y - item.y) < 4
+        );
+
+        if (lineaExistente) {
+          lineaExistente.items.push(item);
+        } else {
+          lineas.push({
+            y: item.y,
+            items: [item],
+          });
+        }
+      });
+
+      const lineasOrdenadas = lineas
+        .sort((a, b) => b.y - a.y)
+        .map((linea) => {
+          const itemsOrdenados = linea.items.sort((a, b) => a.x - b.x);
+
+          return {
+            y: linea.y,
+            texto: itemsOrdenados.map((item) => item.texto).join(" ").trim(),
+            items: itemsOrdenados,
+          };
+        });
+
+      todasLasLineas.push(...lineasOrdenadas);
+    }
+
+    return todasLasLineas;
+  }
+
+  function parsearPdfProveedorIntegra(lineasPdf, modo) {
+    const lineas = (lineasPdf || [])
+      .map((linea) => {
+        if (typeof linea === "string") {
+          return {
+            texto: linea,
+            items: [],
+            y: 0,
+          };
+        }
+
+        return {
+          texto: linea.texto || "",
+          items: linea.items || [],
+          y: linea.y || 0,
+        };
+      })
+      .filter((linea) => linea.texto && linea.texto.trim());
+
+    const limpiarTexto = (texto) =>
+      `${texto || ""}`.replace(/\s+/g, " ").trim();
+
+    const elegirPrecio = (precios) => {
+      if (!precios || precios.length === 0) return 0;
+
+      return modo === "gremio" && precios.length >= 2
+        ? precios[1]
+        : precios[0];
+    };
+
+    const indiceHeader = lineas.findIndex((linea) => {
+      const texto = `${linea.texto || ""}`.toLowerCase();
+
+      return (
+        texto.includes("cant") &&
+        texto.includes("sku") &&
+        texto.includes("producto")
+      );
+    });
+
+    if (indiceHeader === -1) {
+      return [];
+    }
+
+    const header = lineas[indiceHeader];
+
+    const buscarX = (textoBuscado, fallback) => {
+      const encontrado = header.items.find((item) =>
+        `${item.texto || ""}`.toLowerCase().includes(textoBuscado)
+      );
+
+      return encontrado?.x ?? fallback;
+    };
+
+    const xCant = buscarX("cant", 25);
+    const xSku = buscarX("sku", 75);
+    const xProducto = buscarX("producto", 170);
+    const xPrecio = buscarX("precio", 430);
+
+    const filas = [];
+    let filaActual = null;
+    let dentroTabla = false;
+
+    function cerrarFilaActual() {
+      if (!filaActual) return;
+
+      const sku = limpiarTexto(filaActual.skuPartes.join(" "));
+      const detalle = limpiarTexto(filaActual.productoPartes.join(" "));
+      const precio = elegirPrecio(filaActual.precios);
+
+      if (sku && detalle && precio > 0) {
+        filas.push({
+          cantidad: filaActual.cantidad || 1,
+          sku: normalizarSku(sku),
+          descripcion: sku,
+          detalle,
+          precio,
+        });
+      }
+
+      filaActual = null;
+    }
+
+    lineas.forEach((linea, index) => {
+      const textoLinea = limpiarTexto(linea.texto);
+
+      if (index <= indiceHeader) {
+        if (index === indiceHeader) {
+          dentroTabla = true;
+        }
+
+        return;
+      }
+
+      if (/^Total:/i.test(textoLinea)) {
+        cerrarFilaActual();
+        dentroTabla = false;
+        return;
+      }
+
+      if (!dentroTabla) return;
+
+      const itemsOrdenados = linea.items || [];
+
+      const itemCantidad = itemsOrdenados.find((item) => {
+        const texto = `${item.texto || ""}`.trim();
+
+        return (
+          item.x >= xCant - 30 &&
+          item.x < xSku + 10 &&
+          /^\d+$/.test(texto)
+        );
+      });
+
+      if (itemCantidad) {
+        cerrarFilaActual();
+
+        filaActual = {
+          cantidad: Number(itemCantidad.texto) || 1,
+          skuPartes: [],
+          productoPartes: [],
+          precios: [],
+        };
+      }
+
+      if (!filaActual) return;
+
+      const preciosLinea = textoLinea.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
+
+      preciosLinea.forEach((precioTexto) => {
+        const precio = normalizarPrecio(precioTexto);
+
+        if (precio > 0) {
+          filaActual.precios.push(precio);
+        }
+      });
+
+      itemsOrdenados.forEach((item) => {
+        const texto = `${item.texto || ""}`.trim();
+
+        if (!texto) return;
+        if (item === itemCantidad) return;
+        if (/^\$/.test(texto)) return;
+        if (/^[\d.]+(?:,\d+)?$/.test(texto) && item.x >= xPrecio - 40) return;
+
+        if (item.x >= xSku - 20 && item.x < xProducto - 10) {
+          filaActual.skuPartes.push(texto);
+          return;
+        }
+
+        if (item.x >= xProducto - 20 && item.x < xPrecio - 20) {
+          filaActual.productoPartes.push(texto);
+        }
+      });
+    });
+
+    cerrarFilaActual();
+
+    return filas.filter(
+      (item) =>
+        item &&
+        item.descripcion &&
+        item.detalle &&
+        item.precio > 0
+    );
+  }
+
+  async function procesarArchivoPdfProveedor(evento) {
+    const archivo = evento.target.files?.[0];
+
+    evento.target.value = "";
+
+    if (!archivo || !tipoImportacionProveedor) return;
+
+    setProcesandoPdfProveedor(true);
+
+    try {
+      const textoPdf = await leerTextoPdfProveedor(archivo);
+      const itemsDetectados = parsearPdfProveedorIntegra(
+        textoPdf,
+        tipoImportacionProveedor
+      );
+
+      if (itemsDetectados.length === 0) {
+        mostrarToast("No se detectaron artículos en el PDF", "error");
+        return;
+      }
+
+      const preview = itemsDetectados.map((item) => {
+        const existente = articulos.find(
+          (articulo) => normalizarSku(articulo.sku) === item.sku
+        );
+
+        return {
+          ...item,
+          existe: Boolean(existente),
+          articuloId: existente?.id || null,
+          categoria_id: detectarCategoriaInicial(item, existente),
+          precioActual: precioFinalArticulo(existente || {}),
+        };
+      });
+
+      setPreviewImportacionProveedor(preview);
+      setMostrarPreviewImportacionProveedor(true);
+      mostrarToast("PDF leído correctamente", "ok");
+    } catch (error) {
+      console.error(error);
+      mostrarToast("No se pudo leer el PDF", "error");
+    } finally {
+      setProcesandoPdfProveedor(false);
+    }
+  }
+
+  async function confirmarImportacionProveedor() {
+    if (previewImportacionProveedor.length === 0) {
+      mostrarToast("No hay artículos para importar", "error");
+      return;
+    }
+
+    const faltanCategorias = previewImportacionProveedor.some(
+      (item) => !item.categoria_id
+    );
+
+    if (faltanCategorias) {
+      mostrarToast("Seleccioná categoría en todos los artículos", "error");
+      return;
+    }
+
+    const tipoMaterial = obtenerTipoMaterial();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      mostrarToast("Sesión no válida", "error");
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("alias")
+      .eq("id", user.id)
+      .single();
+
+    const alias = profile?.alias || "Administrador";
+    const origen =
+      tipoImportacionProveedor === "gremio" ? "PDF gremio" : "PDF final";
+
+    const itemsParaPresupuesto = [];
+
+    try {
+      for (const item of previewImportacionProveedor) {
+        const categoriaSeleccionada = categorias.find(
+          (categoria) => categoria.id === item.categoria_id
+        );
+
+        const datosBase = {
+          sku: item.sku,
+          descripcion: item.descripcion,
+          detalle: item.detalle || "",
+          proveedor: "Integra",
+          moneda: "ARS",
+          categoria_id: item.categoria_id || null,
+          categoria: categoriaSeleccionada?.nombre || "",
+          tipo_id: tipoMaterial?.id || null,
+          tipo: tipoMaterial?.nombre || "Material",
+          frecuente: true,
+          importado_proveedor: true,
+          origen_pdf: origen,
+          usado_count: 11,
+        };
+
+        if (tipoImportacionProveedor === "gremio") {
+          datosBase.precio_costo = item.precio;
+          datosBase.costo = item.precio;
+        }
+
+        if (tipoImportacionProveedor === "final") {
+          datosBase.precio_final = item.precio;
+          datosBase.precio = item.precio;
+        }
+
+        if (item.existe && item.articuloId) {
+          const { error } = await supabase
+            .from("articulos")
+            .update(datosBase)
+            .eq("id", item.articuloId);
+
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("articulos").insert([
+            {
+              ...datosBase,
+              user_id: user.id,
+              cargado_por: user.id,
+              cargado_por_alias: alias,
+              precio_costo:
+                tipoImportacionProveedor === "gremio" ? item.precio : 0,
+              costo:
+                tipoImportacionProveedor === "gremio" ? item.precio : 0,
+              precio_final:
+                tipoImportacionProveedor === "final" ? item.precio : 0,
+              precio:
+                tipoImportacionProveedor === "final" ? item.precio : 0,
+            },
+          ]);
+
+          if (error) throw error;
+        }
+
+        itemsParaPresupuesto.push({
+          descripcion: item.descripcion,
+          detalle: item.detalle || "",
+          categoria_id: item.categoria_id || "",
+          tipo_id: tipoMaterial?.id || "",
+          categoria: categoriaSeleccionada?.nombre || "",
+          tipo: tipoMaterial?.nombre || "Material",
+          cantidad: item.cantidad || 1,
+          precio: item.precio || 0,
+        });
+      }
+
+      setItems((actuales) => [...actuales, ...itemsParaPresupuesto]);
+
+      mostrarToast("Proveedor importado al presupuesto", "ok");
+      setMostrarPreviewImportacionProveedor(false);
+      setPreviewImportacionProveedor([]);
+      setTipoImportacionProveedor(null);
+      obtenerArticulos();
+    } catch (error) {
+      console.error(error);
+      mostrarToast(error.message || "Error al importar proveedor", "error");
+    }
   }
 
   function agregarItemManual() {
@@ -684,6 +1186,140 @@ export default function Presupuestos() {
   return (
     <>
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
+
+      <input
+        ref={inputPdfProveedorRef}
+        type="file"
+        accept="application/pdf"
+        onChange={procesarArchivoPdfProveedor}
+        className="hidden"
+      />
+
+      {mostrarPreviewImportacionProveedor && (
+        <div className="fixed inset-0 z-[100] bg-black/80 p-4 flex items-center justify-center">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 md:p-6 w-full max-w-5xl max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-start gap-4 mb-5">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black text-orange-500">
+                  Importar proveedor al presupuesto
+                </h2>
+
+                <p className="text-zinc-500 mt-1">
+                  Revisá categoría y precio antes de agregar al presupuesto.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setMostrarPreviewImportacionProveedor(false);
+                  setPreviewImportacionProveedor([]);
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 w-11 h-11 rounded-2xl font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
+              <p className="text-zinc-300 font-bold">
+                {tipoImportacionProveedor === "gremio"
+                  ? "Importando precio gremio"
+                  : "Importando precio final"}
+              </p>
+
+              <p className="text-zinc-500 text-sm mt-2">
+                Se agregará al presupuesto y también se actualizará la biblioteca de artículos.
+                Tipo automático: Material. Proveedor: Integra.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {previewImportacionProveedor.map((item, index) => (
+                <div
+                  key={`${item.sku}-${item.descripcion}`}
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[100px_1fr_120px_140px_220px_110px] gap-3 md:items-center"
+                >
+                  <div>
+                    <p className="text-zinc-500 text-xs">Cant.</p>
+                    <p className="font-bold">{item.cantidad}</p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-zinc-500 text-xs">Artículo</p>
+                    <p className="font-bold truncate">{item.descripcion}</p>
+                    <p className="text-zinc-500 text-xs mt-1">SKU: {item.sku}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-zinc-500 text-xs">Precio</p>
+                    <p className="font-black text-green-400">
+                      ${Number(item.precio || 0).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-zinc-500 text-xs">Subtotal</p>
+                    <p className="font-black text-orange-500">
+                      ${Number((item.precio || 0) * (item.cantidad || 1)).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-zinc-500 text-xs mb-1">Categoría</p>
+
+                    <select
+                      value={item.categoria_id || ""}
+                      onChange={(e) =>
+                        actualizarCategoriaPreviewProveedor(index, e.target.value)
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"
+                    >
+                      <option value="">Seleccionar</option>
+
+                      {categorias.map((categoria) => (
+                        <option key={categoria.id} value={categoria.id}>
+                          {categoria.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <span
+                      className={
+                        item.existe
+                          ? "inline-block bg-blue-500/20 text-blue-300 px-3 py-2 rounded-xl text-sm font-bold"
+                          : "inline-block bg-green-500/20 text-green-300 px-3 py-2 rounded-xl text-sm font-bold"
+                      }
+                    >
+                      {item.existe ? "Actualizar" : "Nuevo"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <button
+                onClick={confirmarImportacionProveedor}
+                className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
+              >
+                Agregar {previewImportacionProveedor.length} ítems
+              </button>
+
+              <button
+                onClick={() => {
+                  setMostrarPreviewImportacionProveedor(false);
+                  setPreviewImportacionProveedor([]);
+                }}
+                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="min-h-screen bg-black text-white p-4 md:p-6 pb-32">
         <div className="max-w-7xl mx-auto">
@@ -1153,15 +1789,36 @@ export default function Presupuestos() {
                 ✍ Manual
               </button>
 
-              <button
-                onClick={() => {
-                  setMostrarMenuFlotante(false);
-                  mostrarToast("Importador PDF próximamente", "ok");
-                }}
-                className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
-              >
-                📄 Importar proveedor
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setMenuImportarProveedorAbierto(!menuImportarProveedorAbierto)
+                  }
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-2xl text-left shadow-2xl"
+                >
+                  📄 Importar proveedor
+                </button>
+
+                {menuImportarProveedorAbierto && (
+                  <div className="absolute right-full bottom-0 mr-2 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-[120] min-w-52 shadow-2xl">
+                    <button
+                      onClick={() => iniciarImportacionProveedor("gremio")}
+                      disabled={procesandoPdfProveedor}
+                      className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold disabled:opacity-50"
+                    >
+                      📥 Importar gremio
+                    </button>
+
+                    <button
+                      onClick={() => iniciarImportacionProveedor("final")}
+                      disabled={procesandoPdfProveedor}
+                      className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold disabled:opacity-50"
+                    >
+                      📥 Importar final
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

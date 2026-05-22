@@ -338,7 +338,6 @@ export default function Articulos() {
       ) || null
     );
   }
-
   function iniciarImportacion(tipo) {
     setTipoImportacion(tipo);
     setPreviewImportacion([]);
@@ -406,7 +405,7 @@ export default function Articulos() {
   }
 
   function parsearPdfIntegra(textoPdf, modo) {
-    const lineas = textoPdf
+    const lineas = `${textoPdf || ""}`
       .split("\n")
       .map((linea) => linea.replace(/\s+/g, " ").trim())
       .filter(Boolean);
@@ -416,7 +415,13 @@ export default function Articulos() {
     let dentroTabla = false;
 
     lineas.forEach((linea) => {
-      if (/Cant\.\s+SKU\s+Producto\s+Precio\s+Subtotal/i.test(linea)) {
+      const textoMin = linea.toLowerCase();
+
+      if (
+        textoMin.includes("cant") &&
+        textoMin.includes("sku") &&
+        textoMin.includes("producto")
+      ) {
         dentroTabla = true;
         return;
       }
@@ -433,7 +438,7 @@ export default function Articulos() {
 
       if (!dentroTabla) return;
 
-      if (/^\d+\s+/.test(linea)) {
+      if (/^\d+(?:[.,]\d+)?\s+/.test(linea)) {
         if (filaActual) {
           filas.push(filaActual.trim());
         }
@@ -448,9 +453,97 @@ export default function Articulos() {
       filas.push(filaActual.trim());
     }
 
+    function separarSkuYDetalle(resto) {
+      const texto = `${resto || ""}`.replace(/\s+/g, " ").trim();
+
+      const matchPack = texto.match(
+        /^(PACK\s+10\s+TAGS\s+MIFARE\s+BLANCO)\s+(.+)$/i
+      );
+
+      if (matchPack) {
+        return {
+          sku: matchPack[1],
+          detalle: matchPack[2],
+        };
+      }
+
+      const palabras = texto.split(" ").filter(Boolean);
+
+      const iniciosProducto = [
+        "portero",
+        "monitor",
+        "switch",
+        "dvr",
+        "camara",
+        "cámara",
+        "par",
+        "fuente",
+        "zapatilla",
+        "disco",
+        "central",
+        "lector",
+        "bateria",
+        "batería",
+        "cerradura",
+        "herraje",
+        "soporte",
+        "kit",
+        "sensor",
+        "modulo",
+        "módulo",
+        "control",
+        "teclado",
+        "detector",
+        "sirena",
+        "balun",
+        "cable",
+        "gabinete",
+      ];
+
+      const posiblesCortes = [];
+
+      palabras.forEach((palabra, index) => {
+        if (index === 0) return;
+
+        const desdeAca = palabras.slice(index).join(" ").toLowerCase();
+
+        if (
+          iniciosProducto.some((inicio) =>
+            desdeAca.startsWith(`${inicio} `)
+          )
+        ) {
+          posiblesCortes.push(index);
+        }
+      });
+
+      if (posiblesCortes.length > 0) {
+        const corte = posiblesCortes[0];
+
+        return {
+          sku: palabras.slice(0, corte).join(" "),
+          detalle: palabras.slice(corte).join(" "),
+        };
+      }
+
+      // Fallback conservador: evita poner toda la descripción larga como SKU.
+      // Toma hasta 4 palabras como código corto y deja el resto como detalle.
+      const corteFallback = Math.min(4, Math.max(1, palabras.length - 1));
+
+      return {
+        sku: palabras.slice(0, corteFallback).join(" "),
+        detalle: palabras.slice(corteFallback).join(" "),
+      };
+    }
+
     return filas
       .map((fila) => {
-        const precios = fila.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
+        const preciosTexto = fila.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
+
+        if (preciosTexto.length === 0) return null;
+
+        const precios = preciosTexto
+          .map((precioTexto) => normalizarPrecio(precioTexto))
+          .filter((precio) => precio > 0);
 
         if (precios.length === 0) return null;
 
@@ -459,40 +552,37 @@ export default function Articulos() {
           .replace(/\s+/g, " ")
           .trim();
 
-        const matchBase = sinPrecios.match(/^(\d+)\s+(.+)$/);
+        const matchBase = sinPrecios.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
 
         if (!matchBase) return null;
 
-        const cantidad = Number(matchBase[1]) || 1;
+        const cantidad =
+          Number(`${matchBase[1] || "1"}`.replace(",", ".")) || 1;
         const resto = matchBase[2];
 
-        let sku = "";
-        let descripcion = "";
-
-        const matchPack = resto.match(/^(PACK\s+10\s+TAGS\s+MIFARE\s+BLANCO)\s+(.+)$/i);
-
-        if (matchPack) {
-          sku = matchPack[1];
-          descripcion = matchPack[2];
-        } else {
-          const partes = resto.split(" ");
-          sku = partes.shift() || "";
-          descripcion = partes.join(" ");
-        }
+        const { sku, detalle } = separarSkuYDetalle(resto);
 
         const precioElegido =
           modo === "gremio" && precios.length >= 2
-            ? normalizarPrecio(precios[1])
-            : normalizarPrecio(precios[0]);
+            ? precios[1]
+            : precios[0];
 
         return {
           cantidad,
           sku: normalizarSku(sku),
-          descripcion: descripcion.trim(),
+          descripcion: sku.trim(),
+          detalle: `${detalle || ""}`.trim(),
           precio: precioElegido,
         };
       })
-      .filter((item) => item && item.sku && item.descripcion && item.precio > 0);
+      .filter(
+        (item) =>
+          item &&
+          item.sku &&
+          item.descripcion &&
+          item.detalle &&
+          item.precio > 0
+      );
   }
 
   function detectarCategoriaInicial(item, existente) {
@@ -550,6 +640,26 @@ export default function Articulos() {
       )
     );
   }
+
+  function actualizarCampoPreview(index, campo, valor) {
+    setPreviewImportacion((actual) =>
+      actual.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              [campo]: valor,
+              ...(campo === "sku"
+                ? {
+                    sku: normalizarSku(valor),
+                    descripcion: valor,
+                  }
+                : {}),
+            }
+          : item
+      )
+    );
+  }
+
 
   async function procesarArchivoPdf(evento) {
     const archivo = evento.target.files?.[0];
@@ -639,7 +749,7 @@ export default function Articulos() {
         const datosBase = {
           sku: item.sku,
           descripcion: item.descripcion,
-          detalle: "",
+          detalle: item.detalle || "",
           proveedor: "Integra",
           moneda: "ARS",
           categoria_id: item.categoria_id || null,
@@ -782,7 +892,6 @@ export default function Articulos() {
           className="fixed inset-0 z-40 bg-transparent"
         />
       )}
-
       {mostrarPreviewImportacion && (
         <div className="fixed inset-0 z-[95] bg-black/80 p-4 flex items-center justify-center">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 md:p-6 w-full max-w-5xl max-h-[90vh] overflow-auto">
@@ -822,26 +931,47 @@ export default function Articulos() {
             <div className="space-y-2">
               {previewImportacion.map((item, index) => (
                 <div
-                  key={`${item.sku}-${item.descripcion}`}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[110px_1fr_150px_220px_120px] gap-3 md:items-center"
+                  key={`${item.sku}-${index}`}
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[180px_1fr_150px_220px_120px] gap-3 md:items-start"
                 >
                   <div>
-                    <p className="text-zinc-500 text-xs">SKU</p>
-                    <p className="font-bold">{item.sku}</p>
+                    <p className="text-zinc-500 text-xs mb-1">SKU</p>
+
+                    <input
+                      type="text"
+                      value={item.sku || ""}
+                      onChange={(e) =>
+                        actualizarCampoPreview(index, "sku", e.target.value)
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-bold"
+                    />
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-zinc-500 text-xs">Artículo</p>
-                    <p className="font-bold truncate">{item.descripcion}</p>
+                    <p className="text-zinc-500 text-xs mb-1">Producto / detalle</p>
+
+                    <textarea
+                      value={item.detalle || ""}
+                      onChange={(e) =>
+                        actualizarCampoPreview(index, "detalle", e.target.value)
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm min-h-20"
+                    />
                   </div>
 
                   <div>
-                    <p className="text-zinc-500 text-xs">
+                    <p className="text-zinc-500 text-xs mb-1">
                       {tipoImportacion === "gremio" ? "Costo gremio" : "Precio final"}
                     </p>
-                    <p className="font-black text-green-400">
-                      ${Number(item.precio || 0).toLocaleString()}
-                    </p>
+
+                    <input
+                      type="number"
+                      value={item.precio || 0}
+                      onChange={(e) =>
+                        actualizarCampoPreview(index, "precio", Number(e.target.value) || 0)
+                      }
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
+                    />
                   </div>
 
                   <div>
@@ -1323,7 +1453,21 @@ export default function Articulos() {
                       </p>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 max-w-lg">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_180px_180px] gap-2 mt-3 items-stretch">
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                        <p className="text-zinc-500 text-xs">Categoría</p>
+                        <p className="text-white font-bold truncate">
+                          {nombreCategoria(articulo)}
+                        </p>
+                      </div>
+
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                        <p className="text-zinc-500 text-xs">Tipo</p>
+                        <p className="text-white font-bold truncate">
+                          {nombreTipo(articulo)}
+                        </p>
+                      </div>
+
                       <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
                         <p className="text-zinc-500 text-xs">Costo gremio</p>
                         <p className="text-red-400 font-bold">
