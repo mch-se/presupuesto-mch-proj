@@ -357,13 +357,13 @@ export default function Articulos() {
       data: buffer,
     }).promise;
 
-    let textoCompleto = "";
+    const todasLasLineas = [];
 
     for (let numeroPagina = 1; numeroPagina <= pdf.numPages; numeroPagina++) {
       const pagina = await pdf.getPage(numeroPagina);
       const contenido = await pagina.getTextContent();
 
-      const items = contenido.items
+      const itemsPdf = contenido.items
         .map((item) => ({
           texto: item.str,
           x: item.transform[4],
@@ -373,7 +373,7 @@ export default function Articulos() {
 
       const lineas = [];
 
-      items.forEach((item) => {
+      itemsPdf.forEach((item) => {
         const lineaExistente = lineas.find(
           (linea) => Math.abs(linea.y - item.y) < 4
         );
@@ -388,201 +388,165 @@ export default function Articulos() {
         }
       });
 
-      const textoPagina = lineas
+      const lineasOrdenadas = lineas
         .sort((a, b) => b.y - a.y)
-        .map((linea) =>
-          linea.items
-            .sort((a, b) => a.x - b.x)
-            .map((item) => item.texto)
-            .join(" ")
-        )
-        .join("\n");
+        .map((linea) => {
+          const itemsOrdenados = linea.items.sort((a, b) => a.x - b.x);
 
-      textoCompleto += `\n${textoPagina}`;
+          return {
+            y: linea.y,
+            texto: itemsOrdenados.map((item) => item.texto).join(" ").trim(),
+            items: itemsOrdenados,
+          };
+        });
+
+      todasLasLineas.push(...lineasOrdenadas);
     }
 
-    return textoCompleto;
+    return todasLasLineas;
   }
 
-  function parsearPdfIntegra(textoPdf, modo) {
-    const lineas = `${textoPdf || ""}`
-      .split("\n")
-      .map((linea) => linea.replace(/\s+/g, " ").trim())
-      .filter(Boolean);
+  function parsearPdfIntegra(lineasPdf, modo) {
+    const lineas = (lineasPdf || [])
+      .map((linea) => ({
+        y: Number(linea.y) || 0,
+        texto: linea.texto || "",
+        items: linea.items || [],
+      }))
+      .filter((linea) => linea.texto && linea.items.length > 0);
 
-    const filas = [];
-    let filaActual = null;
-    let dentroTabla = false;
+    const limpiarTexto = (texto) =>
+      `${texto || ""}`.replace(/\s+/g, " ").trim();
 
-    lineas.forEach((linea) => {
-      const textoMin = linea.toLowerCase();
+    const indiceHeader = lineas.findIndex((linea) => {
+      const texto = limpiarTexto(linea.texto).toLowerCase();
 
-      if (
-        textoMin.includes("cant") &&
-        textoMin.includes("sku") &&
-        textoMin.includes("producto")
-      ) {
-        dentroTabla = true;
-        return;
-      }
+      return (
+        texto.includes("cant") &&
+        texto.includes("sku") &&
+        texto.includes("producto")
+      );
+    });
 
-      if (/^Total:/i.test(linea)) {
-        if (filaActual) {
-          filas.push(filaActual.trim());
-          filaActual = null;
-        }
+    if (indiceHeader === -1) {
+      return [];
+    }
 
-        dentroTabla = false;
-        return;
-      }
+    // Integra tiene columnas visuales muy estables.
+    // No usamos la posición del texto del encabezado porque está centrado,
+    // no representa el inicio real de la columna.
+    const xCantMax = 82;
+    const xSkuMin = 82;
+    const xProductoMin = 218;
+    const xPrecioMin = 445;
 
-      if (!dentroTabla) return;
+    const lineasTabla = [];
 
-      if (/^\d+(?:[.,]\d+)?\s+/.test(linea)) {
-        if (filaActual) {
-          filas.push(filaActual.trim());
-        }
+    for (let index = indiceHeader + 1; index < lineas.length; index++) {
+      const linea = lineas[index];
+      const texto = limpiarTexto(linea.texto);
 
-        filaActual = linea;
-      } else if (filaActual) {
-        filaActual += ` ${linea}`;
+      if (/^Total:/i.test(texto)) break;
+
+      lineasTabla.push(linea);
+    }
+
+    const indicesInicio = [];
+
+    lineasTabla.forEach((linea, index) => {
+      const cantidadItem = linea.items.find((item) => {
+        const texto = `${item.texto || ""}`.trim();
+
+        return item.x < xCantMax && /^\d+(?:[.,]\d+)?$/.test(texto);
+      });
+
+      if (cantidadItem) {
+        indicesInicio.push({
+          index,
+          cantidad:
+            Number(`${cantidadItem.texto}`.replace(",", ".")) || 1,
+        });
       }
     });
 
-    if (filaActual) {
-      filas.push(filaActual.trim());
-    }
+    const filas = [];
 
-    function separarSkuYDetalle(resto) {
-      const texto = `${resto || ""}`.replace(/\s+/g, " ").trim();
+    indicesInicio.forEach((inicio, posicion) => {
+      const siguienteInicio =
+        indicesInicio[posicion + 1]?.index ?? lineasTabla.length;
 
-      const matchPack = texto.match(
-        /^(PACK\s+10\s+TAGS\s+MIFARE\s+BLANCO)\s+(.+)$/i
-      );
+      const bloque = lineasTabla.slice(inicio.index, siguienteInicio);
 
-      if (matchPack) {
-        return {
-          sku: matchPack[1],
-          detalle: matchPack[2],
-        };
-      }
+      const skuPartes = [];
+      const productoPartes = [];
+      const precios = [];
 
-      const palabras = texto.split(" ").filter(Boolean);
+      bloque.forEach((linea) => {
+        const textoLinea = limpiarTexto(linea.texto);
+        const preciosLinea = textoLinea.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
 
-      const iniciosProducto = [
-        "portero",
-        "monitor",
-        "switch",
-        "dvr",
-        "camara",
-        "cámara",
-        "par",
-        "fuente",
-        "zapatilla",
-        "disco",
-        "central",
-        "lector",
-        "bateria",
-        "batería",
-        "cerradura",
-        "herraje",
-        "soporte",
-        "kit",
-        "sensor",
-        "modulo",
-        "módulo",
-        "control",
-        "teclado",
-        "detector",
-        "sirena",
-        "balun",
-        "cable",
-        "gabinete",
-      ];
+        preciosLinea.forEach((precioTexto) => {
+          const precio = normalizarPrecio(precioTexto);
 
-      const posiblesCortes = [];
+          if (precio > 0) {
+            precios.push(precio);
+          }
+        });
 
-      palabras.forEach((palabra, index) => {
-        if (index === 0) return;
+        linea.items.forEach((item) => {
+          const texto = limpiarTexto(item.texto);
 
-        const desdeAca = palabras.slice(index).join(" ").toLowerCase();
+          if (!texto) return;
 
-        if (
-          iniciosProducto.some((inicio) =>
-            desdeAca.startsWith(`${inicio} `)
-          )
-        ) {
-          posiblesCortes.push(index);
-        }
+          // Cantidad
+          if (/^\d+(?:[.,]\d+)?$/.test(texto) && item.x < xCantMax) return;
+
+          // Signo $ o valores numéricos de columnas de precio/subtotal
+          if (/^\$/.test(texto)) return;
+          if (/^[\d.]+(?:,\d+)?$/.test(texto) && item.x >= xPrecioMin - 20) {
+            return;
+          }
+
+          // Columna SKU real de Integra
+          if (item.x >= xSkuMin && item.x < xProductoMin) {
+            skuPartes.push(texto);
+            return;
+          }
+
+          // Columna Producto real de Integra
+          if (item.x >= xProductoMin && item.x < xPrecioMin) {
+            productoPartes.push(texto);
+          }
+        });
       });
 
-      if (posiblesCortes.length > 0) {
-        const corte = posiblesCortes[0];
+      const sku = limpiarTexto(skuPartes.join(" "));
+      const detalle = limpiarTexto(productoPartes.join(" "));
 
-        return {
-          sku: palabras.slice(0, corte).join(" "),
-          detalle: palabras.slice(corte).join(" "),
-        };
-      }
+      const precioElegido =
+        modo === "gremio" && precios.length >= 2
+          ? precios[1]
+          : precios[0];
 
-      // Fallback conservador: evita poner toda la descripción larga como SKU.
-      // Toma hasta 4 palabras como código corto y deja el resto como detalle.
-      const corteFallback = Math.min(4, Math.max(1, palabras.length - 1));
-
-      return {
-        sku: palabras.slice(0, corteFallback).join(" "),
-        detalle: palabras.slice(corteFallback).join(" "),
-      };
-    }
-
-    return filas
-      .map((fila) => {
-        const preciosTexto = fila.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
-
-        if (preciosTexto.length === 0) return null;
-
-        const precios = preciosTexto
-          .map((precioTexto) => normalizarPrecio(precioTexto))
-          .filter((precio) => precio > 0);
-
-        if (precios.length === 0) return null;
-
-        const sinPrecios = fila
-          .replace(/\$\s*[\d.]+(?:,\d+)?/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        const matchBase = sinPrecios.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/);
-
-        if (!matchBase) return null;
-
-        const cantidad =
-          Number(`${matchBase[1] || "1"}`.replace(",", ".")) || 1;
-        const resto = matchBase[2];
-
-        const { sku, detalle } = separarSkuYDetalle(resto);
-
-        const precioElegido =
-          modo === "gremio" && precios.length >= 2
-            ? precios[1]
-            : precios[0];
-
-        return {
-          cantidad,
+      if (sku && detalle && precioElegido > 0) {
+        filas.push({
+          cantidad: inicio.cantidad || 1,
           sku: normalizarSku(sku),
-          descripcion: sku.trim(),
-          detalle: `${detalle || ""}`.trim(),
+          descripcion: sku,
+          detalle,
           precio: precioElegido,
-        };
-      })
-      .filter(
-        (item) =>
-          item &&
-          item.sku &&
-          item.descripcion &&
-          item.detalle &&
-          item.precio > 0
-      );
+        });
+      }
+    });
+
+    return filas.filter(
+      (item) =>
+        item &&
+        item.sku &&
+        item.descripcion &&
+        item.detalle &&
+        item.precio > 0
+    );
   }
 
   function detectarCategoriaInicial(item, existente) {
@@ -932,7 +896,7 @@ export default function Articulos() {
               {previewImportacion.map((item, index) => (
                 <div
                   key={`${item.sku}-${index}`}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[180px_1fr_150px_220px_120px] gap-3 md:items-start"
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[260px_1fr_150px_220px_120px] gap-3 md:items-start"
                 >
                   <div>
                     <p className="text-zinc-500 text-xs mb-1">SKU</p>
