@@ -37,6 +37,10 @@ export default function Presupuestos() {
     React.useState(false);
   const [articulos, setArticulos] = React.useState([]);
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
+  const [categoriaBusquedaArticulo, setCategoriaBusquedaArticulo] = React.useState("Todas");
+  const [mostrarFiltroCategoriasArticulo, setMostrarFiltroCategoriasArticulo] = React.useState(false);
+  const [mostrarResumenTotal, setMostrarResumenTotal] = React.useState(false);
+  const [ajustePorcentaje, setAjustePorcentaje] = React.useState(0);
 
   const [mostrarPlantillas, setMostrarPlantillas] = React.useState(false);
   const [mostrarMenuFlotante, setMostrarMenuFlotante] = React.useState(false);
@@ -949,7 +953,11 @@ export default function Presupuestos() {
   }, 0);
 
   const iva = 0;
-  const total = subtotal;
+
+  const ajusteMonto =
+    subtotal * ((Number(ajustePorcentaje) || 0) / 100);
+
+  const total = subtotal + ajusteMonto;
 
   async function guardarPresupuesto() {
     if (guardando) return;
@@ -1174,7 +1182,17 @@ export default function Presupuestos() {
       ${articulo.tipo || ""}
     `.toLowerCase();
 
-    return texto.includes(busquedaArticulo.toLowerCase());
+    const coincideBusqueda = texto.includes(
+      busquedaArticulo.toLowerCase()
+    );
+
+    const coincideCategoria =
+      categoriaBusquedaArticulo === "Todas"
+        ? true
+        : `${articulo.categoria || ""}`.toLowerCase() ===
+          categoriaBusquedaArticulo.toLowerCase();
+
+    return coincideBusqueda && coincideCategoria;
   });
 
   const plantillasFiltradas = plantillas.filter((plantilla) =>
@@ -1529,7 +1547,7 @@ export default function Presupuestos() {
 
 
           {mostrarPlantillas && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 mb-6">
               <input
                 type="text"
                 placeholder="Buscar plantilla..."
@@ -1568,13 +1586,65 @@ export default function Presupuestos() {
 
           {mostrarBiblioteca && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-6">
-              <input
-                type="text"
-                placeholder="Buscar artículo..."
-                value={busquedaArticulo}
-                onChange={(e) => setBusquedaArticulo(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 mb-5"
-              />
+              <div className="grid grid-cols-[1fr_auto] gap-3 mb-5 items-stretch">
+                <input
+                  type="text"
+                  placeholder="Buscar artículo..."
+                  value={busquedaArticulo}
+                  onChange={(e) => setBusquedaArticulo(e.target.value)}
+                  className="min-w-0 w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                />
+
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setMostrarFiltroCategoriasArticulo(
+                        !mostrarFiltroCategoriasArticulo
+                      )
+                    }
+                    className="h-full bg-zinc-800 hover:bg-zinc-700 px-3 md:px-4 rounded-2xl font-bold min-w-[92px] md:min-w-[120px] max-w-[120px] md:max-w-[180px] truncate"
+                  >
+                    {categoriaBusquedaArticulo === "Todas"
+                      ? "Filtro"
+                      : categoriaBusquedaArticulo}
+                  </button>
+
+                  {mostrarFiltroCategoriasArticulo && (
+                    <div className="absolute right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl z-[120] shadow-2xl w-[260px] max-w-[calc(100vw-2rem)] max-h-[55vh] overflow-y-auto overscroll-contain">
+                      <button
+                        onClick={() => {
+                          setCategoriaBusquedaArticulo("Todas");
+                          setMostrarFiltroCategoriasArticulo(false);
+                        }}
+                        className={
+                          categoriaBusquedaArticulo === "Todas"
+                            ? "w-full text-left px-5 py-4 bg-orange-500/20 text-orange-400 font-bold"
+                            : "w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                        }
+                      >
+                        Todas
+                      </button>
+
+                      {categorias.map((categoria) => (
+                        <button
+                          key={categoria.id}
+                          onClick={() => {
+                            setCategoriaBusquedaArticulo(categoria.nombre);
+                            setMostrarFiltroCategoriasArticulo(false);
+                          }}
+                          className={
+                            categoriaBusquedaArticulo === categoria.nombre
+                              ? "w-full text-left px-5 py-4 bg-orange-500/20 text-orange-400 font-bold"
+                              : "w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                          }
+                        >
+                          {categoria.nombre}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <div className="space-y-3 max-h-[420px] overflow-auto">
                 {articulosFiltrados.map((articulo) => (
@@ -1831,48 +1901,95 @@ export default function Presupuestos() {
 
           <div className="fixed left-0 right-0 bottom-0 z-50 bg-black/90 border-t border-zinc-800 backdrop-blur">
             <div className="max-w-7xl mx-auto p-3 md:p-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 md:p-4 flex items-center justify-between gap-3">
-                <div className="text-sm text-zinc-400">
-                  <p>
-                    {items.length} ítems
-                  </p>
-
-                  <p className="hidden sm:block">
-                    Factura C - IVA no discriminado
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-4 md:gap-8">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-zinc-500 text-sm">
-                      Subtotal
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMostrarResumenTotal(!mostrarResumenTotal)
+                  }
+                  className="w-full p-3 md:p-4 flex items-center justify-between gap-3"
+                >
+                  <div className="text-sm text-zinc-400 text-left">
+                    <p>
+                      {items.length} ítems
                     </p>
 
-                    <p className="font-bold">
-                      {moneda === "USD" ? "USD $" : "$"}
-                      {subtotal.toLocaleString()}
+                    <p className="hidden sm:block">
+                      Factura C - IVA no discriminado
                     </p>
                   </div>
 
-                  <div className="text-right">
-                    <p className="text-zinc-500 text-sm">
-                      Total
-                    </p>
+                  <div className="flex items-center gap-4 md:gap-8">
+                    <div className="text-right">
+                      <p className="text-zinc-500 text-sm">
+                        Total
+                      </p>
 
-                    <p className="text-orange-500 font-black text-xl md:text-2xl">
-                      {moneda === "USD" ? "USD $" : "$"}
-                      {total.toLocaleString()}
-                    </p>
+                      <p className="text-orange-500 font-black text-xl md:text-2xl">
+                        {moneda === "USD" ? "USD $" : "$"}
+                        {total.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div className="text-zinc-500">
+                      {mostrarResumenTotal ? "▲" : "▼"}
+                    </div>
                   </div>
+                </button>
 
-                  <button
-                    onClick={guardarPresupuesto}
-                    disabled={guardando}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-4 md:px-6 py-3 rounded-xl font-bold"
-                  >
-                    {guardando ? "..." : "Guardar"}
-                  </button>
-                </div>
+                {mostrarResumenTotal && (
+                  <div className="border-t border-zinc-800 p-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+                        <p className="text-zinc-500 text-sm">
+                          Subtotal
+                        </p>
+
+                        <p className="font-black text-xl mt-1">
+                          {moneda === "USD" ? "USD $" : "$"}
+                          {subtotal.toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-500 text-sm mb-2">
+                          Ajuste %
+                        </label>
+
+                        <input
+                          type="number"
+                          value={ajustePorcentaje}
+                          onChange={(e) =>
+                            setAjustePorcentaje(e.target.value)
+                          }
+                          placeholder="Ej: 10 o -10"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                        />
+                      </div>
+
+                      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+                        <p className="text-zinc-500 text-sm">
+                          Total final
+                        </p>
+
+                        <p className="text-orange-500 font-black text-2xl mt-1">
+                          {moneda === "USD" ? "USD $" : "$"}
+                          {total.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        onClick={guardarPresupuesto}
+                        disabled={guardando}
+                        className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-6 py-4 rounded-2xl font-bold"
+                      >
+                        {guardando ? "..." : "Guardar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
