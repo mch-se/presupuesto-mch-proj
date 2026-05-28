@@ -40,7 +40,8 @@ export default function Presupuestos() {
   const [categoriaBusquedaArticulo, setCategoriaBusquedaArticulo] = React.useState("Todas");
   const [mostrarFiltroCategoriasArticulo, setMostrarFiltroCategoriasArticulo] = React.useState(false);
   const [mostrarResumenTotal, setMostrarResumenTotal] = React.useState(false);
-  const [ajustePorcentaje, setAjustePorcentaje] = React.useState(0);
+  const [descuentoPorcentaje, setDescuentoPorcentaje] = React.useState(0);
+  const [recargoPorcentaje, setRecargoPorcentaje] = React.useState(0);
 
   const [mostrarPlantillas, setMostrarPlantillas] = React.useState(false);
   const [mostrarMenuFlotante, setMostrarMenuFlotante] = React.useState(false);
@@ -214,7 +215,15 @@ export default function Presupuestos() {
       .select("*")
       .eq("presupuesto_id", id);
 
-    setItems(itemsData || []);
+    setItems(
+      (itemsData || []).map((item) => ({
+        ...item,
+        precio_costo: item.precio_costo ?? item.costo ?? 0,
+        costo: item.precio_costo ?? item.costo ?? 0,
+        precio_final: item.precio_final ?? item.precio ?? 0,
+        actualizar_biblioteca: false,
+      }))
+    );
   }
 
   async function generarNumeroPresupuesto() {
@@ -840,6 +849,12 @@ export default function Presupuestos() {
           if (error) throw error;
         }
 
+        const precioCostoItem =
+          tipoImportacionProveedor === "gremio" ? item.precio || 0 : 0;
+
+        const precioFinalItem =
+          tipoImportacionProveedor === "final" ? item.precio || 0 : item.precio || 0;
+
         itemsParaPresupuesto.push({
           descripcion: item.descripcion,
           detalle: item.detalle || "",
@@ -848,7 +863,12 @@ export default function Presupuestos() {
           categoria: categoriaSeleccionada?.nombre || "",
           tipo: tipoMaterial?.nombre || "Material",
           cantidad: item.cantidad || 1,
-          precio: item.precio || 0,
+          precio: precioFinalItem,
+          precio_costo: precioCostoItem,
+          costo: precioCostoItem,
+          precio_final: precioFinalItem,
+          articulo_id: item.articuloId || null,
+          actualizar_biblioteca: false,
         });
       }
 
@@ -877,6 +897,11 @@ export default function Presupuestos() {
         tipo: "",
         cantidad: 1,
         precio: 0,
+        precio_costo: 0,
+        costo: 0,
+        precio_final: 0,
+        articulo_id: null,
+        actualizar_biblioteca: false,
       },
     ]);
   }
@@ -885,6 +910,14 @@ export default function Presupuestos() {
     const nuevosItems = [...items];
 
     nuevosItems[index][campo] = valor;
+
+    if (campo === "precio_costo") {
+      nuevosItems[index].costo = valor;
+    }
+
+    if (campo === "precio") {
+      nuevosItems[index].precio_final = valor;
+    }
 
     if (campo === "categoria_id") {
       nuevosItems[index].categoria = nombreCategoriaPorId(valor);
@@ -901,7 +934,49 @@ export default function Presupuestos() {
     setItems(items.filter((_, i) => i !== index));
   }
 
+  async function actualizarBibliotecaDesdeItems(itemsBase) {
+    const itemsActualizar = (itemsBase || []).filter(
+      (item) => item.actualizar_biblioteca && item.articulo_id
+    );
+
+    for (const item of itemsActualizar) {
+      const tipo = `${item.tipo || ""}`.toLowerCase().trim();
+
+      const precioCosto =
+        Number(item.precio_costo ?? item.costo ?? 0) || 0;
+
+      const precioFinal =
+        Number(item.precio_final ?? item.precio ?? 0) || 0;
+
+      const datosArticulo = {
+        precio_final: precioFinal,
+        precio: precioFinal,
+      };
+
+      if (tipo === "material") {
+        datosArticulo.precio_costo = precioCosto;
+        datosArticulo.costo = precioCosto;
+      }
+
+      const { error } = await supabase
+        .from("articulos")
+        .update(datosArticulo)
+        .eq("id", item.articulo_id);
+
+      if (error) {
+        throw error;
+      }
+    }
+  }
+
+
   function agregarArticuloAlPresupuesto(articulo) {
+    const precioCosto =
+      Number(articulo.precio_costo ?? articulo.costo ?? 0) || 0;
+
+    const precioFinal =
+      Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
+
     setItems([
       ...items,
       {
@@ -912,7 +987,12 @@ export default function Presupuestos() {
         categoria: articulo.categoria || "",
         tipo: articulo.tipo || "",
         cantidad: 1,
-        precio: articulo.precio || 0,
+        precio: precioFinal,
+        precio_costo: precioCosto,
+        costo: precioCosto,
+        precio_final: precioFinal,
+        articulo_id: articulo.id || null,
+        actualizar_biblioteca: false,
       },
     ]);
 
@@ -940,6 +1020,11 @@ export default function Presupuestos() {
       tipo: item.tipo || "",
       cantidad: item.cantidad || 1,
       precio: item.precio || 0,
+      precio_costo: item.precio_costo ?? item.costo ?? 0,
+      costo: item.precio_costo ?? item.costo ?? 0,
+      precio_final: item.precio_final ?? item.precio ?? 0,
+      articulo_id: item.articulo_id || null,
+      actualizar_biblioteca: false,
     }));
 
     setItems([...items, ...nuevosItems]);
@@ -954,10 +1039,13 @@ export default function Presupuestos() {
 
   const iva = 0;
 
-  const ajusteMonto =
-    subtotal * ((Number(ajustePorcentaje) || 0) / 100);
+  const descuentoMonto =
+    subtotal * ((Number(descuentoPorcentaje) || 0) / 100);
 
-  const total = subtotal + ajusteMonto;
+  const recargoMonto =
+    subtotal * ((Number(recargoPorcentaje) || 0) / 100);
+
+  const total = subtotal - descuentoMonto + recargoMonto;
 
   async function guardarPresupuesto() {
     if (guardando) return;
@@ -1086,6 +1174,10 @@ export default function Presupuestos() {
           tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
+          precio_costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
+          costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
+          precio_final: Number(item.precio_final ?? item.precio ?? 0) || 0,
+          articulo_id: item.articulo_id || null,
           subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
@@ -1134,6 +1226,10 @@ export default function Presupuestos() {
           tipo: item.tipo || nombreTipoPorId(item.tipo_id),
           cantidad: Number(item.cantidad) || 0,
           precio: Number(item.precio) || 0,
+          precio_costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
+          costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
+          precio_final: Number(item.precio_final ?? item.precio ?? 0) || 0,
+          articulo_id: item.articulo_id || null,
           subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
 
@@ -1151,6 +1247,8 @@ export default function Presupuestos() {
 
         mostrarToast("Presupuesto guardado", "ok");
       }
+
+      await actualizarBibliotecaDesdeItems(items);
 
       setTimeout(() => {
         navigate("/historial");
@@ -1798,23 +1896,71 @@ export default function Presupuestos() {
                           className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-24 text-zinc-300"
                         />
 
-                        <div>
-                          <label className="block text-zinc-500 text-sm mb-2">
-                            Precio unitario
-                          </label>
+                        <div className="space-y-4">
+                          {`${item.tipo || ""}`.toLowerCase() === "material" && (
+                            <div>
+                              <label className="block text-zinc-500 text-sm mb-2">
+                                Costo gremio / proveedor
+                              </label>
 
-                          <input
-                            type="number"
-                            value={item.precio}
-                            onChange={(e) =>
-                              actualizarItem(
-                                index,
-                                "precio",
-                                e.target.value
-                              )
-                            }
-                            className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                          />
+                              <input
+                                type="number"
+                                value={item.precio_costo ?? item.costo ?? 0}
+                                onChange={(e) =>
+                                  actualizarItem(
+                                    index,
+                                    "precio_costo",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                              />
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block text-zinc-500 text-sm mb-2">
+                              Precio venta
+                            </label>
+
+                            <input
+                              type="number"
+                              value={item.precio}
+                              onChange={(e) => {
+                                actualizarItem(
+                                  index,
+                                  "precio",
+                                  e.target.value
+                                );
+
+                                actualizarItem(
+                                  index,
+                                  "precio_final",
+                                  e.target.value
+                                );
+                              }}
+                              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                            />
+                          </div>
+
+                          {item.articulo_id && (
+                            <label className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-sm font-bold">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(item.actualizar_biblioteca)}
+                                onChange={(e) =>
+                                  actualizarItem(
+                                    index,
+                                    "actualizar_biblioteca",
+                                    e.target.checked
+                                  )
+                                }
+                                className="w-5 h-5"
+                              />
+
+                              Actualizar artículo en biblioteca
+                            </label>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1939,7 +2085,7 @@ export default function Presupuestos() {
 
                 {mostrarResumenTotal && (
                   <div className="border-t border-zinc-800 p-4 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                         <p className="text-zinc-500 text-sm">
                           Subtotal
@@ -1953,18 +2099,46 @@ export default function Presupuestos() {
 
                       <div>
                         <label className="block text-zinc-500 text-sm mb-2">
-                          Ajuste %
+                          Descuento %
                         </label>
 
                         <input
                           type="number"
-                          value={ajustePorcentaje}
+                          min="0"
+                          value={descuentoPorcentaje}
                           onChange={(e) =>
-                            setAjustePorcentaje(e.target.value)
+                            setDescuentoPorcentaje(e.target.value)
                           }
-                          placeholder="Ej: 10 o -10"
+                          placeholder="Ej: 10"
                           className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                         />
+
+                        <p className="text-red-400 text-sm mt-2">
+                          - {moneda === "USD" ? "USD $" : "$"}
+                          {descuentoMonto.toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-500 text-sm mb-2">
+                          Recargo %
+                        </label>
+
+                        <input
+                          type="number"
+                          min="0"
+                          value={recargoPorcentaje}
+                          onChange={(e) =>
+                            setRecargoPorcentaje(e.target.value)
+                          }
+                          placeholder="Ej: 10"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                        />
+
+                        <p className="text-green-400 text-sm mt-2">
+                          + {moneda === "USD" ? "USD $" : "$"}
+                          {recargoMonto.toLocaleString()}
+                        </p>
                       </div>
 
                       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
