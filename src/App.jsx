@@ -26,6 +26,7 @@ import AdminUsuarios from "./pages/AdminUsuarios";
 import CategoriasArticulos from "./pages/CategoriasArticulos";
 import TiposArticulos from "./pages/TiposArticulos";
 import Estadisticas from "./pages/Estadisticas";
+import Liquidaciones from "./pages/Liquidaciones";
 
 export default function App() {
   const [session, setSession] = React.useState(null);
@@ -482,6 +483,15 @@ export default function App() {
               <RutaProtegida>
                 <Estadisticas />
               </RutaProtegida>
+            }
+          />
+
+          <Route
+           path="/liquidaciones"
+           element={
+             <RutaProtegida>
+              <Liquidaciones />
+           </RutaProtegida>
             }
           />
 

@@ -102,6 +102,11 @@ export default function Layout({ children }) {
       texto: "Estadísticas",
       url: "/estadisticas",
     },
+    
+    {
+      texto: "Liquidaciones",
+      url: "/liquidaciones",
+    },
 
     {
       texto: "Mi Cuenta",
