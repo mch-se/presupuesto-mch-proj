@@ -12,10 +12,11 @@ export default function Liquidaciones() {
   const [liquidaciones, setLiquidaciones] = React.useState([]);
   const [gastos, setGastos] = React.useState([]);
   const [historial, setHistorial] = React.useState([]);
+  const [socios, setSocios] = React.useState([]);
 
   const [presupuestoActivo, setPresupuestoActivo] = React.useState(null);
 
-  const [socioGasto, setSocioGasto] = React.useState("Socio 1");
+  const [socioGasto, setSocioGasto] = React.useState("");
   const [conceptoGasto, setConceptoGasto] = React.useState("");
   const [montoGasto, setMontoGasto] = React.useState("");
 
@@ -121,6 +122,25 @@ export default function Liquidaciones() {
       historialData = historialResp || [];
     }
 
+    const { data: sociosData, error: errorSocios } = await supabase
+      .from("profiles")
+      .select("id, alias, email, rol, activo")
+      .eq("rol", "socio")
+      .eq("activo", true)
+      .order("alias");
+
+    if (errorSocios) {
+      mostrarToast(errorSocios.message, "error");
+    }
+
+    const sociosActivos = sociosData || [];
+
+    setSocios(sociosActivos);
+
+    if (!socioGasto && sociosActivos.length > 0) {
+      setSocioGasto(sociosActivos[0].alias || sociosActivos[0].email);
+    }
+
     setPresupuestos(lista);
     setItems(itemsData);
     setLiquidaciones(liquidacionesData);
@@ -178,32 +198,44 @@ export default function Liquidaciones() {
     const precioFinal = Number(presupuesto.total) || 0;
     const gananciaBruta = precioFinal - costoProveedor;
 
-    const gastosSocio1 = gastosPresupuesto
-      .filter((gasto) => gasto.socio === "Socio 1")
-      .reduce((acc, gasto) => acc + (Number(gasto.monto) || 0), 0);
+    const gastosPorSocio = socios.map((socio) => {
+      const nombreSocio = socio.alias || socio.email;
 
-    const gastosSocio2 = gastosPresupuesto
-      .filter((gasto) => gasto.socio === "Socio 2")
-      .reduce((acc, gasto) => acc + (Number(gasto.monto) || 0), 0);
+      const totalGastos = gastosPresupuesto
+        .filter((gasto) => gasto.socio === nombreSocio)
+        .reduce((acc, gasto) => acc + (Number(gasto.monto) || 0), 0);
 
-    const gastosTotales = gastosSocio1 + gastosSocio2;
+      return {
+        id: socio.id,
+        nombre: nombreSocio,
+        gastos: totalGastos,
+      };
+    });
+
+    const gastosTotales = gastosPorSocio.reduce(
+      (acc, socio) => acc + socio.gastos,
+      0
+    );
+
+    const cantidadSocios = socios.length || 1;
     const gananciaNeta = gananciaBruta - gastosTotales;
-    const partePorSocio = gananciaNeta / 2;
+    const partePorSocio = gananciaNeta / cantidadSocios;
 
-    const cobraSocio1 = partePorSocio + gastosSocio1;
-    const cobraSocio2 = partePorSocio + gastosSocio2;
+    const cobroPorSocio = gastosPorSocio.map((socio) => ({
+      ...socio,
+      cobra: partePorSocio + socio.gastos,
+    }));
 
     return {
       precioFinal,
       costoProveedor,
       gananciaBruta,
-      gastosSocio1,
-      gastosSocio2,
+      gastosPorSocio,
       gastosTotales,
+      cantidadSocios,
       gananciaNeta,
       partePorSocio,
-      cobraSocio1,
-      cobraSocio2,
+      cobroPorSocio,
     };
   }
 
@@ -286,6 +318,11 @@ export default function Liquidaciones() {
 
     if (liquidacion.estado === "Saldada") {
       mostrarToast("La liquidación está saldada y bloqueada", "error");
+      return;
+    }
+
+    if (!socioGasto) {
+      mostrarToast("No hay socio seleccionado", "error");
       return;
     }
 
@@ -673,25 +710,32 @@ export default function Liquidaciones() {
                   </div>
 
                   <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                    <p className="text-zinc-500 text-sm">Parte por socio</p>
+                    <p className="text-zinc-500 text-sm">
+                      Parte por socio ({resumenActivo.cantidadSocios})
+                    </p>
                     <p className="text-white font-black text-2xl mt-2">
                       {formatoMoneda(resumenActivo.partePorSocio)}
                     </p>
                   </div>
 
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                    <p className="text-zinc-500 text-sm">Socio 1 cobra</p>
-                    <p className="text-green-400 font-black text-2xl mt-2">
-                      {formatoMoneda(resumenActivo.cobraSocio1)}
-                    </p>
-                  </div>
+                  {resumenActivo.cobroPorSocio.map((socio) => (
+                    <div
+                      key={socio.id}
+                      className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                    >
+                      <p className="text-zinc-500 text-sm">
+                        {socio.nombre} cobra
+                      </p>
 
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
-                    <p className="text-zinc-500 text-sm">Socio 2 cobra</p>
-                    <p className="text-green-400 font-black text-2xl mt-2">
-                      {formatoMoneda(resumenActivo.cobraSocio2)}
-                    </p>
-                  </div>
+                      <p className="text-green-400 font-black text-2xl mt-2">
+                        {formatoMoneda(socio.cobra)}
+                      </p>
+
+                      <p className="text-zinc-500 text-xs mt-2">
+                        Gastos: {formatoMoneda(socio.gastos)}
+                      </p>
+                    </div>
+                  ))}
 
                   <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-zinc-500 text-sm">Proveedor</p>
@@ -718,15 +762,32 @@ export default function Liquidaciones() {
                   Gastos
                 </h3>
 
-                {!bloqueada && (
-                  <div className="grid grid-cols-1 md:grid-cols-[150px_1fr_160px_auto] gap-3 mb-5">
+                {!bloqueada && socios.length === 0 && (
+                  <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-2xl p-4 mb-5 font-bold">
+                    No hay socios activos. Activá usuarios con rol socio desde Admin.
+                  </div>
+                )}
+
+                {!bloqueada && socios.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-[180px_1fr_160px_auto] gap-3 mb-5">
                     <select
                       value={socioGasto}
                       onChange={(e) => setSocioGasto(e.target.value)}
                       className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                     >
-                      <option>Socio 1</option>
-                      <option>Socio 2</option>
+                      {socios.length === 0 && (
+                        <option value="">Sin socios activos</option>
+                      )}
+
+                      {socios.map((socio) => {
+                        const nombreSocio = socio.alias || socio.email;
+
+                        return (
+                          <option key={socio.id} value={nombreSocio}>
+                            {nombreSocio}
+                          </option>
+                        );
+                      })}
                     </select>
 
                     <input

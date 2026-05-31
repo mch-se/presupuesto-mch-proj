@@ -5,7 +5,6 @@ import { supabase } from "../lib/supabase";
 export default function Login() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [alias, setAlias] = React.useState("");
 
   async function registrarse() {
     const { data, error } = await supabase.auth.signUp({
@@ -25,12 +24,15 @@ export default function Login() {
         {
           id: user.id,
           email: user.email,
-          alias: alias,
+          rol: "pendiente",
+          activo: true,
         },
       ]);
     }
 
-    alert("Usuario registrado");
+    alert(
+      "Usuario registrado. Un administrador deberá asignar alias y permisos."
+    );
   }
 
   async function iniciarSesion() {
@@ -67,14 +69,6 @@ export default function Login() {
           />
 
           <input
-            type="text"
-            placeholder="Alias"
-            value={alias}
-            onChange={(e) => setAlias(e.target.value)}
-            className="w-full border-2 border-gray-300 p-4 rounded-xl"
-          />
-
-          <input
             type="password"
             placeholder="Contraseña"
             value={password}
@@ -95,6 +89,7 @@ export default function Login() {
           >
             Registrarse
           </button>
+
         </div>
       </div>
     </div>
