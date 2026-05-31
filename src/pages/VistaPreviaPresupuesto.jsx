@@ -175,6 +175,16 @@ Otros medios de pago pueden incluir recargos.
 Incluye configuración y puesta en marcha salvo aclaración previa.
 No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
 
+  const terminosCondiciones =
+    configuracion?.terminos_condiciones_pdf ||
+    `Emitimos Factura C.
+
+Los importes son por pago en efectivo o transferencia bancaria al momento de finalizar el trabajo. Para otros medios de pago se aplicará un recargo del 6%.
+
+En caso de que el pago no se realice al finalizar el trabajo, o en el día pactado previamente, se aplicará un recargo proporcional a los días transcurridos del 3% diario.
+
+Debido a la inestabilidad monetaria, el presupuesto solo es válido por 5 días, sujeto a modificaciones.`;
+
   const generadoPor = configuracion?.firma_pdf || alias;
 
   const puedeCompartir =
@@ -417,17 +427,43 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
           </div>
 
           <div className="mt-8 border-t pt-6 text-xs text-zinc-700 bloque-corto">
-            <p className="font-bold text-black mb-3">Condiciones comerciales</p>
-
-            <p className="whitespace-pre-wrap leading-relaxed">{condiciones}</p>
-
             {generadoPor && (
-              <p className="mt-4 text-zinc-500">Generado por: {generadoPor}</p>
+              <p className="text-zinc-500">Generado por: {generadoPor}</p>
             )}
 
             {configuracion?.pie_presupuesto && (
               <p className="mt-3 text-zinc-500 whitespace-pre-wrap">
                 {configuracion.pie_presupuesto}
+              </p>
+            )}
+          </div>
+
+          <div
+            className="bg-white text-black"
+            style={{
+              pageBreakBefore: "always",
+              breakBefore: "page",
+              minHeight: "1123px",
+              paddingTop: "48px",
+            }}
+          >
+            <div className="border-b pb-6 mb-8">
+              <p className="text-zinc-500 text-sm uppercase tracking-wide">
+                Presupuesto #{presupuesto.numero}
+              </p>
+
+              <h1 className="text-4xl font-black text-orange-500 mt-2">
+                Términos y condiciones
+              </h1>
+            </div>
+
+            <div className="text-zinc-800 text-base leading-relaxed whitespace-pre-wrap">
+              {terminosCondiciones}
+            </div>
+
+            {configuracion?.nombre_empresa && (
+              <p className="mt-12 text-zinc-500 text-sm">
+                {configuracion.nombre_empresa}
               </p>
             )}
           </div>

@@ -58,6 +58,21 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
     setPiePresupuesto] =
     React.useState("");
 
+  const textoTerminosDefault =
+`Emitimos Factura C.
+
+Los importes son por pago en efectivo o transferencia bancaria al momento de finalizar el trabajo. Para otros medios de pago se aplicará un recargo del 6%.
+
+En caso de que el pago no se realice al finalizar el trabajo, o en el día pactado previamente, se aplicará un recargo proporcional a los días transcurridos del 3% diario.
+
+Debido a la inestabilidad monetaria, el presupuesto solo es válido por 5 días, sujeto a modificaciones.`;
+
+  const [terminosCondicionesPdf,
+    setTerminosCondicionesPdf] =
+    React.useState(
+      textoTerminosDefault
+    );
+
   const [loading, setLoading] =
     React.useState(true);
 
@@ -135,6 +150,11 @@ No incluye trabajos civiles, cañerías o cablecanal salvo aclaración.`;
 
       setPiePresupuesto(
         config.pie_presupuesto || ""
+      );
+
+      setTerminosCondicionesPdf(
+        config.terminos_condiciones_pdf ||
+        textoTerminosDefault
       );
     }
 
@@ -261,6 +281,9 @@ const nombreArchivo =
 
       pie_presupuesto:
         piePresupuesto,
+
+      terminos_condiciones_pdf:
+        terminosCondicionesPdf,
 
       logo_url:
         logoUrl,
@@ -606,17 +629,27 @@ const nombreArchivo =
 
           <div className="space-y-6">
 
-            <textarea
-              placeholder="Condiciones comerciales"
-              value={condicionesComerciales}
-              disabled={!puedeEditarPdf}
-              onChange={(e) =>
-                setCondicionesComerciales(
-                  e.target.value
-                )
-              }
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-40"
-            />
+            <div>
+              <label className="block text-zinc-400 font-bold mb-2">
+                Términos y condiciones PDF
+              </label>
+
+              <p className="text-zinc-500 text-sm mb-3">
+                Este texto se agregará como una hoja extra al final del PDF.
+              </p>
+
+              <textarea
+                placeholder="Términos y condiciones"
+                value={terminosCondicionesPdf}
+                disabled={!puedeEditarPdf}
+                onChange={(e) =>
+                  setTerminosCondicionesPdf(
+                    e.target.value
+                  )
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-64"
+              />
+            </div>
 
             <input
               placeholder="Firma / aclaración PDF"
