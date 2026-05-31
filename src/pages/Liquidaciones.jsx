@@ -312,95 +312,117 @@ export default function Liquidaciones() {
   }
 
   async function agregarGasto() {
-    if (!presupuestoActivo) return;
+    try {
+      if (!presupuestoActivo) return;
 
-    const liquidacion = await crearLiquidacionSiNoExiste(presupuestoActivo.id);
+      const liquidacion = await crearLiquidacionSiNoExiste(presupuestoActivo.id);
 
-    if (liquidacion.estado === "Saldada") {
-      mostrarToast("La liquidación está saldada y bloqueada", "error");
-      return;
+      if (liquidacion.estado === "Saldada") {
+        mostrarToast("La liquidación está saldada y bloqueada", "error");
+        return;
+      }
+
+      if (!socioGasto) {
+        mostrarToast("No hay socio seleccionado", "error");
+        return;
+      }
+
+      if (!conceptoGasto.trim()) {
+        mostrarToast("Ingresar concepto del gasto", "error");
+        return;
+      }
+
+      const monto = Number(montoGasto) || 0;
+
+      if (monto <= 0) {
+        mostrarToast("Ingresar monto válido", "error");
+        return;
+      }
+
+      const { user } = await obtenerUsuarioActual();
+
+      const { data, error } = await supabase
+        .from("liquidacion_gastos")
+        .insert([
+          {
+            liquidacion_id: liquidacion.id,
+            presupuesto_id: presupuestoActivo.id,
+            socio: socioGasto,
+            concepto: conceptoGasto.trim(),
+            monto,
+            created_by: user?.id || null,
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        mostrarToast(error.message, "error");
+        return;
+      }
+
+      await registrarHistorial(
+        liquidacion.id,
+        presupuestoActivo.id,
+        "Agregar gasto",
+        `${socioGasto} · ${conceptoGasto.trim()} · ${formatoMoneda(monto)}`
+      );
+
+      if (data) {
+        setGastos((actuales) => [data, ...actuales]);
+      }
+
+      setConceptoGasto("");
+      setMontoGasto("");
+
+      await cargarDatos();
+      mostrarToast("Gasto agregado", "ok");
+    } catch (error) {
+      console.error(error);
+      mostrarToast(error.message || "No se pudo agregar el gasto", "error");
     }
-
-    if (!socioGasto) {
-      mostrarToast("No hay socio seleccionado", "error");
-      return;
-    }
-
-    if (!conceptoGasto.trim()) {
-      mostrarToast("Ingresar concepto del gasto", "error");
-      return;
-    }
-
-    const monto = Number(montoGasto) || 0;
-
-    if (monto <= 0) {
-      mostrarToast("Ingresar monto válido", "error");
-      return;
-    }
-
-    const { user } = await obtenerUsuarioActual();
-
-    const { error } = await supabase.from("liquidacion_gastos").insert([
-      {
-        liquidacion_id: liquidacion.id,
-        presupuesto_id: presupuestoActivo.id,
-        socio: socioGasto,
-        concepto: conceptoGasto.trim(),
-        monto,
-        created_by: user?.id || null,
-      },
-    ]);
-
-    if (error) {
-      mostrarToast(error.message, "error");
-      return;
-    }
-
-    await registrarHistorial(
-      liquidacion.id,
-      presupuestoActivo.id,
-      "Agregar gasto",
-      `${socioGasto} · ${conceptoGasto.trim()} · ${formatoMoneda(monto)}`
-    );
-
-    setConceptoGasto("");
-    setMontoGasto("");
-
-    await cargarDatos();
-    mostrarToast("Gasto agregado", "ok");
   }
 
   async function eliminarGasto(gasto) {
-    const liquidacion = obtenerLiquidacion(gasto.presupuesto_id);
+    try {
+      const liquidacion = obtenerLiquidacion(gasto.presupuesto_id);
 
-    if (liquidacion?.estado === "Saldada") {
-      mostrarToast("La liquidación está saldada y bloqueada", "error");
-      return;
+      if (liquidacion?.estado === "Saldada") {
+        mostrarToast("La liquidación está saldada y bloqueada", "error");
+        return;
+      }
+
+      const confirmar = window.confirm("¿Eliminar este gasto?");
+
+      if (!confirmar) return;
+
+      const { error } = await supabase
+        .from("liquidacion_gastos")
+        .delete()
+        .eq("id", gasto.id);
+
+      if (error) {
+        mostrarToast(error.message, "error");
+        return;
+      }
+
+      await registrarHistorial(
+        gasto.liquidacion_id,
+        gasto.presupuesto_id,
+        "Eliminar gasto",
+        `${gasto.socio} · ${gasto.concepto} · ${formatoMoneda(gasto.monto)}`
+      );
+
+      setGastos((actuales) =>
+        actuales.filter((gastoActual) => gastoActual.id !== gasto.id)
+      );
+
+      await cargarDatos();
+      mostrarToast("Gasto eliminado", "ok");
+    } catch (error) {
+      console.error(error);
+      mostrarToast(error.message || "No se pudo eliminar el gasto", "error");
     }
-
-    const confirmar = window.confirm("¿Eliminar este gasto?");
-
-    if (!confirmar) return;
-
-    const { error } = await supabase
-      .from("liquidacion_gastos")
-      .delete()
-      .eq("id", gasto.id);
-
-    if (error) {
-      mostrarToast(error.message, "error");
-      return;
-    }
-
-    await registrarHistorial(
-      gasto.liquidacion_id,
-      gasto.presupuesto_id,
-      "Eliminar gasto",
-      `${gasto.socio} · ${gasto.concepto} · ${formatoMoneda(gasto.monto)}`
-    );
-
-    await cargarDatos();
-    mostrarToast("Gasto eliminado", "ok");
   }
 
   async function cambiarProveedorPagado(presupuesto) {
@@ -839,9 +861,9 @@ export default function Liquidaciones() {
                         {!bloqueada && (
                           <button
                             onClick={() => eliminarGasto(gasto)}
-                            className="bg-red-500 hover:bg-red-600 w-10 h-10 rounded-xl font-black"
+                            className="bg-red-500 hover:bg-red-600 px-4 h-10 rounded-xl font-black"
                           >
-                            X
+                            Eliminar
                           </button>
                         )}
                       </div>
