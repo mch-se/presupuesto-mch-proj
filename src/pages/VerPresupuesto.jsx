@@ -362,6 +362,27 @@ export default function VerPresupuesto() {
                   <div className="col-span-6">
                     <p className="font-bold">{item.descripcion}</p>
 
+                    {Number(item.precio_base_trabajo || 0) > 0 && (
+                      <div className="mt-2 text-sm space-y-1">
+                        <p className="text-zinc-400">
+                          Base: {simbolo}
+                          {Number(item.precio_base_trabajo).toLocaleString()}
+                        </p>
+
+                        {Number(item.recargo_trabajo || 0) > 0 && (
+                          <p className="text-green-400">
+                            Recargo: +{item.recargo_trabajo}%
+                          </p>
+                        )}
+
+                        {Number(item.descuento_trabajo || 0) > 0 && (
+                          <p className="text-red-400">
+                            Descuento: -{item.descuento_trabajo}%
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {item.detalle && (
                       <p className="text-zinc-400 text-sm mt-2 whitespace-pre-wrap leading-relaxed">
                         {item.detalle}
@@ -384,6 +405,27 @@ export default function VerPresupuesto() {
 
                 <div className="md:hidden">
                   <p className="font-bold text-lg">{item.descripcion}</p>
+
+                  {Number(item.precio_base_trabajo || 0) > 0 && (
+                    <div className="mt-2 text-sm space-y-1">
+                      <p className="text-zinc-400">
+                        Base: {simbolo}
+                        {Number(item.precio_base_trabajo).toLocaleString()}
+                      </p>
+
+                      {Number(item.recargo_trabajo || 0) > 0 && (
+                        <p className="text-green-400">
+                          Recargo: +{item.recargo_trabajo}%
+                        </p>
+                      )}
+
+                      {Number(item.descuento_trabajo || 0) > 0 && (
+                        <p className="text-red-400">
+                          Descuento: -{item.descuento_trabajo}%
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {item.detalle && (
                     <p className="text-zinc-400 text-sm mt-2 whitespace-pre-wrap leading-relaxed">

@@ -392,7 +392,9 @@ export default function HistorialPresupuestos() {
                 className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4"
               >
                 <div className="flex justify-between gap-4">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1"
+                    onClick={() => abrirPresupuesto(presupuesto)}
+                    >
                     <div className="flex items-center gap-3 flex-wrap">
                       <h2 className="text-xl md:text-2xl font-black">
                         {presupuesto.numero}

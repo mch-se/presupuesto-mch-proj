@@ -13,6 +13,9 @@ export default function Articulos() {
   const [detalle, setDetalle] = React.useState("");
   const [precioCosto, setPrecioCosto] = React.useState("");
   const [precioFinal, setPrecioFinal] = React.useState("");
+  const [precioBaseTrabajo, setPrecioBaseTrabajo] = React.useState("");
+  const [descuentoTrabajo, setDescuentoTrabajo] = React.useState("");
+  const [recargoTrabajo, setRecargoTrabajo] = React.useState("");
   const [frecuente, setFrecuente] = React.useState(false);
   const [importadoProveedor, setImportadoProveedor] = React.useState(false);
   const [origenPdf, setOrigenPdf] = React.useState("");
@@ -127,11 +130,61 @@ export default function Articulos() {
     return encontrado?.nombre || articulo.tipo || "-";
   }
 
+  function esTipoTrabajo(nombre) {
+    return `${nombre || ""}`.toLowerCase().includes("trabajo");
+  }
+
+  function esTrabajoFormulario() {
+    const tipoSeleccionado = tipos.find((tipo) => tipo.id === tipoId);
+
+    return esTipoTrabajo(tipoSeleccionado?.nombre);
+  }
+
+  function esTrabajoArticulo(articulo) {
+    return esTipoTrabajo(nombreTipo(articulo));
+  }
+
+  function calcularPrecioTrabajo(base, descuento, recargo) {
+    const baseNumero = Number(base) || 0;
+    const descuentoNumero = Number(descuento) || 0;
+    const recargoNumero = Number(recargo) || 0;
+
+    return (
+      baseNumero -
+      baseNumero * (descuentoNumero / 100) +
+      baseNumero * (recargoNumero / 100)
+    );
+  }
+
+  function actualizarPrecioBaseTrabajo(valor) {
+    setPrecioBaseTrabajo(valor);
+    setPrecioFinal(
+      calcularPrecioTrabajo(valor, descuentoTrabajo, recargoTrabajo)
+    );
+  }
+
+  function actualizarDescuentoTrabajo(valor) {
+    setDescuentoTrabajo(valor);
+    setPrecioFinal(
+      calcularPrecioTrabajo(precioBaseTrabajo, valor, recargoTrabajo)
+    );
+  }
+
+  function actualizarRecargoTrabajo(valor) {
+    setRecargoTrabajo(valor);
+    setPrecioFinal(
+      calcularPrecioTrabajo(precioBaseTrabajo, descuentoTrabajo, valor)
+    );
+  }
+
   function limpiarFormulario() {
     setDescripcion("");
     setDetalle("");
     setPrecioCosto("");
     setPrecioFinal("");
+    setPrecioBaseTrabajo("");
+    setDescuentoTrabajo("");
+    setRecargoTrabajo("");
     setFrecuente(false);
     setImportadoProveedor(false);
     setOrigenPdf("");
@@ -174,16 +227,27 @@ export default function Articulos() {
 
     const alias = profile?.alias || "Administrador";
 
+    const trabajo = esTipoTrabajo(tipoSeleccionado?.nombre);
+
     const costoNumerico = precioCosto === "" ? 0 : Number(precioCosto) || 0;
     const finalNumerico = precioFinal === "" ? 0 : Number(precioFinal) || 0;
+    const baseTrabajoNumerico =
+      precioBaseTrabajo === "" ? 0 : Number(precioBaseTrabajo) || 0;
+    const descuentoTrabajoNumerico =
+      descuentoTrabajo === "" ? 0 : Number(descuentoTrabajo) || 0;
+    const recargoTrabajoNumerico =
+      recargoTrabajo === "" ? 0 : Number(recargoTrabajo) || 0;
 
     const datosArticulo = {
       descripcion,
       detalle,
       precio: finalNumerico,
-      costo: costoNumerico,
-      precio_costo: costoNumerico,
+      costo: trabajo ? 0 : costoNumerico,
+      precio_costo: trabajo ? 0 : costoNumerico,
       precio_final: finalNumerico,
+      precio_base_trabajo: trabajo ? baseTrabajoNumerico : 0,
+      descuento_trabajo: trabajo ? descuentoTrabajoNumerico : 0,
+      recargo_trabajo: trabajo ? recargoTrabajoNumerico : 0,
       frecuente,
       importado_proveedor: importadoProveedor,
       origen_pdf: origenPdf,
@@ -252,6 +316,11 @@ export default function Articulos() {
     setDetalle(articulo.detalle || "");
     setPrecioCosto(articulo.precio_costo ?? articulo.costo ?? "");
     setPrecioFinal(articulo.precio_final ?? articulo.precio ?? "");
+    setPrecioBaseTrabajo(
+      articulo.precio_base_trabajo ?? articulo.precio_final ?? articulo.precio ?? ""
+    );
+    setDescuentoTrabajo(articulo.descuento_trabajo ?? "");
+    setRecargoTrabajo(articulo.recargo_trabajo ?? "");
     setFrecuente(Boolean(articulo.frecuente) || (Number(articulo.usado_count) || 0) >= 11);
     setImportadoProveedor(Boolean(articulo.importado_proveedor));
     setOrigenPdf(articulo.origen_pdf || "");
@@ -312,6 +381,17 @@ export default function Articulos() {
 
   function precioFinalArticulo(articulo) {
     return Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
+  }
+
+  function precioBaseTrabajoArticulo(articulo) {
+    return (
+      Number(
+        articulo.precio_base_trabajo ??
+          articulo.precio_final ??
+          articulo.precio ??
+          0
+      ) || 0
+    );
   }
 
   function IconoImportadoProveedor() {
@@ -1062,16 +1142,35 @@ export default function Articulos() {
                 </div>
               </div>
 
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Costo gremio</p>
-                <p className="font-bold mt-1 text-red-400">
-                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                  {precioCostoArticulo(articuloVer).toLocaleString()}
-                </p>
-              </div>
+              {esTrabajoArticulo(articuloVer) ? (
+                <>
+                  <div className="bg-zinc-900 rounded-2xl p-4">
+                    <p className="text-zinc-500 text-sm">Precio base trabajo</p>
+                    <p className="font-bold mt-1 text-white">
+                      {articuloVer.moneda === "USD" ? "USD $" : "$"}
+                      {precioBaseTrabajoArticulo(articuloVer).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="bg-zinc-900 rounded-2xl p-4">
+                    <p className="text-zinc-500 text-sm">Ajuste trabajo</p>
+                    <p className="font-bold mt-1 text-zinc-300">
+                      -{Number(articuloVer.descuento_trabajo || 0).toLocaleString()}% / +{Number(articuloVer.recargo_trabajo || 0).toLocaleString()}%
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-zinc-900 rounded-2xl p-4">
+                  <p className="text-zinc-500 text-sm">Costo gremio</p>
+                  <p className="font-bold mt-1 text-red-400">
+                    {articuloVer.moneda === "USD" ? "USD $" : "$"}
+                    {precioCostoArticulo(articuloVer).toLocaleString()}
+                  </p>
+                </div>
+              )}
 
               <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Precio final</p>
+                <p className="text-zinc-500 text-sm">Precio venta</p>
                 <p className="font-black text-green-400 text-2xl mt-1">
                   {articuloVer.moneda === "USD" ? "USD $" : "$"}
                   {precioFinalArticulo(articuloVer).toLocaleString()}
@@ -1258,21 +1357,65 @@ export default function Articulos() {
                     className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
                   />
 
-                  <input
-                    type="number"
-                    placeholder="Costo gremio"
-                    value={precioCosto}
-                    onChange={(e) => setPrecioCosto(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
+                  {esTrabajoFormulario() ? (
+                    <>
+                      <input
+                        type="number"
+                        placeholder="Precio base trabajo"
+                        value={precioBaseTrabajo}
+                        onChange={(e) =>
+                          actualizarPrecioBaseTrabajo(e.target.value)
+                        }
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
 
-                  <input
-                    type="number"
-                    placeholder="Precio final"
-                    value={precioFinal}
-                    onChange={(e) => setPrecioFinal(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
+                      <input
+                        type="number"
+                        placeholder="% descuento trabajo"
+                        value={descuentoTrabajo}
+                        onChange={(e) =>
+                          actualizarDescuentoTrabajo(e.target.value)
+                        }
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+
+                      <input
+                        type="number"
+                        placeholder="% recargo trabajo"
+                        value={recargoTrabajo}
+                        onChange={(e) =>
+                          actualizarRecargoTrabajo(e.target.value)
+                        }
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+
+                      <input
+                        type="number"
+                        placeholder="Precio venta trabajo"
+                        value={precioFinal}
+                        onChange={(e) => setPrecioFinal(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type="number"
+                        placeholder="Costo gremio"
+                        value={precioCosto}
+                        onChange={(e) => setPrecioCosto(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+
+                      <input
+                        type="number"
+                        placeholder="Precio final"
+                        value={precioFinal}
+                        onChange={(e) => setPrecioFinal(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                      />
+                    </>
+                  )}
 
                   <select
                     value={moneda}
@@ -1493,15 +1636,19 @@ export default function Articulos() {
                       </div>
 
                       <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">Costo gremio</p>
-                        <p className="text-red-400 font-bold">
+                        <p className="text-zinc-500 text-xs">
+                          {esTrabajoArticulo(articulo) ? "Precio base" : "Costo gremio"}
+                        </p>
+                        <p className={esTrabajoArticulo(articulo) ? "text-white font-bold" : "text-red-400 font-bold"}>
                           {articulo.moneda === "USD" ? "USD $" : "$"}
-                          {precioCostoArticulo(articulo).toLocaleString()}
+                          {esTrabajoArticulo(articulo)
+                            ? precioBaseTrabajoArticulo(articulo).toLocaleString()
+                            : precioCostoArticulo(articulo).toLocaleString()}
                         </p>
                       </div>
 
                       <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">Precio final</p>
+                        <p className="text-zinc-500 text-xs">Precio venta</p>
                         <p className="text-green-400 font-black">
                           {articulo.moneda === "USD" ? "USD $" : "$"}
                           {precioFinalArticulo(articulo).toLocaleString()}

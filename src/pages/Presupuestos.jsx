@@ -40,8 +40,6 @@ export default function Presupuestos() {
   const [categoriaBusquedaArticulo, setCategoriaBusquedaArticulo] = React.useState("Todas");
   const [mostrarFiltroCategoriasArticulo, setMostrarFiltroCategoriasArticulo] = React.useState(false);
   const [mostrarResumenTotal, setMostrarResumenTotal] = React.useState(false);
-  const [descuentoPorcentaje, setDescuentoPorcentaje] = React.useState(0);
-  const [recargoPorcentaje, setRecargoPorcentaje] = React.useState(0);
 
   const [mostrarPlantillas, setMostrarPlantillas] = React.useState(false);
   const [mostrarMenuFlotante, setMostrarMenuFlotante] = React.useState(false);
@@ -221,6 +219,9 @@ export default function Presupuestos() {
         precio_costo: item.precio_costo ?? item.costo ?? 0,
         costo: item.precio_costo ?? item.costo ?? 0,
         precio_final: item.precio_final ?? item.precio ?? 0,
+        precio_base_trabajo: item.precio_base_trabajo ?? item.precio ?? 0,
+        descuento_trabajo: item.descuento_trabajo ?? 0,
+        recargo_trabajo: item.recargo_trabajo ?? 0,
         actualizar_biblioteca: false,
       }))
     );
@@ -412,6 +413,22 @@ export default function Presupuestos() {
 
   function precioFinalArticulo(articulo) {
     return Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
+  }
+
+  function esTipoTrabajo(item) {
+    return `${item?.tipo || ""}`.toLowerCase().trim() === "trabajo";
+  }
+
+  function calcularPrecioTrabajo(precioBase, descuento, recargo) {
+    const base = Number(precioBase) || 0;
+    const porcentajeDescuento = Number(descuento) || 0;
+    const porcentajeRecargo = Number(recargo) || 0;
+
+    return (
+      base -
+      base * (porcentajeDescuento / 100) +
+      base * (porcentajeRecargo / 100)
+    );
   }
 
   function detectarCategoriaInicial(item, existente) {
@@ -900,6 +917,9 @@ export default function Presupuestos() {
         precio_costo: 0,
         costo: 0,
         precio_final: 0,
+        precio_base_trabajo: 0,
+        descuento_trabajo: 0,
+        recargo_trabajo: 0,
         articulo_id: null,
         actualizar_biblioteca: false,
       },
@@ -917,6 +937,23 @@ export default function Presupuestos() {
 
     if (campo === "precio") {
       nuevosItems[index].precio_final = valor;
+    }
+
+    if (
+      campo === "precio_base_trabajo" ||
+      campo === "descuento_trabajo" ||
+      campo === "recargo_trabajo"
+    ) {
+      const itemActualizado = nuevosItems[index];
+
+      const precioTrabajo = calcularPrecioTrabajo(
+        itemActualizado.precio_base_trabajo,
+        itemActualizado.descuento_trabajo,
+        itemActualizado.recargo_trabajo
+      );
+
+      itemActualizado.precio = precioTrabajo;
+      itemActualizado.precio_final = precioTrabajo;
     }
 
     if (campo === "categoria_id") {
@@ -958,6 +995,17 @@ export default function Presupuestos() {
         datosArticulo.costo = precioCosto;
       }
 
+      if (tipo === "trabajo") {
+        datosArticulo.precio_base_trabajo =
+          Number(item.precio_base_trabajo ?? item.precio ?? 0) || 0;
+
+        datosArticulo.descuento_trabajo =
+          Number(item.descuento_trabajo ?? 0) || 0;
+
+        datosArticulo.recargo_trabajo =
+          Number(item.recargo_trabajo ?? 0) || 0;
+      }
+
       const { error } = await supabase
         .from("articulos")
         .update(datosArticulo)
@@ -977,6 +1025,15 @@ export default function Presupuestos() {
     const precioFinal =
       Number(articulo.precio_final ?? articulo.precio ?? 0) || 0;
 
+    const precioBaseTrabajo =
+      Number(articulo.precio_base_trabajo ?? articulo.precio ?? 0) || 0;
+
+    const descuentoTrabajo =
+      Number(articulo.descuento_trabajo ?? 0) || 0;
+
+    const recargoTrabajo =
+      Number(articulo.recargo_trabajo ?? 0) || 0;
+
     setItems([
       ...items,
       {
@@ -991,6 +1048,9 @@ export default function Presupuestos() {
         precio_costo: precioCosto,
         costo: precioCosto,
         precio_final: precioFinal,
+        precio_base_trabajo: precioBaseTrabajo,
+        descuento_trabajo: descuentoTrabajo,
+        recargo_trabajo: recargoTrabajo,
         articulo_id: articulo.id || null,
         actualizar_biblioteca: false,
       },
@@ -1023,6 +1083,9 @@ export default function Presupuestos() {
       precio_costo: item.precio_costo ?? item.costo ?? 0,
       costo: item.precio_costo ?? item.costo ?? 0,
       precio_final: item.precio_final ?? item.precio ?? 0,
+      precio_base_trabajo: item.precio_base_trabajo ?? item.precio ?? 0,
+      descuento_trabajo: item.descuento_trabajo ?? 0,
+      recargo_trabajo: item.recargo_trabajo ?? 0,
       articulo_id: item.articulo_id || null,
       actualizar_biblioteca: false,
     }));
@@ -1039,13 +1102,7 @@ export default function Presupuestos() {
 
   const iva = 0;
 
-  const descuentoMonto =
-    subtotal * ((Number(descuentoPorcentaje) || 0) / 100);
-
-  const recargoMonto =
-    subtotal * ((Number(recargoPorcentaje) || 0) / 100);
-
-  const total = subtotal - descuentoMonto + recargoMonto;
+  const total = subtotal;
 
   async function guardarPresupuesto() {
     if (guardando) return;
@@ -1177,6 +1234,9 @@ export default function Presupuestos() {
           precio_costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
           costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
           precio_final: Number(item.precio_final ?? item.precio ?? 0) || 0,
+          precio_base_trabajo: Number(item.precio_base_trabajo ?? item.precio ?? 0) || 0,
+          descuento_trabajo: Number(item.descuento_trabajo ?? 0) || 0,
+          recargo_trabajo: Number(item.recargo_trabajo ?? 0) || 0,
           articulo_id: item.articulo_id || null,
           subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
@@ -1229,6 +1289,9 @@ export default function Presupuestos() {
           precio_costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
           costo: Number(item.precio_costo ?? item.costo ?? 0) || 0,
           precio_final: Number(item.precio_final ?? item.precio ?? 0) || 0,
+          precio_base_trabajo: Number(item.precio_base_trabajo ?? item.precio ?? 0) || 0,
+          descuento_trabajo: Number(item.descuento_trabajo ?? 0) || 0,
+          recargo_trabajo: Number(item.recargo_trabajo ?? 0) || 0,
           articulo_id: item.articulo_id || null,
           subtotal: (Number(item.cantidad) || 0) * (Number(item.precio) || 0),
         }));
@@ -1918,6 +1981,69 @@ export default function Presupuestos() {
                             </div>
                           )}
 
+                          {esTipoTrabajo(item) && (
+                            <>
+                              <div>
+                                <label className="block text-zinc-500 text-sm mb-2">
+                                  Precio base trabajo
+                                </label>
+
+                                <input
+                                  type="number"
+                                  value={item.precio_base_trabajo ?? item.precio ?? 0}
+                                  onChange={(e) =>
+                                    actualizarItem(
+                                      index,
+                                      "precio_base_trabajo",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-zinc-500 text-sm mb-2">
+                                    Descuento %
+                                  </label>
+
+                                  <input
+                                    type="number"
+                                    value={item.descuento_trabajo ?? 0}
+                                    onChange={(e) =>
+                                      actualizarItem(
+                                        index,
+                                        "descuento_trabajo",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-zinc-500 text-sm mb-2">
+                                    Recargo %
+                                  </label>
+
+                                  <input
+                                    type="number"
+                                    value={item.recargo_trabajo ?? 0}
+                                    onChange={(e) =>
+                                      actualizarItem(
+                                        index,
+                                        "recargo_trabajo",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )}
+
                           <div>
                             <label className="block text-zinc-500 text-sm mb-2">
                               Precio venta
@@ -2085,7 +2211,7 @@ export default function Presupuestos() {
 
                 {mostrarResumenTotal && (
                   <div className="border-t border-zinc-800 p-4 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                         <p className="text-zinc-500 text-sm">
                           Subtotal
@@ -2094,50 +2220,6 @@ export default function Presupuestos() {
                         <p className="font-black text-xl mt-1">
                           {moneda === "USD" ? "USD $" : "$"}
                           {subtotal.toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-zinc-500 text-sm mb-2">
-                          Descuento %
-                        </label>
-
-                        <input
-                          type="number"
-                          min="0"
-                          value={descuentoPorcentaje}
-                          onChange={(e) =>
-                            setDescuentoPorcentaje(e.target.value)
-                          }
-                          placeholder="Ej: 10"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                        />
-
-                        <p className="text-red-400 text-sm mt-2">
-                          - {moneda === "USD" ? "USD $" : "$"}
-                          {descuentoMonto.toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-zinc-500 text-sm mb-2">
-                          Recargo %
-                        </label>
-
-                        <input
-                          type="number"
-                          min="0"
-                          value={recargoPorcentaje}
-                          onChange={(e) =>
-                            setRecargoPorcentaje(e.target.value)
-                          }
-                          placeholder="Ej: 10"
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                        />
-
-                        <p className="text-green-400 text-sm mt-2">
-                          + {moneda === "USD" ? "USD $" : "$"}
-                          {recargoMonto.toLocaleString()}
                         </p>
                       </div>
 
