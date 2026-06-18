@@ -60,6 +60,7 @@ export default function Articulos() {
 
   const formularioRef = React.useRef(null);
   const inputPdfRef = React.useRef(null);
+  const inputCsvRef = React.useRef(null);
 
   React.useEffect(() => {
     obtenerCategorias();
@@ -430,6 +431,181 @@ export default function Articulos() {
     setTimeout(() => {
       inputPdfRef.current?.click();
     }, 50);
+  }
+
+  function iniciarImportacionCsv() {
+    setTipoImportacion("csv");
+    setPreviewImportacion([]);
+    setCategoriaImportacionId("");
+    setMostrarPreviewImportacion(false);
+    setMenuImportarAbierto(false);
+
+    setTimeout(() => {
+      inputCsvRef.current?.click();
+    }, 50);
+  }
+
+  function separarCsvLinea(linea) {
+    const campos = [];
+    let actual = "";
+    let dentroComillas = false;
+
+    for (let i = 0; i < linea.length; i++) {
+      const caracter = linea[i];
+      const siguiente = linea[i + 1];
+
+      if (caracter === '"' && dentroComillas && siguiente === '"') {
+        actual += '"';
+        i += 1;
+        continue;
+      }
+
+      if (caracter === '"') {
+        dentroComillas = !dentroComillas;
+        continue;
+      }
+
+      if (caracter === "," && !dentroComillas) {
+        campos.push(actual.trim());
+        actual = "";
+        continue;
+      }
+
+      actual += caracter;
+    }
+
+    campos.push(actual.trim());
+
+    return campos;
+  }
+
+  function esNumeroCsv(valor) {
+    const texto = `${valor || ""}`.trim();
+
+    if (!texto) return false;
+
+    return /^-?\d+(?:[.,]\d+)?$/.test(
+      texto.replace(/\./g, "").replace(/,/g, ".")
+    );
+  }
+
+  function esArticuloCsvCompleto(campos) {
+    if (!campos || campos.length < 5) return false;
+
+    const cantidad = campos[0];
+    const sku = campos[1];
+    const costo = campos[campos.length - 2];
+    const publico = campos[campos.length - 1];
+
+    return (
+      esNumeroCsv(cantidad) &&
+      Boolean(`${sku || ""}`.trim()) &&
+      esNumeroCsv(costo) &&
+      esNumeroCsv(publico)
+    );
+  }
+
+  function convertirCamposCsvAArticulo(campos) {
+    const cantidad = Number(`${campos[0] || "1"}`.replace(/,/g, ".")) || 1;
+    const sku = normalizarSku(campos[1]);
+    const descripcion = campos.slice(2, -2).join(", ").replace(/\s+/g, " ").trim();
+    const costoGremio = normalizarPrecio(campos[campos.length - 2]);
+    const precioPublico = normalizarPrecio(campos[campos.length - 1]);
+
+    return {
+      cantidad,
+      sku,
+      descripcion: sku,
+      detalle: descripcion,
+      costo_gremio: costoGremio,
+      precio_publico: precioPublico,
+      precio: precioPublico,
+    };
+  }
+
+  function parsearCsvProveedor(textoCsv) {
+    const lineas = `${textoCsv || ""}`
+      .replace(/^\uFEFF/, "")
+      .replace(/\r/g, "")
+      .split("\n")
+      .map((linea) => linea.trim())
+      .filter(Boolean);
+
+    const articulosCsv = [];
+    let acumulado = [];
+
+    lineas.forEach((linea, index) => {
+      const lineaMinuscula = linea.toLowerCase();
+
+      if (
+        index === 0 &&
+        lineaMinuscula.includes("cantidad") &&
+        lineaMinuscula.includes("sku")
+      ) {
+        return;
+      }
+
+      const camposLinea = separarCsvLinea(linea);
+
+      acumulado = [...acumulado, ...camposLinea];
+
+      if (esArticuloCsvCompleto(acumulado)) {
+        const articulo = convertirCamposCsvAArticulo(acumulado);
+
+        if (articulo.sku && articulo.detalle) {
+          articulosCsv.push(articulo);
+        }
+
+        acumulado = [];
+      }
+    });
+
+    return articulosCsv;
+  }
+
+  async function procesarArchivoCsv(evento) {
+    const archivo = evento.target.files?.[0];
+
+    evento.target.value = "";
+
+    if (!archivo) return;
+
+    setProcesandoPdf(true);
+
+    try {
+      const textoCsv = await archivo.text();
+      const itemsDetectados = parsearCsvProveedor(textoCsv);
+
+      if (itemsDetectados.length === 0) {
+        mostrarToast("No se detectaron artículos en el CSV", "error");
+        return;
+      }
+
+      const preview = itemsDetectados.map((item) => {
+        const existente = articulos.find(
+          (articulo) => normalizarSku(articulo.sku) === item.sku
+        );
+
+        return {
+          ...item,
+          existe: Boolean(existente),
+          articuloId: existente?.id || null,
+          categoria_id: detectarCategoriaInicial(item, existente),
+          precioActualCosto: precioCostoArticulo(existente || {}),
+          precioActualFinal: precioFinalArticulo(existente || {}),
+        };
+      });
+
+      setTipoImportacion("csv");
+      setPreviewImportacion(preview);
+      setMostrarPreviewImportacion(true);
+      mostrarToast("CSV leído correctamente", "ok");
+    } catch (error) {
+      console.error(error);
+      mostrarToast("No se pudo leer el CSV", "error");
+    } finally {
+      setProcesandoPdf(false);
+    }
   }
 
   async function leerTextoPdf(archivo) {
@@ -808,6 +984,13 @@ export default function Articulos() {
           usado_count: 11,
         };
 
+        if (tipoImportacion === "csv") {
+          datosBase.precio_costo = Number(item.costo_gremio ?? 0) || 0;
+          datosBase.costo = Number(item.costo_gremio ?? 0) || 0;
+          datosBase.precio_final = Number(item.precio_publico ?? 0) || 0;
+          datosBase.precio = Number(item.precio_publico ?? 0) || 0;
+        }
+
         if (tipoImportacion === "gremio") {
           datosBase.precio_costo = item.precio;
           datosBase.costo = item.precio;
@@ -833,13 +1016,29 @@ export default function Articulos() {
               cargado_por: user.id,
               cargado_por_alias: alias,
               precio_costo:
-                tipoImportacion === "gremio" ? item.precio : 0,
+                tipoImportacion === "csv"
+                  ? Number(item.costo_gremio ?? 0) || 0
+                  : tipoImportacion === "gremio"
+                  ? item.precio
+                  : 0,
               costo:
-                tipoImportacion === "gremio" ? item.precio : 0,
+                tipoImportacion === "csv"
+                  ? Number(item.costo_gremio ?? 0) || 0
+                  : tipoImportacion === "gremio"
+                  ? item.precio
+                  : 0,
               precio_final:
-                tipoImportacion === "final" ? item.precio : 0,
+                tipoImportacion === "csv"
+                  ? Number(item.precio_publico ?? 0) || 0
+                  : tipoImportacion === "final"
+                  ? item.precio
+                  : 0,
               precio:
-                tipoImportacion === "final" ? item.precio : 0,
+                tipoImportacion === "csv"
+                  ? Number(item.precio_publico ?? 0) || 0
+                  : tipoImportacion === "final"
+                  ? item.precio
+                  : 0,
             },
           ]);
 
@@ -937,6 +1136,14 @@ export default function Articulos() {
         className="hidden"
       />
 
+      <input
+        ref={inputCsvRef}
+        type="file"
+        accept=".csv,text/csv"
+        onChange={procesarArchivoCsv}
+        className="hidden"
+      />
+
       {(menuAbierto || menuConfigAbierto || menuImportarAbierto) && (
         <div
           onClick={() => {
@@ -954,7 +1161,7 @@ export default function Articulos() {
             <div className="flex justify-between items-start gap-4 mb-5">
               <div>
                 <h2 className="text-2xl md:text-3xl font-black text-orange-500">
-                  Preview importación {tipoImportacion === "gremio" ? "gremio" : "final"}
+                  Preview importación {tipoImportacion === "csv" ? "CSV" : tipoImportacion === "gremio" ? "gremio" : "final"}
                 </h2>
 
                 <p className="text-zinc-500 mt-1">
@@ -988,7 +1195,7 @@ export default function Articulos() {
               {previewImportacion.map((item, index) => (
                 <div
                   key={`${item.sku}-${index}`}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[260px_1fr_150px_220px_120px] gap-3 md:items-start"
+                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[220px_1fr_135px_135px_220px_120px] gap-3 md:items-start"
                 >
                   <div>
                     <p className="text-zinc-500 text-xs mb-1">SKU</p>
@@ -1015,20 +1222,58 @@ export default function Articulos() {
                     />
                   </div>
 
-                  <div>
-                    <p className="text-zinc-500 text-xs mb-1">
-                      {tipoImportacion === "gremio" ? "Costo gremio" : "Precio final"}
-                    </p>
+                  {tipoImportacion === "csv" ? (
+                    <>
+                      <div>
+                        <p className="text-zinc-500 text-xs mb-1">Costo gremio</p>
 
-                    <input
-                      type="number"
-                      value={item.precio || 0}
-                      onChange={(e) =>
-                        actualizarCampoPreview(index, "precio", Number(e.target.value) || 0)
-                      }
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
-                    />
-                  </div>
+                        <input
+                          type="number"
+                          value={item.costo_gremio || 0}
+                          onChange={(e) =>
+                            actualizarCampoPreview(
+                              index,
+                              "costo_gremio",
+                              Number(e.target.value) || 0
+                            )
+                          }
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-red-400"
+                        />
+                      </div>
+
+                      <div>
+                        <p className="text-zinc-500 text-xs mb-1">Precio público</p>
+
+                        <input
+                          type="number"
+                          value={item.precio_publico || 0}
+                          onChange={(e) =>
+                            actualizarCampoPreview(
+                              index,
+                              "precio_publico",
+                              Number(e.target.value) || 0
+                            )
+                          }
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-zinc-500 text-xs mb-1">
+                        {tipoImportacion === "gremio" ? "Costo gremio" : "Precio final"}
+                      </p>
+
+                      <input
+                        type="number"
+                        value={item.precio || 0}
+                        onChange={(e) =>
+                          actualizarCampoPreview(index, "precio", Number(e.target.value) || 0)
+                        }
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <p className="text-zinc-500 text-xs mb-1">Categoría</p>
@@ -1224,17 +1469,24 @@ export default function Articulos() {
                   {menuImportarAbierto && (
                     <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-52 shadow-2xl">
                       <button
+                        onClick={iniciarImportacionCsv}
+                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
+                      >
+                        📄 Importar CSV
+                      </button>
+
+                      <button
                         onClick={() => iniciarImportacion("gremio")}
                         className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
                       >
-                        📥 Importar gremio
+                        📥 Importar gremio PDF
                       </button>
 
                       <button
                         onClick={() => iniciarImportacion("final")}
                         className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
                       >
-                        📥 Importar final
+                        📥 Importar final PDF
                       </button>
                     </div>
                   )}
