@@ -84,7 +84,30 @@ export default function BibliotecaPanel({
             className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center gap-4"
           >
             <div className="flex-1">
-              <p className="font-bold text-lg">{articulo.descripcion}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-bold text-lg">
+                  {articulo.descripcion}
+                </p>
+
+                {(Boolean(articulo.frecuente) ||
+                  (Number(articulo.usado_count) || 0) >= 11) && (
+                  <span
+                    title="Artículo frecuente"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-500 text-white text-sm font-black shrink-0"
+                  >
+                    🔥
+                  </span>
+                )}
+
+                {Boolean(articulo.importado_proveedor) && (
+                  <span
+                    title="Importado proveedor"
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-500 text-white text-sm font-black shrink-0"
+                  >
+                    ↪
+                  </span>
+                )}
+              </div>
 
               <div className="flex gap-4 mt-2 text-sm">
                 <span className="text-orange-400">

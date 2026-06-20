@@ -1,12 +1,14 @@
 import React from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
 import Toast from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
+import ArticuloLista from "../components/ArticuloLista";
+import ArticuloFormulario from "../components/ArticuloFormulario";
+import ArticuloVerModal from "../components/ArticuloVerModal";
+import ArticuloFiltros from "../components/ArticuloFiltros";
+import ArticuloImportador from "../components/ArticuloImportador";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 export default function Articulos() {
   const [descripcion, setDescripcion] = React.useState("");
@@ -43,13 +45,10 @@ export default function Articulos() {
   const [articuloVer, setArticuloVer] = React.useState(null);
 
   const [menuImportarAbierto, setMenuImportarAbierto] = React.useState(false);
-  const [tipoImportacion, setTipoImportacion] = React.useState(null);
   const [previewImportacion, setPreviewImportacion] = React.useState([]);
   const [mostrarPreviewImportacion, setMostrarPreviewImportacion] =
     React.useState(false);
-  const [categoriaImportacionId, setCategoriaImportacionId] =
-    React.useState("");
-  const [procesandoPdf, setProcesandoPdf] = React.useState(false);
+  const [procesandoImportacion, setProcesandoImportacion] = React.useState(false);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
@@ -59,7 +58,6 @@ export default function Articulos() {
   const [articuloEliminar, setArticuloEliminar] = React.useState(null);
 
   const formularioRef = React.useRef(null);
-  const inputPdfRef = React.useRef(null);
   const inputCsvRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -421,22 +419,8 @@ export default function Articulos() {
       ) || null
     );
   }
-  function iniciarImportacion(tipo) {
-    setTipoImportacion(tipo);
-    setPreviewImportacion([]);
-    setCategoriaImportacionId("");
-    setMostrarPreviewImportacion(false);
-    setMenuImportarAbierto(false);
-
-    setTimeout(() => {
-      inputPdfRef.current?.click();
-    }, 50);
-  }
-
   function iniciarImportacionCsv() {
-    setTipoImportacion("csv");
     setPreviewImportacion([]);
-    setCategoriaImportacionId("");
     setMostrarPreviewImportacion(false);
     setMenuImportarAbierto(false);
 
@@ -570,7 +554,7 @@ export default function Articulos() {
 
     if (!archivo) return;
 
-    setProcesandoPdf(true);
+    setProcesandoImportacion(true);
 
     try {
       const textoCsv = await archivo.text();
@@ -596,217 +580,16 @@ export default function Articulos() {
         };
       });
 
-      setTipoImportacion("csv");
-      setPreviewImportacion(preview);
+        setPreviewImportacion(preview);
       setMostrarPreviewImportacion(true);
       mostrarToast("CSV leído correctamente", "ok");
     } catch (error) {
       console.error(error);
       mostrarToast("No se pudo leer el CSV", "error");
     } finally {
-      setProcesandoPdf(false);
+      setProcesandoImportacion(false);
     }
   }
-
-  async function leerTextoPdf(archivo) {
-    const buffer = await archivo.arrayBuffer();
-
-    const pdf = await pdfjsLib.getDocument({
-      data: buffer,
-    }).promise;
-
-    const todasLasLineas = [];
-
-    for (let numeroPagina = 1; numeroPagina <= pdf.numPages; numeroPagina++) {
-      const pagina = await pdf.getPage(numeroPagina);
-      const contenido = await pagina.getTextContent();
-
-      const itemsPdf = contenido.items
-        .map((item) => ({
-          texto: item.str,
-          x: item.transform[4],
-          y: item.transform[5],
-        }))
-        .filter((item) => item.texto && item.texto.trim());
-
-      const lineas = [];
-
-      itemsPdf.forEach((item) => {
-        const lineaExistente = lineas.find(
-          (linea) => Math.abs(linea.y - item.y) < 4
-        );
-
-        if (lineaExistente) {
-          lineaExistente.items.push(item);
-        } else {
-          lineas.push({
-            y: item.y,
-            items: [item],
-          });
-        }
-      });
-
-      const lineasOrdenadas = lineas
-        .sort((a, b) => b.y - a.y)
-        .map((linea) => {
-          const itemsOrdenados = linea.items.sort((a, b) => a.x - b.x);
-
-          return {
-            y: linea.y,
-            texto: itemsOrdenados.map((item) => item.texto).join(" ").trim(),
-            items: itemsOrdenados,
-          };
-        });
-
-      todasLasLineas.push(...lineasOrdenadas);
-    }
-
-    return todasLasLineas;
-  }
-
-  function parsearPdfIntegra(lineasPdf, modo) {
-    const lineas = (lineasPdf || [])
-      .map((linea) => ({
-        y: Number(linea.y) || 0,
-        texto: linea.texto || "",
-        items: linea.items || [],
-      }))
-      .filter((linea) => linea.texto && linea.items.length > 0);
-
-    const limpiarTexto = (texto) =>
-      `${texto || ""}`.replace(/\s+/g, " ").trim();
-
-    const indiceHeader = lineas.findIndex((linea) => {
-      const texto = limpiarTexto(linea.texto).toLowerCase();
-
-      return (
-        texto.includes("cant") &&
-        texto.includes("sku") &&
-        texto.includes("producto")
-      );
-    });
-
-    if (indiceHeader === -1) {
-      return [];
-    }
-
-    // Integra tiene columnas visuales muy estables.
-    // No usamos la posición del texto del encabezado porque está centrado,
-    // no representa el inicio real de la columna.
-    const xCantMax = 82;
-    const xSkuMin = 82;
-    const xProductoMin = 218;
-    const xPrecioMin = 445;
-
-    const lineasTabla = [];
-
-    for (let index = indiceHeader + 1; index < lineas.length; index++) {
-      const linea = lineas[index];
-      const texto = limpiarTexto(linea.texto);
-
-      if (/^Total:/i.test(texto)) break;
-
-      lineasTabla.push(linea);
-    }
-
-    const indicesInicio = [];
-
-    lineasTabla.forEach((linea, index) => {
-      const cantidadItem = linea.items.find((item) => {
-        const texto = `${item.texto || ""}`.trim();
-
-        return item.x < xCantMax && /^\d+(?:[.,]\d+)?$/.test(texto);
-      });
-
-      if (cantidadItem) {
-        indicesInicio.push({
-          index,
-          cantidad:
-            Number(`${cantidadItem.texto}`.replace(",", ".")) || 1,
-        });
-      }
-    });
-
-    const filas = [];
-
-    indicesInicio.forEach((inicio, posicion) => {
-      const siguienteInicio =
-        indicesInicio[posicion + 1]?.index ?? lineasTabla.length;
-
-      const bloque = lineasTabla.slice(inicio.index, siguienteInicio);
-
-      const skuPartes = [];
-      const productoPartes = [];
-      const precios = [];
-
-      bloque.forEach((linea) => {
-        const textoLinea = limpiarTexto(linea.texto);
-        const preciosLinea = textoLinea.match(/\$\s*[\d.]+(?:,\d+)?/g) || [];
-
-        preciosLinea.forEach((precioTexto) => {
-          const precio = normalizarPrecio(precioTexto);
-
-          if (precio > 0) {
-            precios.push(precio);
-          }
-        });
-
-        linea.items.forEach((item) => {
-          const texto = limpiarTexto(item.texto);
-
-          if (!texto) return;
-
-          // Cantidad
-          if (/^\d+(?:[.,]\d+)?$/.test(texto) && item.x < xCantMax) return;
-
-          // Signo $ o valores numéricos de columnas de precio/subtotal
-          if (/^\$/.test(texto)) return;
-          if (/^[\d.]+(?:,\d+)?$/.test(texto) && item.x >= xPrecioMin - 20) {
-            return;
-          }
-
-          // Columna SKU real de Integra
-          if (item.x >= xSkuMin && item.x < xProductoMin) {
-            skuPartes.push(texto);
-            return;
-          }
-
-          // Columna Producto real de Integra
-          if (item.x >= xProductoMin && item.x < xPrecioMin) {
-            productoPartes.push(texto);
-          }
-        });
-      });
-
-      const sku = limpiarTexto(skuPartes.join(" "));
-      const detalle = limpiarTexto(productoPartes.join(" "));
-
-      const precioElegido =
-        modo === "gremio" && precios.length >= 2
-          ? precios[1]
-          : precios[0];
-
-      if (sku && detalle && precioElegido > 0) {
-        filas.push({
-          cantidad: inicio.cantidad || 1,
-          sku: normalizarSku(sku),
-          descripcion: sku,
-          detalle,
-          precio: precioElegido,
-        });
-      }
-    });
-
-    return filas.filter(
-      (item) =>
-        item &&
-        item.sku &&
-        item.descripcion &&
-        item.detalle &&
-        item.precio > 0
-    );
-  }
-
   function detectarCategoriaInicial(item, existente) {
     if (existente?.categoria_id) {
       return existente.categoria_id;
@@ -881,53 +664,7 @@ export default function Articulos() {
       )
     );
   }
-
-
-  async function procesarArchivoPdf(evento) {
-    const archivo = evento.target.files?.[0];
-
-    evento.target.value = "";
-
-    if (!archivo || !tipoImportacion) return;
-
-    setProcesandoPdf(true);
-
-    try {
-      const textoPdf = await leerTextoPdf(archivo);
-      const itemsDetectados = parsearPdfIntegra(textoPdf, tipoImportacion);
-
-      if (itemsDetectados.length === 0) {
-        mostrarToast("No se detectaron artículos en el PDF", "error");
-        return;
-      }
-
-      const preview = itemsDetectados.map((item) => {
-        const existente = articulos.find(
-          (articulo) => normalizarSku(articulo.sku) === item.sku
-        );
-
-        return {
-          ...item,
-          existe: Boolean(existente),
-          articuloId: existente?.id || null,
-          categoria_id: detectarCategoriaInicial(item, existente),
-          precioActualCosto: precioCostoArticulo(existente || {}),
-          precioActualFinal: precioFinalArticulo(existente || {}),
-        };
-      });
-
-      setPreviewImportacion(preview);
-      setMostrarPreviewImportacion(true);
-      mostrarToast("PDF leído correctamente", "ok");
-    } catch (error) {
-      console.error(error);
-      mostrarToast("No se pudo leer el PDF", "error");
-    } finally {
-      setProcesandoPdf(false);
-    }
-  }
-
-  async function confirmarImportacionPdf() {
+  async function confirmarImportacionCsv() {
     if (previewImportacion.length === 0) {
       mostrarToast("No hay artículos para importar", "error");
       return;
@@ -960,13 +697,15 @@ export default function Articulos() {
       .single();
 
     const alias = profile?.alias || "Administrador";
-    const origen = tipoImportacion === "gremio" ? "PDF gremio" : "PDF final";
 
     try {
       for (const item of previewImportacion) {
         const categoriaSeleccionada = categorias.find(
           (categoria) => categoria.id === item.categoria_id
         );
+
+        const costoGremio = Number(item.costo_gremio ?? 0) || 0;
+        const precioPublico = Number(item.precio_publico ?? 0) || 0;
 
         const datosBase = {
           sku: item.sku,
@@ -980,26 +719,13 @@ export default function Articulos() {
           tipo: tipoMaterial?.nombre || "Material",
           frecuente: true,
           importado_proveedor: true,
-          origen_pdf: origen,
+          origen_pdf: "CSV",
           usado_count: 11,
+          precio_costo: costoGremio,
+          costo: costoGremio,
+          precio_final: precioPublico,
+          precio: precioPublico,
         };
-
-        if (tipoImportacion === "csv") {
-          datosBase.precio_costo = Number(item.costo_gremio ?? 0) || 0;
-          datosBase.costo = Number(item.costo_gremio ?? 0) || 0;
-          datosBase.precio_final = Number(item.precio_publico ?? 0) || 0;
-          datosBase.precio = Number(item.precio_publico ?? 0) || 0;
-        }
-
-        if (tipoImportacion === "gremio") {
-          datosBase.precio_costo = item.precio;
-          datosBase.costo = item.precio;
-        }
-
-        if (tipoImportacion === "final") {
-          datosBase.precio_final = item.precio;
-          datosBase.precio = item.precio;
-        }
 
         if (item.existe && item.articuloId) {
           const { error } = await supabase
@@ -1015,30 +741,6 @@ export default function Articulos() {
               user_id: user.id,
               cargado_por: user.id,
               cargado_por_alias: alias,
-              precio_costo:
-                tipoImportacion === "csv"
-                  ? Number(item.costo_gremio ?? 0) || 0
-                  : tipoImportacion === "gremio"
-                  ? item.precio
-                  : 0,
-              costo:
-                tipoImportacion === "csv"
-                  ? Number(item.costo_gremio ?? 0) || 0
-                  : tipoImportacion === "gremio"
-                  ? item.precio
-                  : 0,
-              precio_final:
-                tipoImportacion === "csv"
-                  ? Number(item.precio_publico ?? 0) || 0
-                  : tipoImportacion === "final"
-                  ? item.precio
-                  : 0,
-              precio:
-                tipoImportacion === "csv"
-                  ? Number(item.precio_publico ?? 0) || 0
-                  : tipoImportacion === "final"
-                  ? item.precio
-                  : 0,
             },
           ]);
 
@@ -1046,10 +748,9 @@ export default function Articulos() {
         }
       }
 
-      mostrarToast("Importación completada", "ok");
+      mostrarToast("Importación CSV completada", "ok");
       setMostrarPreviewImportacion(false);
       setPreviewImportacion([]);
-      setTipoImportacion(null);
       obtenerArticulos();
     } catch (error) {
       console.error(error);
@@ -1127,16 +828,7 @@ export default function Articulos() {
       />
 
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
-
-      <input
-        ref={inputPdfRef}
-        type="file"
-        accept="application/pdf"
-        onChange={procesarArchivoPdf}
-        className="hidden"
-      />
-
-      <input
+<input
         ref={inputCsvRef}
         type="file"
         accept=".csv,text/csv"
@@ -1155,294 +847,21 @@ export default function Articulos() {
           className="fixed inset-0 z-40 bg-transparent"
         />
       )}
-      {mostrarPreviewImportacion && (
-        <div className="fixed inset-0 z-[95] bg-black/80 p-4 flex items-center justify-center">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 md:p-6 w-full max-w-5xl max-h-[90vh] overflow-auto">
-            <div className="flex justify-between items-start gap-4 mb-5">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-black text-orange-500">
-                  Preview importación {tipoImportacion === "csv" ? "CSV" : tipoImportacion === "gremio" ? "gremio" : "final"}
-                </h2>
+      
 
-                <p className="text-zinc-500 mt-1">
-                  Revisá los artículos antes de guardar.
-                </p>
-              </div>
-
-              <button
-                onClick={() => {
-                  setMostrarPreviewImportacion(false);
-                  setPreviewImportacion([]);
-                }}
-                className="bg-zinc-800 hover:bg-zinc-700 w-11 h-11 rounded-2xl font-black"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-4">
-              <p className="text-zinc-300 font-bold">
-                Categoría individual por artículo
-              </p>
-
-              <p className="text-zinc-500 text-sm mt-2">
-                Seleccioná la categoría en cada fila. Tipo automático: Material.
-                Proveedor: Integra. Los importados quedan marcados como frecuentes.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              {previewImportacion.map((item, index) => (
-                <div
-                  key={`${item.sku}-${index}`}
-                  className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-[220px_1fr_135px_135px_220px_120px] gap-3 md:items-start"
-                >
-                  <div>
-                    <p className="text-zinc-500 text-xs mb-1">SKU</p>
-
-                    <input
-                      type="text"
-                      value={item.sku || ""}
-                      onChange={(e) =>
-                        actualizarCampoPreview(index, "sku", e.target.value)
-                      }
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-bold"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-zinc-500 text-xs mb-1">Producto / detalle</p>
-
-                    <textarea
-                      value={item.detalle || ""}
-                      onChange={(e) =>
-                        actualizarCampoPreview(index, "detalle", e.target.value)
-                      }
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm min-h-20"
-                    />
-                  </div>
-
-                  {tipoImportacion === "csv" ? (
-                    <>
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Costo gremio</p>
-
-                        <input
-                          type="number"
-                          value={item.costo_gremio || 0}
-                          onChange={(e) =>
-                            actualizarCampoPreview(
-                              index,
-                              "costo_gremio",
-                              Number(e.target.value) || 0
-                            )
-                          }
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-red-400"
-                        />
-                      </div>
-
-                      <div>
-                        <p className="text-zinc-500 text-xs mb-1">Precio público</p>
-
-                        <input
-                          type="number"
-                          value={item.precio_publico || 0}
-                          onChange={(e) =>
-                            actualizarCampoPreview(
-                              index,
-                              "precio_publico",
-                              Number(e.target.value) || 0
-                            )
-                          }
-                          className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div>
-                      <p className="text-zinc-500 text-xs mb-1">
-                        {tipoImportacion === "gremio" ? "Costo gremio" : "Precio final"}
-                      </p>
-
-                      <input
-                        type="number"
-                        value={item.precio || 0}
-                        onChange={(e) =>
-                          actualizarCampoPreview(index, "precio", Number(e.target.value) || 0)
-                        }
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm font-black text-green-400"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <p className="text-zinc-500 text-xs mb-1">Categoría</p>
-
-                    <select
-                      value={item.categoria_id || ""}
-                      onChange={(e) =>
-                        actualizarCategoriaPreview(index, e.target.value)
-                      }
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm"
-                    >
-                      <option value="">Seleccionar</option>
-
-                      {categorias.map((categoria) => (
-                        <option key={categoria.id} value={categoria.id}>
-                          {categoria.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <span
-                      className={
-                        item.existe
-                          ? "inline-block bg-blue-500/20 text-blue-300 px-3 py-2 rounded-xl text-sm font-bold"
-                          : "inline-block bg-green-500/20 text-green-300 px-3 py-2 rounded-xl text-sm font-bold"
-                      }
-                    >
-                      {item.existe ? "Actualizar" : "Nuevo"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 mt-6">
-              <button
-                onClick={confirmarImportacionPdf}
-                className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
-              >
-                Importar {previewImportacion.length} artículos
-              </button>
-
-              <button
-                onClick={() => {
-                  setMostrarPreviewImportacion(false);
-                  setPreviewImportacion([]);
-                }}
-                className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {articuloVer && (
-        <div className="fixed inset-0 z-[90] bg-black/80 p-4 flex items-center justify-center">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-auto">
-            <div className="flex justify-between items-start gap-4 mb-6">
-              <div>
-                <h2 className="text-3xl font-black text-orange-500">
-                  {articuloVer.descripcion}
-                </h2>
-
-                <p className="text-zinc-500 mt-2">
-                  Detalle completo del artículo
-                </p>
-              </div>
-
-              <button
-                onClick={() => setArticuloVer(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 w-12 h-12 rounded-2xl font-black"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Categoría</p>
-                <p className="font-bold mt-1">{nombreCategoria(articuloVer)}</p>
-              </div>
-
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Tipo</p>
-                <p className="font-bold mt-1">{nombreTipo(articuloVer)}</p>
-              </div>
-
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Proveedor</p>
-                <p className="font-bold mt-1">{articuloVer.proveedor || "-"}</p>
-              </div>
-
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Estado</p>
-                <div className="flex items-center gap-2 mt-2">
-                  {esFrecuente(articuloVer) && (
-                    <span title="Artículo frecuente" className="text-2xl">
-                      🔥
-                    </span>
-                  )}
-
-                  {esImportadoProveedor(articuloVer) && <IconoImportadoProveedor />}
-
-                  {!esFrecuente(articuloVer) && !esImportadoProveedor(articuloVer) && (
-                    <span className="text-zinc-500">Manual</span>
-                  )}
-                </div>
-              </div>
-
-              {esTrabajoArticulo(articuloVer) ? (
-                <>
-                  <div className="bg-zinc-900 rounded-2xl p-4">
-                    <p className="text-zinc-500 text-sm">Precio base trabajo</p>
-                    <p className="font-bold mt-1 text-white">
-                      {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                      {precioBaseTrabajoArticulo(articuloVer).toLocaleString()}
-                    </p>
-                  </div>
-
-                  <div className="bg-zinc-900 rounded-2xl p-4">
-                    <p className="text-zinc-500 text-sm">Ajuste trabajo</p>
-                    <p className="font-bold mt-1 text-zinc-300">
-                      -{Number(articuloVer.descuento_trabajo || 0).toLocaleString()}% / +{Number(articuloVer.recargo_trabajo || 0).toLocaleString()}%
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="bg-zinc-900 rounded-2xl p-4">
-                  <p className="text-zinc-500 text-sm">Costo gremio</p>
-                  <p className="font-bold mt-1 text-red-400">
-                    {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                    {precioCostoArticulo(articuloVer).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              <div className="bg-zinc-900 rounded-2xl p-4">
-                <p className="text-zinc-500 text-sm">Precio venta</p>
-                <p className="font-black text-green-400 text-2xl mt-1">
-                  {articuloVer.moneda === "USD" ? "USD $" : "$"}
-                  {precioFinalArticulo(articuloVer).toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
-              <p className="text-zinc-500 text-sm mb-2">Descripción larga</p>
-
-              <p className="text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                {articuloVer.detalle || "-"}
-              </p>
-            </div>
-
-            {articuloVer.origen_pdf && (
-              <p className="text-zinc-500 text-sm mt-5">
-                Origen PDF: {articuloVer.origen_pdf}
-              </p>
-            )}
-
-            <p className="text-zinc-500 text-sm mt-2">
-              Cargado por: {articuloVer.cargado_por_alias || "Administrador"}
-            </p>
-          </div>
-        </div>
-      )}
+      <ArticuloVerModal
+        articuloVer={articuloVer}
+        setArticuloVer={setArticuloVer}
+        nombreCategoria={nombreCategoria}
+        nombreTipo={nombreTipo}
+        esFrecuente={esFrecuente}
+        esImportadoProveedor={esImportadoProveedor}
+        IconoImportadoProveedor={IconoImportadoProveedor}
+        esTrabajoArticulo={esTrabajoArticulo}
+        precioBaseTrabajoArticulo={precioBaseTrabajoArticulo}
+        precioCostoArticulo={precioCostoArticulo}
+        precioFinalArticulo={precioFinalArticulo}
+      />
 
       <div className="min-h-screen bg-black text-white p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
@@ -1457,40 +876,21 @@ export default function Articulos() {
               </div>
 
               <div className="relative flex gap-3 shrink-0">
-                <div className="relative">
-                  <button
-                    onClick={() => setMenuImportarAbierto(!menuImportarAbierto)}
-                    disabled={procesandoPdf}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-5 py-3 rounded-xl font-bold"
-                  >
-                    {procesandoPdf ? "Leyendo..." : "Importar ▾"}
-                  </button>
-
-                  {menuImportarAbierto && (
-                    <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-52 shadow-2xl">
-                      <button
-                        onClick={iniciarImportacionCsv}
-                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                      >
-                        📄 Importar CSV
-                      </button>
-
-                      <button
-                        onClick={() => iniciarImportacion("gremio")}
-                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                      >
-                        📥 Importar gremio PDF
-                      </button>
-
-                      <button
-                        onClick={() => iniciarImportacion("final")}
-                        className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                      >
-                        📥 Importar final PDF
-                      </button>
-                    </div>
-                  )}
-                </div>
+              
+<ArticuloImportador
+  menuImportarAbierto={menuImportarAbierto}
+  setMenuImportarAbierto={setMenuImportarAbierto}
+  procesandoImportacion={procesandoImportacion}
+  iniciarImportacionCsv={iniciarImportacionCsv}
+  mostrarPreviewImportacion={mostrarPreviewImportacion}
+  setMostrarPreviewImportacion={setMostrarPreviewImportacion}
+  previewImportacion={previewImportacion}
+  setPreviewImportacion={setPreviewImportacion}
+  categorias={categorias}
+  actualizarCampoPreview={actualizarCampoPreview}
+  actualizarCategoriaPreview={actualizarCategoriaPreview}
+  confirmarImportacionCsv={confirmarImportacionCsv}
+/>
 
                 <Link
                   to="/"
@@ -1527,438 +927,82 @@ export default function Articulos() {
             </div>
           </div>
 
-          <div ref={formularioRef} className="mb-6">
-            {!mostrarFormulario ? (
-              <button
-                onClick={() => setMostrarFormulario(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl p-4 transition-all"
-              >
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center text-2xl font-black">
-                    +
-                  </div>
+          <ArticuloFormulario
+            formularioRef={formularioRef}
+            mostrarFormulario={mostrarFormulario}
+            setMostrarFormulario={setMostrarFormulario}
+            editandoId={editandoId}
+            limpiarFormulario={limpiarFormulario}
+            descripcion={descripcion}
+            setDescripcion={setDescripcion}
+            categorias={categorias}
+            categoriaId={categoriaId}
+            setCategoriaId={setCategoriaId}
+            tipos={tipos}
+            tipoId={tipoId}
+            setTipoId={setTipoId}
+            proveedor={proveedor}
+            setProveedor={setProveedor}
+            esTrabajoFormulario={esTrabajoFormulario}
+            precioBaseTrabajo={precioBaseTrabajo}
+            actualizarPrecioBaseTrabajo={actualizarPrecioBaseTrabajo}
+            descuentoTrabajo={descuentoTrabajo}
+            actualizarDescuentoTrabajo={actualizarDescuentoTrabajo}
+            recargoTrabajo={recargoTrabajo}
+            actualizarRecargoTrabajo={actualizarRecargoTrabajo}
+            precioCosto={precioCosto}
+            setPrecioCosto={setPrecioCosto}
+            precioFinal={precioFinal}
+            setPrecioFinal={setPrecioFinal}
+            moneda={moneda}
+            setMoneda={setMoneda}
+            origenPdf={origenPdf}
+            setOrigenPdf={setOrigenPdf}
+            frecuente={frecuente}
+            setFrecuente={setFrecuente}
+            importadoProveedor={importadoProveedor}
+            setImportadoProveedor={setImportadoProveedor}
+            detalle={detalle}
+            setDetalle={setDetalle}
+            guardarArticulo={guardarArticulo}
+          />
 
-                  <p className="text-lg font-black text-white">
-                    Agregar artículo
-                  </p>
-                </div>
-              </button>
-            ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h2 className="text-3xl font-black text-orange-500">
-                      {editandoId ? "Editar artículo" : "Nuevo artículo"}
-                    </h2>
+   <ArticuloFiltros
+  busqueda={busqueda}
+  setBusqueda={setBusqueda}
+  mostrarFiltros={mostrarFiltros}
+  setMostrarFiltros={setMostrarFiltros}
+  categoriaBusqueda={categoriaBusqueda}
+  setCategoriaBusqueda={setCategoriaBusqueda}
+  mostrarFiltroCategorias={mostrarFiltroCategorias}
+  setMostrarFiltroCategorias={setMostrarFiltroCategorias}
+  filtroCategoria={filtroCategoria}
+  setFiltroCategoria={setFiltroCategoria}
+  filtroTipo={filtroTipo}
+  setFiltroTipo={setFiltroTipo}
+  categorias={categorias}
+  tipos={tipos}
+  limpiarFiltros={limpiarFiltros}
+/>
 
-                    <p className="text-zinc-500 mt-1">
-                      Completar información del artículo
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={limpiarFormulario}
-                    className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-2xl font-bold"
-                  >
-                    Cerrar
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <input
-                    type="text"
-                    placeholder="Descripción corta"
-                    value={descripcion}
-                    onChange={(e) => setDescripcion(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-
-                  <select
-                    value={categoriaId}
-                    onChange={(e) => setCategoriaId(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="">Seleccionar categoría</option>
-
-                    {categorias.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={tipoId}
-                    onChange={(e) => setTipoId(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="">Seleccionar tipo</option>
-
-                    {tipos.map((tipo) => (
-                      <option key={tipo.id} value={tipo.id}>
-                        {tipo.nombre}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    type="text"
-                    placeholder="Proveedor"
-                    value={proveedor}
-                    onChange={(e) => setProveedor(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-
-                  {esTrabajoFormulario() ? (
-                    <>
-                      <input
-                        type="number"
-                        placeholder="Precio base trabajo"
-                        value={precioBaseTrabajo}
-                        onChange={(e) =>
-                          actualizarPrecioBaseTrabajo(e.target.value)
-                        }
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-
-                      <input
-                        type="number"
-                        placeholder="% descuento trabajo"
-                        value={descuentoTrabajo}
-                        onChange={(e) =>
-                          actualizarDescuentoTrabajo(e.target.value)
-                        }
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-
-                      <input
-                        type="number"
-                        placeholder="% recargo trabajo"
-                        value={recargoTrabajo}
-                        onChange={(e) =>
-                          actualizarRecargoTrabajo(e.target.value)
-                        }
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-
-                      <input
-                        type="number"
-                        placeholder="Precio venta trabajo"
-                        value={precioFinal}
-                        onChange={(e) => setPrecioFinal(e.target.value)}
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <input
-                        type="number"
-                        placeholder="Costo gremio"
-                        value={precioCosto}
-                        onChange={(e) => setPrecioCosto(e.target.value)}
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-
-                      <input
-                        type="number"
-                        placeholder="Precio final"
-                        value={precioFinal}
-                        onChange={(e) => setPrecioFinal(e.target.value)}
-                        className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                      />
-                    </>
-                  )}
-
-                  <select
-                    value={moneda}
-                    onChange={(e) => setMoneda(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  >
-                    <option value="ARS">ARS $</option>
-                    <option value="USD">USD $</option>
-                  </select>
-
-                  <input
-                    type="text"
-                    placeholder="Origen PDF / proveedor"
-                    value={origenPdf}
-                    onChange={(e) => setOrigenPdf(e.target.value)}
-                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                  />
-
-                  <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3">
-                    <label className="flex items-center gap-3 font-bold">
-                      <input
-                        type="checkbox"
-                        checked={frecuente}
-                        onChange={(e) => setFrecuente(e.target.checked)}
-                        className="w-5 h-5"
-                      />
-                      🔥 Frecuente
-                    </label>
-
-                    <label className="flex items-center gap-3 font-bold">
-                      <input
-                        type="checkbox"
-                        checked={importadoProveedor}
-                        onChange={(e) => setImportadoProveedor(e.target.checked)}
-                        className="w-5 h-5"
-                      />
-                      <span className="inline-flex items-center gap-2">
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-white font-black">
-                          ↪
-                        </span>
-                        Importado proveedor
-                      </span>
-                    </label>
-                  </div>
-
-                  <textarea
-                    placeholder="Descripción larga / detalle"
-                    value={detalle}
-                    onChange={(e) => setDetalle(e.target.value)}
-                    className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 min-h-28"
-                  />
-                </div>
-
-                <div className="flex gap-4 mt-8">
-                  <button
-                    onClick={guardarArticulo}
-                    className="bg-orange-500 hover:bg-orange-600 px-6 py-4 rounded-2xl font-bold"
-                  >
-                    {editandoId ? "Actualizar" : "Guardar"}
-                  </button>
-
-                  <button
-                    onClick={limpiarFormulario}
-                    className="bg-zinc-700 hover:bg-zinc-600 px-6 py-4 rounded-2xl font-bold"
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-5 mb-6">
-            <div className="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto] gap-3 items-stretch">
-              <button
-                onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-2xl text-2xl"
-              >
-                🔍
-              </button>
-
-              <input
-                type="text"
-                placeholder="Buscar artículos..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className="min-w-0 w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-              />
-
-              <div className="relative col-span-2 md:col-span-1">
-                <button
-                  onClick={() =>
-                    setMostrarFiltroCategorias(!mostrarFiltroCategorias)
-                  }
-                  className="w-full md:w-auto bg-zinc-800 hover:bg-zinc-700 rounded-2xl px-4 py-4 md:py-0 md:min-w-[120px] md:max-w-[180px] h-full font-bold truncate"
-                >
-                  {categoriaBusqueda === "Todas"
-                    ? "Filtro categoría"
-                    : categoriaBusqueda}
-                </button>
-
-                {mostrarFiltroCategorias && (
-                  <div className="absolute left-0 md:left-auto md:right-0 top-16 bg-zinc-950 border border-zinc-800 rounded-2xl z-50 shadow-2xl w-full md:w-[260px] max-w-[calc(100vw-2rem)] max-h-[55vh] overflow-y-auto overscroll-contain">
-                    <button
-                      onClick={() => {
-                        setCategoriaBusqueda("Todas");
-                        setMostrarFiltroCategorias(false);
-                      }}
-                      className={
-                        categoriaBusqueda === "Todas"
-                          ? "w-full text-left px-5 py-4 bg-orange-500/20 text-orange-400 font-bold"
-                          : "w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                      }
-                    >
-                      Todas
-                    </button>
-
-                    {categorias.map((categoria) => (
-                      <button
-                        key={categoria.id}
-                        onClick={() => {
-                          setCategoriaBusqueda(categoria.nombre);
-                          setMostrarFiltroCategorias(false);
-                        }}
-                        className={
-                          categoriaBusqueda === categoria.nombre
-                            ? "w-full text-left px-5 py-4 bg-orange-500/20 text-orange-400 font-bold"
-                            : "w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                        }
-                      >
-                        {categoria.nombre}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {mostrarFiltros && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <select
-                  value={filtroCategoria}
-                  onChange={(e) => setFiltroCategoria(e.target.value)}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                >
-                  <option>Todas</option>
-
-                  {categorias.map((categoria) => (
-                    <option key={categoria.id}>{categoria.nombre}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={filtroTipo}
-                  onChange={(e) => setFiltroTipo(e.target.value)}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
-                >
-                  <option>Todos</option>
-
-                  {tipos.map((tipo) => (
-                    <option key={tipo.id}>{tipo.nombre}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={limpiarFiltros}
-                  className="bg-orange-500 hover:bg-orange-600 rounded-2xl p-4 font-bold"
-                >
-                  Limpiar filtros
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {articulosFiltrados.map((articulo) => (
-              <div
-                key={articulo.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-5"
-              >
-                <div className="flex justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg md:text-xl font-bold truncate">
-                        {articulo.descripcion}
-                      </p>
-
-                      {esFrecuente(articulo) && (
-                        <span title="Artículo frecuente" className="text-xl shrink-0">
-                          🔥
-                        </span>
-                      )}
-
-                      {esImportadoProveedor(articulo) && (
-                        <IconoImportadoProveedor />
-                      )}
-                    </div>
-
-                    {articulo.detalle && (
-                      <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
-                        {detalleCorto(articulo.detalle)}
-                      </p>
-                    )}
-
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_180px_180px] gap-2 mt-3 items-stretch">
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">Categoría</p>
-                        <p className="text-white font-bold truncate">
-                          {nombreCategoria(articulo)}
-                        </p>
-                      </div>
-
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">Tipo</p>
-                        <p className="text-white font-bold truncate">
-                          {nombreTipo(articulo)}
-                        </p>
-                      </div>
-
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">
-                          {esTrabajoArticulo(articulo) ? "Precio base" : "Costo gremio"}
-                        </p>
-                        <p className={esTrabajoArticulo(articulo) ? "text-white font-bold" : "text-red-400 font-bold"}>
-                          {articulo.moneda === "USD" ? "USD $" : "$"}
-                          {esTrabajoArticulo(articulo)
-                            ? precioBaseTrabajoArticulo(articulo).toLocaleString()
-                            : precioCostoArticulo(articulo).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                        <p className="text-zinc-500 text-xs">Precio venta</p>
-                        <p className="text-green-400 font-black">
-                          {articulo.moneda === "USD" ? "USD $" : "$"}
-                          {precioFinalArticulo(articulo).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative shrink-0">
-                    <button
-                      onClick={() =>
-                        setMenuAbierto(
-                          menuAbierto === articulo.id ? null : articulo.id
-                        )
-                      }
-                      className="w-12 h-12 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-3xl font-black"
-                    >
-                      ⋮
-                    </button>
-
-                    {menuAbierto === articulo.id && (
-                      <div className="absolute right-0 top-14 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden z-50 min-w-44 shadow-2xl">
-                        <button
-                          onClick={() => {
-                            setArticuloVer(articulo);
-                            setMenuAbierto(null);
-                          }}
-                          className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                        >
-                          Ver
-                        </button>
-
-                        <button
-                          onClick={() => editarArticulo(articulo)}
-                          className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          onClick={() => solicitarEliminarArticulo(articulo.id)}
-                          className="w-full text-left px-5 py-4 hover:bg-red-500/20 text-red-400 font-bold"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {articulosFiltrados.length === 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-500">
-                No hay artículos encontrados.
-              </div>
-            )}
-          </div>
+          <ArticuloLista
+            articulosFiltrados={articulosFiltrados}
+            menuAbierto={menuAbierto}
+            setMenuAbierto={setMenuAbierto}
+            setArticuloVer={setArticuloVer}
+            editarArticulo={editarArticulo}
+            solicitarEliminarArticulo={solicitarEliminarArticulo}
+            esFrecuente={esFrecuente}
+            esImportadoProveedor={esImportadoProveedor}
+            IconoImportadoProveedor={IconoImportadoProveedor}
+            nombreCategoria={nombreCategoria}
+            nombreTipo={nombreTipo}
+            esTrabajoArticulo={esTrabajoArticulo}
+            precioBaseTrabajoArticulo={precioBaseTrabajoArticulo}
+            precioCostoArticulo={precioCostoArticulo}
+            precioFinalArticulo={precioFinalArticulo}
+            detalleCorto={detalleCorto}
+          />
         </div>
       </div>
     </>
