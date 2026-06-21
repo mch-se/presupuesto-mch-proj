@@ -8,7 +8,7 @@ import BibliotecaPanel from "../components/BibliotecaPanel";
 import ItemsPresupuesto from "../components/ItemsPresupuesto";
 import MenuFlotante from "../components/MenuFlotante";
 import ResumenTotal from "../components/ResumenTotal";
-import ImportadorCsv from "../components/ImportadorCsv";
+import ImportadorUniversal from "../components/ImportadorUniversal";
 
 
 export default function Presupuestos() {
@@ -863,8 +863,9 @@ export default function Presupuestos() {
     <>
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
 
-      <ImportadorCsv
+      <ImportadorUniversal
         ref={importadorCsvRef}
+        contexto="presupuesto"
         articulos={articulos}
         categorias={categorias}
         tipos={tipos}

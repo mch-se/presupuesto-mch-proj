@@ -7,7 +7,7 @@ import ArticuloLista from "../components/ArticuloLista";
 import ArticuloFormulario from "../components/ArticuloFormulario";
 import ArticuloVerModal from "../components/ArticuloVerModal";
 import ArticuloFiltros from "../components/ArticuloFiltros";
-import ArticuloImportador from "../components/ArticuloImportador";
+import ImportadorUniversal from "../components/ImportadorUniversal";
 
 
 export default function Articulos() {
@@ -877,20 +877,15 @@ export default function Articulos() {
 
               <div className="relative flex gap-3 shrink-0">
               
-<ArticuloImportador
-  menuImportarAbierto={menuImportarAbierto}
-  setMenuImportarAbierto={setMenuImportarAbierto}
-  procesandoImportacion={procesandoImportacion}
-  iniciarImportacionCsv={iniciarImportacionCsv}
-  mostrarPreviewImportacion={mostrarPreviewImportacion}
-  setMostrarPreviewImportacion={setMostrarPreviewImportacion}
-  previewImportacion={previewImportacion}
-  setPreviewImportacion={setPreviewImportacion}
-  categorias={categorias}
-  actualizarCampoPreview={actualizarCampoPreview}
-  actualizarCategoriaPreview={actualizarCategoriaPreview}
-  confirmarImportacionCsv={confirmarImportacionCsv}
-/>
+                <ImportadorUniversal
+                  contexto="articulos"
+                  articulos={articulos}
+                  categorias={categorias}
+                  tipos={tipos}
+                  obtenerArticulos={obtenerArticulos}
+                  mostrarToast={mostrarToast}
+                  mostrarBoton
+                />
 
                 <Link
                   to="/"
