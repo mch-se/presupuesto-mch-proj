@@ -1,5 +1,35 @@
 import React from "react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+import { FilePicker } from "@capawesome/capacitor-file-picker";
+import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
+
+const SharedFile = registerPlugin("SharedFile");
+const TIPOS_IMPORTACION = [
+  "text/csv",
+  "text/comma-separated-values",
+  "application/csv",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+];
+
+const estadoImportacionPorContexto = new Map();
+
+function obtenerEstadoPersistido(contexto) {
+  return (
+    estadoImportacionPorContexto.get(contexto) || {
+      preview: [],
+      mostrarPreview: false,
+    }
+  );
+}
+
+function persistirEstadoImportacion(contexto, estado) {
+  estadoImportacionPorContexto.set(contexto, {
+    ...obtenerEstadoPersistido(contexto),
+    ...estado,
+  });
+}
 
 function normalizarSku(sku) {
   return `${sku || ""}`.trim().toUpperCase();
@@ -124,6 +154,53 @@ function parsearCsvTolerante(texto) {
   );
 }
 
+function convertirFilaAArticulo(fila) {
+  if (!fila || fila.length < 5) return null;
+
+  const cantidad = normalizarNumero(fila[0]);
+  const sku = normalizarSku(fila[1]);
+  const costoTexto = fila[fila.length - 2];
+  const precioTexto = fila[fila.length - 1];
+
+  if (!cantidad || !sku) return null;
+  if (!esNumeroValido(costoTexto) || !esNumeroValido(precioTexto)) return null;
+
+  return {
+    cantidad,
+    sku,
+    descripcion: sku,
+    detalle: fila.slice(2, -2).join(" ").replace(/\s+/g, " ").trim(),
+    costo_gremio: normalizarNumero(costoTexto),
+    precio_publico: normalizarNumero(precioTexto),
+  };
+}
+
+async function leerXlsx(archivo) {
+  const buffer = await archivo.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+
+  if (!primeraHoja) return [];
+
+  const filas = XLSX.utils.sheet_to_json(primeraHoja, {
+    header: 1,
+    defval: "",
+    blankrows: false,
+  });
+
+  return filas
+    .map((fila) => fila.map((campo) => `${campo || ""}`.trim()))
+    .filter((fila) => fila.some((campo) => campo !== ""))
+    .filter((fila, index) => {
+      if (index !== 0) return true;
+
+      const textoHeader = fila.join(" ").toLowerCase();
+      return !(textoHeader.includes("cantidad") && textoHeader.includes("sku"));
+    })
+    .map(convertirFilaAArticulo)
+    .filter(Boolean);
+}
+
 function detectarCategoriaInicial(item, categorias, existente) {
   if (existente?.categoria_id) return existente.categoria_id;
 
@@ -165,6 +242,128 @@ function detectarCategoriaInicial(item, categorias, existente) {
   return "";
 }
 
+function esArchivoImportacionSoportado(nombre) {
+  const nombreNormalizado = `${nombre || ""}`.toLowerCase();
+  return nombreNormalizado.endsWith(".csv") || nombreNormalizado.endsWith(".xlsx");
+}
+
+function normalizarBase64(dataBase64) {
+  return `${dataBase64 || ""}`.replace(/^data:.*;base64,/, "");
+}
+
+function convertirBase64AArchivo(fileName, dataBase64, mimeType = "") {
+  const base64Normalizado = normalizarBase64(dataBase64);
+  const byteString = atob(base64Normalizado);
+  const bytes = new Uint8Array(byteString.length);
+
+  for (let i = 0; i < byteString.length; i++) {
+    bytes[i] = byteString.charCodeAt(i);
+  }
+
+  return new File([bytes], fileName, { type: mimeType });
+}
+
+async function convertirPickedFileAArchivo(archivoElegido) {
+  console.info("[ImportadorUniversal] Convirtiendo archivo de FilePicker", {
+    nombre: archivoElegido?.name || null,
+    mimeType: archivoElegido?.mimeType || null,
+    size: archivoElegido?.size || 0,
+    path: archivoElegido?.path || null,
+    tieneData: Boolean(archivoElegido?.data),
+    dataLength: archivoElegido?.data?.length || 0,
+    tieneBlob: Boolean(archivoElegido?.blob),
+  });
+
+  if (!archivoElegido?.name || !esArchivoImportacionSoportado(archivoElegido.name)) {
+    console.warn("[ImportadorUniversal] Archivo no soportado desde FilePicker", {
+      nombre: archivoElegido?.name || null,
+    });
+    return null;
+  }
+
+  if (archivoElegido.path) {
+    try {
+      console.info("[ImportadorUniversal] Intentando fetch(path)", {
+        path: archivoElegido.path,
+      });
+
+      const respuesta = await fetch(archivoElegido.path);
+      console.info("[ImportadorUniversal] Resultado fetch(path)", {
+        ok: respuesta.ok,
+        status: respuesta.status,
+        type: respuesta.type,
+      });
+
+      const blob = await respuesta.blob();
+      console.info("[ImportadorUniversal] Blob desde fetch(path)", {
+        size: blob.size,
+        type: blob.type,
+      });
+
+      if (blob.size > 0) {
+        const archivo = new File([blob], archivoElegido.name, {
+          type: archivoElegido.mimeType || blob.type || "",
+        });
+
+        console.info("[ImportadorUniversal] File creado desde fetch(path)", {
+          name: archivo.name,
+          size: archivo.size,
+          type: archivo.type,
+        });
+
+        return archivo;
+      }
+    } catch (error) {
+      console.warn("[ImportadorUniversal] fetch(path) fallo", {
+        path: archivoElegido.path,
+        error,
+      });
+    }
+  }
+
+  if (archivoElegido.blob) {
+    console.info("[ImportadorUniversal] Usando blob devuelto por FilePicker", {
+      size: archivoElegido.blob.size,
+      type: archivoElegido.blob.type,
+    });
+
+    const archivo = new File([archivoElegido.blob], archivoElegido.name, {
+      type: archivoElegido.mimeType || "",
+    });
+
+    console.info("[ImportadorUniversal] File creado desde blob", {
+      name: archivo.name,
+      size: archivo.size,
+      type: archivo.type,
+    });
+
+    return archivo;
+  }
+
+  if (archivoElegido.data) {
+    console.info("[ImportadorUniversal] Usando data base64 de FilePicker", {
+      dataLength: archivoElegido.data.length,
+    });
+
+    const archivo = convertirBase64AArchivo(
+      archivoElegido.name,
+      archivoElegido.data,
+      archivoElegido.mimeType || ""
+    );
+
+    console.info("[ImportadorUniversal] File creado desde data base64", {
+      name: archivo.name,
+      size: archivo.size,
+      type: archivo.type,
+    });
+
+    return archivo;
+  }
+
+  console.warn("[ImportadorUniversal] FilePicker no devolvio bytes utilizables");
+  return null;
+}
+
 const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   {
     contexto = "articulos",
@@ -175,21 +374,92 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     obtenerArticulos,
     mostrarToast,
     mostrarBoton = false,
+    autoImportarCompartido = true,
   },
   ref
 ) {
   const inputCsvRef = React.useRef(null);
   const [menuAbierto, setMenuAbierto] = React.useState(false);
   const [procesando, setProcesando] = React.useState(false);
-  const [preview, setPreview] = React.useState([]);
-  const [mostrarPreview, setMostrarPreview] = React.useState(false);
+  const [preview, setPreview] = React.useState(
+    () => obtenerEstadoPersistido(contexto).preview
+  );
+  const [mostrarPreview, setMostrarPreview] = React.useState(
+    () => obtenerEstadoPersistido(contexto).mostrarPreview
+  );
   const esPresupuesto = contexto === "presupuesto";
+
+  React.useEffect(() => {
+    console.info("[ImportadorUniversal] Montado", { contexto });
+
+    return () => {
+      console.warn("[ImportadorUniversal] Desmontado", { contexto });
+    };
+  }, [contexto]);
+
+  React.useEffect(() => {
+    const estadoPersistido = obtenerEstadoPersistido(contexto);
+
+    if (estadoPersistido.mostrarPreview || estadoPersistido.preview.length > 0) {
+      console.info("[ImportadorUniversal] Restaurando estado persistido", {
+        contexto,
+        mostrarPreview: estadoPersistido.mostrarPreview,
+        previewLength: estadoPersistido.preview.length,
+      });
+
+      setPreview(estadoPersistido.preview);
+      setMostrarPreview(estadoPersistido.mostrarPreview);
+    }
+  }, [contexto]);
+
+  React.useEffect(() => {
+    console.info("[ImportadorUniversal] Estado preview", {
+      contexto,
+      mostrarPreview,
+      previewLength: preview.length,
+    });
+  }, [contexto, mostrarPreview, preview.length]);
 
   React.useImperativeHandle(ref, () => ({
     abrir() {
       iniciarImportacionCsv();
     },
+    importarArchivo(archivo) {
+      procesarArchivoImportacion(archivo);
+    },
   }));
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!autoImportarCompartido) return;
+
+    let cancelado = false;
+
+    async function importarPendiente() {
+      const archivoCompartido = await obtenerArchivoCompartido();
+
+      if (!cancelado && archivoCompartido) {
+        await procesarArchivoImportacion(archivoCompartido, {
+          limpiarArchivoCompartido: true,
+        });
+      }
+    }
+
+    function recibirArchivoCompartido() {
+      importarPendiente();
+    }
+
+    importarPendiente();
+    window.addEventListener("mchImportarArchivoCompartido", recibirArchivoCompartido);
+
+    return () => {
+      cancelado = true;
+      window.removeEventListener(
+        "mchImportarArchivoCompartido",
+        recibirArchivoCompartido
+      );
+    };
+  }, [articulos, categorias, autoImportarCompartido]);
 
   function avisar(mensaje, tipo = "ok") {
     mostrarToast?.(mensaje, tipo);
@@ -203,32 +473,171 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     );
   }
 
-  function iniciarImportacionCsv() {
+  async function iniciarImportacionCsv() {
     if (procesando) return;
-    setPreview([]);
-    setMostrarPreview(false);
+    limpiarPreview("iniciarImportacionCsv");
     setMenuAbierto(false);
-    setTimeout(() => inputCsvRef.current?.click(), 50);
+
+    if (Capacitor.isNativePlatform()) {
+      await abrirSelectorNativo();
+      return;
+    }
+
+    const input = inputCsvRef.current;
+    if (!input) {
+      console.warn("[ImportadorUniversal] No se encontro el input de archivo");
+      return;
+    }
+
+    console.info("[ImportadorUniversal] Abriendo selector manual de archivo");
+
+    if (typeof input.showPicker === "function") {
+      try {
+        input.showPicker();
+        return;
+      } catch (error) {
+        console.warn(
+          "[ImportadorUniversal] showPicker no disponible, usando click",
+          error
+        );
+      }
+    }
+
+    input.click();
+  }
+
+  async function abrirSelectorNativo() {
+    try {
+      console.info("[ImportadorUniversal] Abriendo FilePicker nativo");
+
+      const resultado = await FilePicker.pickFiles({
+        types: TIPOS_IMPORTACION,
+        limit: 1,
+        readData: true,
+      });
+
+      console.info("[ImportadorUniversal] Resultado completo FilePicker", resultado);
+
+      const archivoElegido = resultado.files?.[0] || null;
+
+      console.info("[ImportadorUniversal] Resultado FilePicker", {
+        nombre: archivoElegido?.name || null,
+        tipo: archivoElegido?.mimeType || null,
+        tamano: archivoElegido?.size || 0,
+        tieneData: Boolean(archivoElegido?.data),
+        tieneBlob: Boolean(archivoElegido?.blob),
+      });
+
+      const archivo = await convertirPickedFileAArchivo(archivoElegido);
+
+      if (!archivo) {
+        avisar("Selecciona un archivo CSV o XLSX", "error");
+        return;
+      }
+
+      await procesarArchivoImportacion(archivo);
+    } catch (error) {
+      console.error("[ImportadorUniversal] Error en abrirSelectorNativo", error);
+      if (error?.message?.toLowerCase().includes("cancel")) return;
+      avisar("No se pudo seleccionar el archivo", "error");
+    }
+  }
+
+  async function leerArchivoImportacion(archivo) {
+    const nombre = `${archivo?.name || ""}`.toLowerCase();
+
+    if (nombre.endsWith(".xlsx")) {
+      return {
+        origen: "XLSX",
+        articulos: await leerXlsx(archivo),
+      };
+    }
+
+    return {
+      origen: "CSV",
+      articulos: parsearCsvTolerante(await archivo.text()),
+    };
+  }
+
+  async function obtenerArchivoCompartido() {
+    try {
+      const resultado = await SharedFile.getPendingFile();
+
+      if (!resultado?.fileName || !resultado?.dataBase64) return null;
+
+      console.info("[ImportadorUniversal] Archivo desde SharedFilePlugin", {
+        fileName: resultado.fileName,
+        dataBase64Length: resultado.dataBase64.length,
+      });
+
+      const archivo = convertirBase64AArchivo(
+        resultado.fileName,
+        resultado.dataBase64
+      );
+
+      console.info("[ImportadorUniversal] File creado desde SharedFilePlugin", {
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type,
+      });
+
+      return archivo;
+    } catch (error) {
+      console.error(error);
+      avisar("No se pudo leer el archivo compartido", "error");
+      return null;
+    }
   }
 
   async function procesarArchivoCsv(evento) {
     const archivo = evento.target.files?.[0];
-    evento.target.value = "";
 
-    if (!archivo || procesando) return;
+    console.info("[ImportadorUniversal] Cambio en selector manual", {
+      nombre: archivo?.name || null,
+      tipo: archivo?.type || null,
+      tamano: archivo?.size || 0,
+    });
+
+    if (archivo && !esArchivoImportacionSoportado(archivo.name)) {
+      avisar("Selecciona un archivo CSV o XLSX", "error");
+      return;
+    }
+
+    await procesarArchivoImportacion(archivo);
+  }
+
+  async function procesarArchivoImportacion(
+    archivo,
+    { limpiarArchivoCompartido = false } = {}
+  ) {
+    if (!archivo || procesando) {
+      console.warn("[ImportadorUniversal] Importacion ignorada", {
+        tieneArchivo: Boolean(archivo),
+        procesando,
+      });
+      return;
+    }
 
     setProcesando(true);
 
     try {
-      const articulosCsv = parsearCsvTolerante(await archivo.text());
+      console.info("[ImportadorUniversal] Procesando archivo", archivo.name);
+      console.info("[ImportadorUniversal] Entrada procesarArchivoImportacion", {
+        name: archivo.name,
+        size: archivo.size,
+        type: archivo.type,
+        limpiarArchivoCompartido,
+      });
 
-      if (articulosCsv.length === 0) {
-        avisar("No se encontraron articulos validos en el CSV", "error");
+      const { origen, articulos: articulosImportados } =
+        await leerArchivoImportacion(archivo);
+
+      if (articulosImportados.length === 0) {
+        avisar(`No se encontraron articulos validos en el ${origen}`, "error");
         return;
       }
 
-      setPreview(
-        articulosCsv.map((item) => {
+      const previewCreado = articulosImportados.map((item) => {
           const existente = articulos.find(
             (articulo) => normalizarSku(articulo.sku) === item.sku
           );
@@ -238,14 +647,34 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
             existe: Boolean(existente),
             articuloId: existente?.id || null,
             categoria_id: detectarCategoriaInicial(item, categorias, existente),
+            origen_importacion: origen,
           };
-        })
-      );
+        });
+
+      console.info("[ImportadorUniversal] Preview creado", {
+        contexto,
+        origen,
+        cantidad: previewCreado.length,
+      });
+
+      persistirEstadoImportacion(contexto, {
+        preview: previewCreado,
+        mostrarPreview: true,
+      });
+      setPreview(previewCreado);
+      console.info("[ImportadorUniversal] Mostrando preview", {
+        contexto,
+        cantidad: previewCreado.length,
+      });
       setMostrarPreview(true);
-      avisar("CSV leido correctamente", "ok");
+      avisar(`${origen} leido correctamente`, "ok");
+
+      if (limpiarArchivoCompartido && Capacitor.isNativePlatform()) {
+        await SharedFile.clearPendingFile?.();
+      }
     } catch (error) {
       console.error(error);
-      avisar("No se pudo leer el CSV", "error");
+      avisar("No se pudo leer el archivo", "error");
     } finally {
       setProcesando(false);
     }
@@ -273,6 +702,22 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   }
 
   function cerrarPreview() {
+    limpiarPreview("cerrarPreview");
+  }
+
+  function limpiarPreview(motivo) {
+    console.warn("[ImportadorUniversal] Limpiando preview", {
+      contexto,
+      motivo,
+      previewLength: preview.length,
+      mostrarPreview,
+      stack: new Error().stack,
+    });
+
+    persistirEstadoImportacion(contexto, {
+      preview: [],
+      mostrarPreview: false,
+    });
     setMostrarPreview(false);
     setPreview([]);
   }
@@ -328,7 +773,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
           sku: normalizarSku(item.sku),
           descripcion: normalizarSku(item.sku),
           detalle: item.detalle || "",
-          proveedor: contexto === "articulos" ? "Integra" : "CSV proveedor",
+          proveedor: "Integra",
           moneda: "ARS",
           categoria_id: item.categoria_id || null,
           categoria: categoriaSeleccionada?.nombre || existente?.categoria || "",
@@ -336,7 +781,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
           tipo: tipoMaterial?.nombre || existente?.tipo || "Material",
           frecuente: true,
           importado_proveedor: true,
-          origen_pdf: contexto === "articulos" ? "CSV" : "CSV proveedor",
+          origen_pdf: item.origen_importacion || "CSV",
           usado_count: Math.max(Number(existente?.usado_count || 0), 11),
           precio_costo: costoGremio,
           costo: costoGremio,
@@ -400,8 +845,8 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       }
 
       await obtenerArticulos?.();
-      cerrarPreview();
-      avisar(`CSV importado: ${nuevos} nuevos, ${actualizados} actualizados`, "ok");
+      limpiarPreview("confirmarImportacion:completada");
+      avisar(`Importacion completada: ${nuevos} nuevos, ${actualizados} actualizados`, "ok");
     } catch (error) {
       console.error(error);
       avisar(error.message || "Error al importar articulos", "error");
@@ -415,9 +860,13 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       <input
         ref={inputCsvRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        onClick={(evento) => {
+          evento.currentTarget.value = "";
+        }}
         onChange={procesarArchivoCsv}
-        className="hidden"
+        className="fixed left-0 top-0 w-px h-px opacity-0 pointer-events-none"
+        tabIndex={-1}
       />
 
       {mostrarBoton && (
@@ -436,7 +885,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
                 onClick={iniciarImportacionCsv}
                 className="w-full text-left px-5 py-4 hover:bg-zinc-800 font-bold"
               >
-                Importar CSV
+                Importar CSV/XLSX
               </button>
             </div>
           )}
@@ -444,12 +893,12 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       )}
 
       {mostrarPreview && (
-        <div className="fixed inset-0 z-[95] bg-black/80 p-4 flex items-center justify-center">
+        <div className="fixed inset-0 z-[9997] bg-black/80 p-4 flex items-center justify-center">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 md:p-6 w-full max-w-6xl max-h-[90vh] overflow-auto">
             <div className="flex justify-between items-start gap-4 mb-5">
               <div>
                 <h2 className="text-2xl md:text-3xl font-black text-orange-500">
-                  Preview importacion CSV
+                  Preview importacion
                 </h2>
                 <p className="text-zinc-500 mt-1">
                   Revisa los articulos antes de guardar.

@@ -28,6 +28,7 @@ export default function Articulos() {
   const [usadoCount, setUsadoCount] = React.useState(0);
 
   const [articulos, setArticulos] = React.useState([]);
+  const [articulosCargados, setArticulosCargados] = React.useState(false);
   const [categorias, setCategorias] = React.useState([]);
   const [tipos, setTipos] = React.useState([]);
 
@@ -113,6 +114,7 @@ export default function Articulos() {
     }
 
     setArticulos(data || []);
+    setArticulosCargados(true);
   }
 
   function nombreCategoria(articulo) {
@@ -884,6 +886,9 @@ export default function Articulos() {
                   tipos={tipos}
                   obtenerArticulos={obtenerArticulos}
                   mostrarToast={mostrarToast}
+                  autoImportarCompartido={
+                    articulosCargados && categorias.length > 0 && tipos.length > 0
+                  }
                   mostrarBoton
                 />
 

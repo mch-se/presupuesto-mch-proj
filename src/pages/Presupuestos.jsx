@@ -40,6 +40,7 @@ export default function Presupuestos() {
   const [mostrarSelectorBiblioteca, setMostrarSelectorBiblioteca] =
     React.useState(false);
   const [articulos, setArticulos] = React.useState([]);
+  const [articulosCargados, setArticulosCargados] = React.useState(false);
   const [busquedaArticulo, setBusquedaArticulo] = React.useState("");
   const [categoriaBusquedaArticulo, setCategoriaBusquedaArticulo] = React.useState("Todas");
   const [mostrarFiltroCategoriasArticulo, setMostrarFiltroCategoriasArticulo] = React.useState(false);
@@ -247,6 +248,7 @@ export default function Presupuestos() {
     }
 
     setArticulos(data || []);
+    setArticulosCargados(true);
   }
 
   async function obtenerClientes() {
@@ -872,6 +874,9 @@ export default function Presupuestos() {
         setItems={setItems}
         obtenerArticulos={obtenerArticulos}
         mostrarToast={mostrarToast}
+        autoImportarCompartido={
+          articulosCargados && categorias.length > 0 && tipos.length > 0
+        }
       />
 
       <div className="min-h-screen bg-black text-white p-4 md:p-6 pb-32">

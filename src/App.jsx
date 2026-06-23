@@ -10,6 +10,7 @@ import {
 import { supabase } from "./lib/supabase";
 
 import Layout from "./components/Layout";
+import ArchivoCompartidoHandler from "./components/ArchivoCompartidoHandler";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -343,6 +344,8 @@ export default function App() {
 
   return (
     <BrowserRouter>
+
+      <ArchivoCompartidoHandler />
 
       {mostrarAvisoInactividad && (
         <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-4">
