@@ -17,6 +17,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(SharedFilePlugin.class);
+        registerPlugin(ContactsPermissionPlugin.class);
+        registerPlugin(ContactPickerPlugin.class);
         super.onCreate(savedInstanceState);
         handleSharedFileIntent(getIntent(), false);
     }

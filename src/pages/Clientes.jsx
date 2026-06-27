@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { Link } from "react-router-dom";
 import Toast from "../components/Toast";
 import ConfirmModal from "../components/ConfirmModal";
+import { seleccionarContacto } from "../lib/contactosPermisos";
 
 export default function Clientes() {
   const [tipo, setTipo] = React.useState("Empresa");
@@ -35,6 +36,30 @@ export default function Clientes() {
   React.useEffect(() => {
     obtenerClientes();
   }, []);
+
+  React.useEffect(() => {
+    console.info("[Contactos] Estado temporal actualizado", {
+      origen: "clientes",
+      mostrarFormulario,
+      tipo,
+      empresa,
+      telefono,
+      email,
+    });
+
+    if (mostrarFormulario) {
+      console.info("[Contactos] Mostrando formulario", {
+        origen: "clientes",
+      });
+      console.info("[Contactos] ClienteFormulario renderizado", {
+        origen: "clientes",
+        tipo,
+        empresa,
+        telefono,
+        email,
+      });
+    }
+  }, [mostrarFormulario, tipo, empresa, telefono, email]);
 
   async function obtenerClientes() {
     const { data, error } = await supabase
@@ -78,19 +103,16 @@ export default function Clientes() {
   }
 
   async function importarContacto() {
-    if (!("contacts" in navigator) || !navigator.contacts?.select) {
-      mostrarToast(
-        "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
-        "error"
-      );
-      return;
-    }
+    console.info("[Contactos] Entrando importarContacto", {
+      origen: "clientes",
+    });
 
     try {
-      const contactos = await navigator.contacts.select(
-        ["name", "tel", "email"],
-        { multiple: false }
-      );
+      const contactos = await seleccionarContacto();
+      console.info("[Contactos] Contacto recibido en React", {
+        origen: "clientes",
+        contactos,
+      });
 
       const contactoImportado = contactos?.[0];
 
@@ -101,15 +123,28 @@ export default function Clientes() {
       const nombre = contactoImportado.name?.[0] || "";
       const telefonoContacto = contactoImportado.tel?.[0] || "";
       const emailContacto = contactoImportado.email?.[0] || "";
+      const organizacionContacto = contactoImportado.organization?.[0] || "";
 
-      setTipo("Particular");
-      setEmpresa(nombre);
+      console.info("[Contactos] Contacto seleccionado");
+      console.info("[Contactos] Precargando formulario de cliente");
+      console.info("[Contactos] Seteando estado temporal", {
+        tipo: organizacionContacto ? "Empresa" : "Particular",
+        empresa: organizacionContacto || nombre,
+        telefono: telefonoContacto,
+        email: emailContacto,
+      });
+
+      setTipo(organizacionContacto ? "Empresa" : "Particular");
+      setEmpresa(organizacionContacto || nombre);
       setContacto("");
       setTelefono(telefonoContacto);
       setEmail(emailContacto);
       setDireccion("");
       setObservaciones("");
       setEditandoId(null);
+      console.info("[Contactos] Abriendo formulario", {
+        origen: "clientes",
+      });
       setMostrarFormulario(true);
 
       mostrarToast("Contacto importado. Revisá y guardá el cliente.", "ok");
@@ -122,6 +157,19 @@ export default function Clientes() {
       }, 100);
     } catch (error) {
       if (error?.name === "AbortError") {
+        return;
+      }
+
+      if (error?.code === "CONTACTS_UNSUPPORTED") {
+        mostrarToast(
+          "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
+          "error"
+        );
+        return;
+      }
+
+      if (error?.code === "CONTACTS_PERMISSION_DENIED") {
+        mostrarToast("Permiso de contactos denegado", "error");
         return;
       }
 
@@ -185,6 +233,7 @@ export default function Clientes() {
         return;
       }
 
+      console.info("[Contactos] Cliente guardado");
       mostrarToast("Cliente creado correctamente", "ok");
     }
 

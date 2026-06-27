@@ -9,6 +9,8 @@ import ItemsPresupuesto from "../components/ItemsPresupuesto";
 import MenuFlotante from "../components/MenuFlotante";
 import ResumenTotal from "../components/ResumenTotal";
 import ImportadorUniversal from "../components/ImportadorUniversal";
+import ClienteFormulario from "../components/ClienteFormulario";
+import { seleccionarContacto } from "../lib/contactosPermisos";
 
 
 export default function Presupuestos() {
@@ -31,6 +33,16 @@ export default function Presupuestos() {
   const [clienteTelefono, setClienteTelefono] = React.useState("");
   const [clienteEmail, setClienteEmail] = React.useState("");
   const [clienteDireccion, setClienteDireccion] = React.useState("");
+  const [mostrarFormularioCliente, setMostrarFormularioCliente] =
+    React.useState(false);
+  const [clienteFormTipo, setClienteFormTipo] = React.useState("Particular");
+  const [clienteFormEmpresa, setClienteFormEmpresa] = React.useState("");
+  const [clienteFormContacto, setClienteFormContacto] = React.useState("");
+  const [clienteFormTelefono, setClienteFormTelefono] = React.useState("");
+  const [clienteFormEmail, setClienteFormEmail] = React.useState("");
+  const [clienteFormDireccion, setClienteFormDireccion] = React.useState("");
+  const [clienteFormObservaciones, setClienteFormObservaciones] =
+    React.useState("");
 
   const [items, setItems] = React.useState([]);
   const [itemExpandido, setItemExpandido] = React.useState(null);
@@ -76,6 +88,29 @@ export default function Presupuestos() {
       generarValidezDefault();
     }
   }, []);
+
+  React.useEffect(() => {
+    console.info("[Contactos] Estado temporal actualizado", {
+      origen: "presupuesto",
+      mostrarFormularioCliente,
+      tipo: clienteFormTipo,
+      empresa: clienteFormEmpresa,
+      telefono: clienteFormTelefono,
+      email: clienteFormEmail,
+    });
+
+    if (mostrarFormularioCliente) {
+      console.info("[Contactos] Mostrando formulario", {
+        origen: "presupuesto",
+      });
+    }
+  }, [
+    mostrarFormularioCliente,
+    clienteFormTipo,
+    clienteFormEmpresa,
+    clienteFormTelefono,
+    clienteFormEmail,
+  ]);
 
   function mostrarToast(mensaje, tipo = "ok") {
     setToastMensaje(mensaje);
@@ -291,21 +326,17 @@ export default function Presupuestos() {
   }
 
   async function importarContactoCliente() {
+    console.info("[Contactos] Entrando importarContacto", {
+      origen: "presupuesto",
+    });
     setMostrarMenuCliente(false);
 
-    if (!("contacts" in navigator) || !navigator.contacts?.select) {
-      mostrarToast(
-        "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
-        "error"
-      );
-      return;
-    }
-
     try {
-      const contactos = await navigator.contacts.select(
-        ["name", "tel", "email"],
-        { multiple: false }
-      );
+      const contactos = await seleccionarContacto();
+      console.info("[Contactos] Contacto recibido en React", {
+        origen: "presupuesto",
+        contactos,
+      });
 
       const contactoImportado = contactos?.[0];
 
@@ -316,6 +347,33 @@ export default function Presupuestos() {
       const nombre = contactoImportado.name?.[0] || "";
       const telefonoContacto = contactoImportado.tel?.[0] || "";
       const emailContacto = contactoImportado.email?.[0] || "";
+      const organizacionContacto = contactoImportado.organization?.[0] || "";
+
+      console.info("[Contactos] Contacto seleccionado");
+      console.info("[Contactos] Precargando formulario de cliente");
+      console.info("[Contactos] Seteando estado temporal", {
+        tipo: organizacionContacto ? "Empresa" : "Particular",
+        empresa: organizacionContacto || nombre,
+        telefono: telefonoContacto,
+        email: emailContacto,
+      });
+
+      setClienteFormTipo(organizacionContacto ? "Empresa" : "Particular");
+      setClienteFormEmpresa(organizacionContacto || nombre);
+      setClienteFormContacto("");
+      setClienteFormTelefono(telefonoContacto);
+      setClienteFormEmail(emailContacto);
+      setClienteFormDireccion("");
+      setClienteFormObservaciones("");
+      console.info("[Contactos] Abriendo formulario", {
+        origen: "presupuesto",
+      });
+      setMostrarFormularioCliente(true);
+      setMostrarDatosCliente(false);
+      setMostrarClientes(false);
+
+      mostrarToast("Contacto importado. Revisá y guardá el cliente.", "ok");
+      return;
 
       if (!nombre) {
         mostrarToast("El contacto no tiene nombre válido", "error");
@@ -372,8 +430,94 @@ export default function Presupuestos() {
         return;
       }
 
+      if (error?.code === "CONTACTS_UNSUPPORTED") {
+        mostrarToast(
+          "Este dispositivo no permite importar contactos. Cargá el cliente manualmente.",
+          "error"
+        );
+        return;
+      }
+
+      if (error?.code === "CONTACTS_PERMISSION_DENIED") {
+        mostrarToast("Permiso de contactos denegado", "error");
+        return;
+      }
+
       mostrarToast("No se pudo importar el contacto", "error");
     }
+  }
+
+  function cerrarFormularioCliente() {
+    setMostrarFormularioCliente(false);
+    setClienteFormTipo("Particular");
+    setClienteFormEmpresa("");
+    setClienteFormContacto("");
+    setClienteFormTelefono("");
+    setClienteFormEmail("");
+    setClienteFormDireccion("");
+    setClienteFormObservaciones("");
+  }
+
+  async function guardarClienteImportado() {
+    if (clienteFormTipo === "Empresa" && !clienteFormEmpresa) {
+      mostrarToast("Ingresar empresa", "error");
+      return;
+    }
+
+    if (clienteFormTipo === "Particular" && !clienteFormEmpresa) {
+      mostrarToast("Ingresar persona", "error");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      mostrarToast("Sesión no válida", "error");
+      return;
+    }
+
+    const { data: perfil } = await supabase
+      .from("profiles")
+      .select("alias")
+      .eq("id", user.id)
+      .single();
+
+    const alias = perfil?.alias || "Administrador";
+
+    const datosCliente = {
+      tipo: clienteFormTipo,
+      empresa: clienteFormEmpresa,
+      contacto: clienteFormTipo === "Empresa" ? clienteFormContacto : "",
+      telefono: clienteFormTelefono,
+      email: clienteFormEmail,
+      direccion: clienteFormDireccion,
+      observaciones: clienteFormObservaciones,
+      user_id: user.id,
+      cargado_por: user.id,
+      cargado_por_alias: alias,
+    };
+
+    const { data: clienteCreado, error } = await supabase
+      .from("clientes")
+      .insert([datosCliente])
+      .select()
+      .single();
+
+    if (error) {
+      mostrarToast(error.message, "error");
+      return;
+    }
+
+    console.info("[Contactos] Cliente guardado");
+
+    setClientes((actuales) => [clienteCreado, ...actuales]);
+    seleccionarCliente(clienteCreado);
+    cerrarFormularioCliente();
+
+    console.info("[Contactos] Cliente seleccionado en presupuesto");
+    mostrarToast("Cliente creado y seleccionado", "ok");
   }
 
   function limpiarClienteSeleccionado() {
@@ -942,6 +1086,28 @@ export default function Presupuestos() {
             setDescripcionLarga={setDescripcionLarga}
           />
 
+          {mostrarFormularioCliente && (
+            <div className="mb-4">
+              <ClienteFormulario
+                tipo={clienteFormTipo}
+                setTipo={setClienteFormTipo}
+                empresa={clienteFormEmpresa}
+                setEmpresa={setClienteFormEmpresa}
+                contacto={clienteFormContacto}
+                setContacto={setClienteFormContacto}
+                telefono={clienteFormTelefono}
+                setTelefono={setClienteFormTelefono}
+                email={clienteFormEmail}
+                setEmail={setClienteFormEmail}
+                direccion={clienteFormDireccion}
+                setDireccion={setClienteFormDireccion}
+                observaciones={clienteFormObservaciones}
+                setObservaciones={setClienteFormObservaciones}
+                onGuardar={guardarClienteImportado}
+                onCancelar={cerrarFormularioCliente}
+              />
+            </div>
+          )}
 
           <PlantillasPanel
             mostrarPlantillas={mostrarPlantillas}
