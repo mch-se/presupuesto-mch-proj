@@ -18,6 +18,8 @@ export async function asegurarPermisoContactos() {
 }
 
 export async function seleccionarContacto() {
+  console.info("[Contactos] seleccionarContacto inicio");
+
   if (!Capacitor.isNativePlatform()) {
     if (!("contacts" in navigator) || !navigator.contacts?.select) {
       const error = new Error("Contact Picker no disponible");
@@ -42,7 +44,18 @@ export async function seleccionarContacto() {
   console.info("[Contactos] Selector abierto");
 
   console.info("[Contactos] Esperando respuesta del selector nativo");
-  const contacto = await ContactPicker.selectContact();
+  console.info("[Contactos] llamando plugin nativo");
+
+  let contacto;
+
+  try {
+    contacto = await ContactPicker.selectContact();
+    console.info("[Contactos] plugin respondió", contacto);
+  } catch (error) {
+    console.error("[Contactos] plugin error", error);
+    throw error;
+  }
+
   console.info("[Contactos] Respuesta del selector nativo", contacto);
 
   if (contacto?.cancelled) {

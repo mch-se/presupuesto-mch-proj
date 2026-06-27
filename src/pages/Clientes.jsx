@@ -103,13 +103,26 @@ export default function Clientes() {
   }
 
   async function importarContacto() {
+    console.info("[Contactos] importarContacto inicio", {
+      origen: "clientes",
+    });
     console.info("[Contactos] Entrando importarContacto", {
       origen: "clientes",
     });
 
     try {
+      console.info("[Contactos] antes de await seleccionarContacto", {
+        origen: "clientes",
+      });
       const contactos = await seleccionarContacto();
+      console.info("[Contactos] después de await seleccionarContacto", {
+        origen: "clientes",
+      });
       console.info("[Contactos] Contacto recibido en React", {
+        origen: "clientes",
+        contactos,
+      });
+      console.info("[Contactos] contacto recibido en pantalla", {
         origen: "clientes",
         contactos,
       });
@@ -142,6 +155,9 @@ export default function Clientes() {
       setDireccion("");
       setObservaciones("");
       setEditandoId(null);
+      console.info("[Contactos] abriendo formulario", {
+        origen: "clientes",
+      });
       console.info("[Contactos] Abriendo formulario", {
         origen: "clientes",
       });

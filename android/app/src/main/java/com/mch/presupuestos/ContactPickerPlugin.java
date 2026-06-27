@@ -22,6 +22,8 @@ public class ContactPickerPlugin extends Plugin {
 
     @PluginMethod
     public void selectContact(PluginCall call) {
+        Log.i(TAG, "[Contactos] selectContact llamado");
+        Log.i(TAG, "[Contactos] callbackId inicial " + call.getCallbackId());
         Log.i(TAG, "[Contactos] Selector abierto");
 
         Intent intent = new Intent(
@@ -38,11 +40,13 @@ public class ContactPickerPlugin extends Plugin {
         }
 
         if (activity == null) {
+            Log.i(TAG, "[Contactos] reject enviado a JS");
             call.reject("No hay una aplicacion de contactos disponible");
             return;
         }
 
         startActivityForResult(call, intent, "selectContactCallback");
+        Log.i(TAG, "[Contactos] startActivityForResult lanzado");
     }
 
     private ResolveInfo resolveAndLogActivity(Intent intent) {
@@ -85,13 +89,20 @@ public class ContactPickerPlugin extends Plugin {
 
     @ActivityCallback
     private void selectContactCallback(PluginCall call, ActivityResult result) {
+        Log.i(TAG, "[Contactos] onActivityResult recibido");
+
         if (call == null) {
+            Log.i(TAG, "[Contactos] savedCall null");
             return;
         }
+
+        Log.i(TAG, "[Contactos] savedCall existe");
+        Log.i(TAG, "[Contactos] callbackId inicial " + call.getCallbackId());
 
         if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null) {
             JSObject response = new JSObject();
             response.put("cancelled", true);
+            Log.i(TAG, "[Contactos] resolve enviado a JS");
             call.resolve(response);
             return;
         }
@@ -99,6 +110,7 @@ public class ContactPickerPlugin extends Plugin {
         Uri contactUri = result.getData().getData();
 
         if (contactUri == null) {
+            Log.i(TAG, "[Contactos] reject enviado a JS");
             call.reject("Contacto no disponible");
             return;
         }
@@ -107,6 +119,7 @@ public class ContactPickerPlugin extends Plugin {
             ContactData contact = readContact(contactUri);
 
             if (contact == null) {
+                Log.i(TAG, "[Contactos] reject enviado a JS");
                 call.reject("No se pudo leer el contacto");
                 return;
             }
@@ -120,8 +133,10 @@ public class ContactPickerPlugin extends Plugin {
             response.put("tel", contact.phone);
             response.put("email", contact.email);
             response.put("organization", contact.organization);
+            Log.i(TAG, "[Contactos] resolve enviado a JS");
             call.resolve(response);
         } catch (Exception error) {
+            Log.i(TAG, "[Contactos] reject enviado a JS");
             call.reject("No se pudo leer el contacto", error);
         }
     }

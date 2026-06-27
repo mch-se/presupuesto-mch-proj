@@ -7,9 +7,11 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.util.Log;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
+    private static final String TAG = "Contactos";
     private static final String PREFS_NAME = "mch_shared_file";
     private static final String KEY_FILE_NAME = "fileName";
     private static final String KEY_FILE_URI = "fileUri";
@@ -21,6 +23,30 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ContactPickerPlugin.class);
         super.onCreate(savedInstanceState);
         handleSharedFileIntent(getIntent(), false);
+    }
+
+    @Override
+    protected void onPause() {
+        Log.i(TAG, "[Contactos] MainActivity onPause");
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        Log.i(TAG, "[Contactos] MainActivity onStop");
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.i(TAG, "[Contactos] MainActivity onDestroy");
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        Log.i(TAG, "[Contactos] MainActivity onResume");
+        super.onResume();
     }
 
     @Override

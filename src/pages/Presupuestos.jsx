@@ -326,14 +326,27 @@ export default function Presupuestos() {
   }
 
   async function importarContactoCliente() {
+    console.info("[Contactos] importarContacto inicio", {
+      origen: "presupuesto",
+    });
     console.info("[Contactos] Entrando importarContacto", {
       origen: "presupuesto",
     });
     setMostrarMenuCliente(false);
 
     try {
+      console.info("[Contactos] antes de await seleccionarContacto", {
+        origen: "presupuesto",
+      });
       const contactos = await seleccionarContacto();
+      console.info("[Contactos] después de await seleccionarContacto", {
+        origen: "presupuesto",
+      });
       console.info("[Contactos] Contacto recibido en React", {
+        origen: "presupuesto",
+        contactos,
+      });
+      console.info("[Contactos] contacto recibido en pantalla", {
         origen: "presupuesto",
         contactos,
       });
@@ -365,6 +378,9 @@ export default function Presupuestos() {
       setClienteFormEmail(emailContacto);
       setClienteFormDireccion("");
       setClienteFormObservaciones("");
+      console.info("[Contactos] abriendo formulario", {
+        origen: "presupuesto",
+      });
       console.info("[Contactos] Abriendo formulario", {
         origen: "presupuesto",
       });
