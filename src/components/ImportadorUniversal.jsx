@@ -1,17 +1,6 @@
 import React from "react";
-import { Capacitor, registerPlugin } from "@capacitor/core";
-import { FilePicker } from "@capawesome/capacitor-file-picker";
 import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
-
-const SharedFile = registerPlugin("SharedFile");
-const TIPOS_IMPORTACION = [
-  "text/csv",
-  "text/comma-separated-values",
-  "application/csv",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-];
 
 const estadoImportacionPorContexto = new Map();
 
@@ -247,123 +236,6 @@ function esArchivoImportacionSoportado(nombre) {
   return nombreNormalizado.endsWith(".csv") || nombreNormalizado.endsWith(".xlsx");
 }
 
-function normalizarBase64(dataBase64) {
-  return `${dataBase64 || ""}`.replace(/^data:.*;base64,/, "");
-}
-
-function convertirBase64AArchivo(fileName, dataBase64, mimeType = "") {
-  const base64Normalizado = normalizarBase64(dataBase64);
-  const byteString = atob(base64Normalizado);
-  const bytes = new Uint8Array(byteString.length);
-
-  for (let i = 0; i < byteString.length; i++) {
-    bytes[i] = byteString.charCodeAt(i);
-  }
-
-  return new File([bytes], fileName, { type: mimeType });
-}
-
-async function convertirPickedFileAArchivo(archivoElegido) {
-  console.info("[ImportadorUniversal] Convirtiendo archivo de FilePicker", {
-    nombre: archivoElegido?.name || null,
-    mimeType: archivoElegido?.mimeType || null,
-    size: archivoElegido?.size || 0,
-    path: archivoElegido?.path || null,
-    tieneData: Boolean(archivoElegido?.data),
-    dataLength: archivoElegido?.data?.length || 0,
-    tieneBlob: Boolean(archivoElegido?.blob),
-  });
-
-  if (!archivoElegido?.name || !esArchivoImportacionSoportado(archivoElegido.name)) {
-    console.warn("[ImportadorUniversal] Archivo no soportado desde FilePicker", {
-      nombre: archivoElegido?.name || null,
-    });
-    return null;
-  }
-
-  if (archivoElegido.path) {
-    try {
-      console.info("[ImportadorUniversal] Intentando fetch(path)", {
-        path: archivoElegido.path,
-      });
-
-      const respuesta = await fetch(archivoElegido.path);
-      console.info("[ImportadorUniversal] Resultado fetch(path)", {
-        ok: respuesta.ok,
-        status: respuesta.status,
-        type: respuesta.type,
-      });
-
-      const blob = await respuesta.blob();
-      console.info("[ImportadorUniversal] Blob desde fetch(path)", {
-        size: blob.size,
-        type: blob.type,
-      });
-
-      if (blob.size > 0) {
-        const archivo = new File([blob], archivoElegido.name, {
-          type: archivoElegido.mimeType || blob.type || "",
-        });
-
-        console.info("[ImportadorUniversal] File creado desde fetch(path)", {
-          name: archivo.name,
-          size: archivo.size,
-          type: archivo.type,
-        });
-
-        return archivo;
-      }
-    } catch (error) {
-      console.warn("[ImportadorUniversal] fetch(path) fallo", {
-        path: archivoElegido.path,
-        error,
-      });
-    }
-  }
-
-  if (archivoElegido.blob) {
-    console.info("[ImportadorUniversal] Usando blob devuelto por FilePicker", {
-      size: archivoElegido.blob.size,
-      type: archivoElegido.blob.type,
-    });
-
-    const archivo = new File([archivoElegido.blob], archivoElegido.name, {
-      type: archivoElegido.mimeType || "",
-    });
-
-    console.info("[ImportadorUniversal] File creado desde blob", {
-      name: archivo.name,
-      size: archivo.size,
-      type: archivo.type,
-    });
-
-    return archivo;
-  }
-
-  if (archivoElegido.data) {
-    console.info("[ImportadorUniversal] Usando data base64 de FilePicker", {
-      dataLength: archivoElegido.data.length,
-    });
-
-    const archivo = convertirBase64AArchivo(
-      archivoElegido.name,
-      archivoElegido.data,
-      archivoElegido.mimeType || ""
-    );
-
-    console.info("[ImportadorUniversal] File creado desde data base64", {
-      name: archivo.name,
-      size: archivo.size,
-      type: archivo.type,
-    });
-
-    return archivo;
-  }
-
-  console.warn("[ImportadorUniversal] FilePicker no devolvio bytes utilizables");
-  return null;
-}
-
 const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   {
     contexto = "articulos",
@@ -374,7 +246,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     obtenerArticulos,
     mostrarToast,
     mostrarBoton = false,
-    autoImportarCompartido = true,
   },
   ref
 ) {
@@ -429,38 +300,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     },
   }));
 
-  React.useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-    if (!autoImportarCompartido) return;
-
-    let cancelado = false;
-
-    async function importarPendiente() {
-      const archivoCompartido = await obtenerArchivoCompartido();
-
-      if (!cancelado && archivoCompartido) {
-        await procesarArchivoImportacion(archivoCompartido, {
-          limpiarArchivoCompartido: true,
-        });
-      }
-    }
-
-    function recibirArchivoCompartido() {
-      importarPendiente();
-    }
-
-    importarPendiente();
-    window.addEventListener("mchImportarArchivoCompartido", recibirArchivoCompartido);
-
-    return () => {
-      cancelado = true;
-      window.removeEventListener(
-        "mchImportarArchivoCompartido",
-        recibirArchivoCompartido
-      );
-    };
-  }, [articulos, categorias, autoImportarCompartido]);
-
   function avisar(mensaje, tipo = "ok") {
     mostrarToast?.(mensaje, tipo);
   }
@@ -477,11 +316,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     if (procesando) return;
     limpiarPreview("iniciarImportacionCsv");
     setMenuAbierto(false);
-
-    if (Capacitor.isNativePlatform()) {
-      await abrirSelectorNativo();
-      return;
-    }
 
     const input = inputCsvRef.current;
     if (!input) {
@@ -506,43 +340,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     input.click();
   }
 
-  async function abrirSelectorNativo() {
-    try {
-      console.info("[ImportadorUniversal] Abriendo FilePicker nativo");
-
-      const resultado = await FilePicker.pickFiles({
-        types: TIPOS_IMPORTACION,
-        limit: 1,
-        readData: true,
-      });
-
-      console.info("[ImportadorUniversal] Resultado completo FilePicker", resultado);
-
-      const archivoElegido = resultado.files?.[0] || null;
-
-      console.info("[ImportadorUniversal] Resultado FilePicker", {
-        nombre: archivoElegido?.name || null,
-        tipo: archivoElegido?.mimeType || null,
-        tamano: archivoElegido?.size || 0,
-        tieneData: Boolean(archivoElegido?.data),
-        tieneBlob: Boolean(archivoElegido?.blob),
-      });
-
-      const archivo = await convertirPickedFileAArchivo(archivoElegido);
-
-      if (!archivo) {
-        avisar("Selecciona un archivo CSV o XLSX", "error");
-        return;
-      }
-
-      await procesarArchivoImportacion(archivo);
-    } catch (error) {
-      console.error("[ImportadorUniversal] Error en abrirSelectorNativo", error);
-      if (error?.message?.toLowerCase().includes("cancel")) return;
-      avisar("No se pudo seleccionar el archivo", "error");
-    }
-  }
-
   async function leerArchivoImportacion(archivo) {
     const nombre = `${archivo?.name || ""}`.toLowerCase();
 
@@ -557,36 +354,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       origen: "CSV",
       articulos: parsearCsvTolerante(await archivo.text()),
     };
-  }
-
-  async function obtenerArchivoCompartido() {
-    try {
-      const resultado = await SharedFile.getPendingFile();
-
-      if (!resultado?.fileName || !resultado?.dataBase64) return null;
-
-      console.info("[ImportadorUniversal] Archivo desde SharedFilePlugin", {
-        fileName: resultado.fileName,
-        dataBase64Length: resultado.dataBase64.length,
-      });
-
-      const archivo = convertirBase64AArchivo(
-        resultado.fileName,
-        resultado.dataBase64
-      );
-
-      console.info("[ImportadorUniversal] File creado desde SharedFilePlugin", {
-        name: archivo.name,
-        size: archivo.size,
-        type: archivo.type,
-      });
-
-      return archivo;
-    } catch (error) {
-      console.error(error);
-      avisar("No se pudo leer el archivo compartido", "error");
-      return null;
-    }
   }
 
   async function procesarArchivoCsv(evento) {
@@ -606,10 +373,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     await procesarArchivoImportacion(archivo);
   }
 
-  async function procesarArchivoImportacion(
-    archivo,
-    { limpiarArchivoCompartido = false } = {}
-  ) {
+  async function procesarArchivoImportacion(archivo) {
     if (!archivo || procesando) {
       console.warn("[ImportadorUniversal] Importacion ignorada", {
         tieneArchivo: Boolean(archivo),
@@ -626,7 +390,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
         name: archivo.name,
         size: archivo.size,
         type: archivo.type,
-        limpiarArchivoCompartido,
       });
 
       const { origen, articulos: articulosImportados } =
@@ -668,10 +431,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       });
       setMostrarPreview(true);
       avisar(`${origen} leido correctamente`, "ok");
-
-      if (limpiarArchivoCompartido && Capacitor.isNativePlatform()) {
-        await SharedFile.clearPendingFile?.();
-      }
     } catch (error) {
       console.error(error);
       avisar("No se pudo leer el archivo", "error");
