@@ -357,7 +357,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   }
 
   async function procesarArchivoCsv(evento) {
-    const archivo = evento.target.files?.[0];
+  const archivo = evento.target.files?.[0];
 
     console.info("[ImportadorUniversal] Cambio en selector manual", {
       nombre: archivo?.name || null,
@@ -419,17 +419,21 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
         origen,
         cantidad: previewCreado.length,
       });
+persistirEstadoImportacion(contexto, {
+  preview: previewCreado,
+  mostrarPreview: true,
+});
 
-      persistirEstadoImportacion(contexto, {
-        preview: previewCreado,
-        mostrarPreview: true,
-      });
-      setPreview(previewCreado);
-      console.info("[ImportadorUniversal] Mostrando preview", {
-        contexto,
-        cantidad: previewCreado.length,
-      });
-      setMostrarPreview(true);
+setPreview(previewCreado);
+setMostrarPreview(true);
+
+console.info("[ImportadorUniversal] Mostrando preview", {
+  contexto,
+  cantidad: previewCreado.length,
+});
+
+
+     
       avisar(`${origen} leido correctamente`, "ok");
     } catch (error) {
       console.error(error);
@@ -617,16 +621,13 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   return (
     <>
       <input
-        ref={inputCsvRef}
-        type="file"
-        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        onClick={(evento) => {
-          evento.currentTarget.value = "";
-        }}
-        onChange={procesarArchivoCsv}
-        className="fixed left-0 top-0 w-px h-px opacity-0 pointer-events-none"
-        tabIndex={-1}
-      />
+  ref={inputCsvRef}
+  type="file"
+  accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  onChange={procesarArchivoCsv}
+  className="fixed left-0 top-0 w-px h-px opacity-0 pointer-events-none"
+  tabIndex={-1}
+/>
 
       {mostrarBoton && (
         <div className="relative">

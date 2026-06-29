@@ -1,5 +1,6 @@
 import React from "react";
 import { supabase } from "../lib/supabase";
+import useBorrador from "../hooks/useBorrador";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Toast from "../components/Toast";
 import ClientePanel from "../components/ClientePanel";
@@ -9,6 +10,7 @@ import ItemsPresupuesto from "../components/ItemsPresupuesto";
 import MenuFlotante from "../components/MenuFlotante";
 import ResumenTotal from "../components/ResumenTotal";
 import ImportadorUniversal from "../components/ImportadorUniversal";
+import DialogoBorrador from "../components/DialogoBorrador";
 import ClienteFormulario from "../components/ClienteFormulario";
 import { seleccionarContacto } from "../lib/contactosPermisos";
 
@@ -71,8 +73,234 @@ export default function Presupuestos() {
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
   const [toastTipo, setToastTipo] = React.useState("ok");
+  const [
+     mostrarDialogoBorrador,
+     setMostrarDialogoBorrador,
+   ] = React.useState(false);
+const [
+  borradorPendiente,
+  setBorradorPendiente,
+] = React.useState(null);
+React.useEffect(() => {
+  const guardado = localStorage.getItem(
+    "borrador_presupuesto"
+  );
 
+  if (!guardado) {
+    return;
+  }
+
+  try {
+    const borrador = JSON.parse(guardado);
+    const estaVacio =
+    !borrador.cliente &&
+    !borrador.descripcionCorta &&
+    !borrador.descripcionLarga &&
+    !borrador.clienteSeleccionado &&
+    (borrador.items?.length ?? 0) === 0;
+    if (estaVacio) {
+      return;
+  }
+
+    setBorradorPendiente(
+      borrador
+    );
+
+    setMostrarDialogoBorrador(
+      true
+    );
+  } catch (e) {
+    console.error(
+      "[BORRADOR] Error al leer borrador pendiente",
+      e
+    );
+  }
+}, []);
+
+function continuarBorrador() {
+  setMostrarDialogoBorrador(false);
+}
+
+function descartarBorrador() {
+  localStorage.removeItem(
+    "borrador_presupuesto"
+  );
+
+  setBorradorPendiente(null);
+
+  setCliente("");
+  setDescripcionCorta("");
+  setDescripcionLarga("");
+  setMoneda("ARS");
+  setValidoHasta("");
+  setClienteSeleccionado(null);
+  setItems([]);
+
+  setMostrarDialogoBorrador(false);
+}
   const importadorCsvRef = React.useRef(null);
+
+useBorrador({
+  clave: "borrador_presupuesto",
+  datos: {
+    cliente,
+    descripcionCorta,
+    descripcionLarga,
+    moneda,
+    validoHasta,
+    clienteSeleccionado,
+    items,
+  },
+  restaurar: (borrador) => {
+    setCliente(borrador.cliente ?? "");
+    setDescripcionCorta(
+      borrador.descripcionCorta ?? ""
+    );
+    setDescripcionLarga(
+      borrador.descripcionLarga ?? ""
+    );
+    setMoneda(borrador.moneda ?? "ARS");
+    setValidoHasta(
+      borrador.validoHasta ?? ""
+    );
+    setClienteSeleccionado(
+      borrador.clienteSeleccionado ?? null
+    );
+    setItems(borrador.items ?? []);
+  },
+  habilitado: false,
+});
+
+  const restaurandoBorradorRef = React.useRef(true);
+const descartarAutosaveRef =
+  React.useRef(false);
+React.useEffect(() => {
+if (
+  restaurandoBorradorRef.current ||
+  descartarAutosaveRef.current
+) {
+  return;
+}
+
+  const borrador = {
+    cliente,
+    descripcionCorta,
+    descripcionLarga,
+    moneda,
+    validoHasta,
+    clienteSeleccionado,
+    items,
+  };
+
+  localStorage.setItem(
+    "borrador_presupuesto",
+    JSON.stringify(borrador)
+  );
+
+  console.log(
+    "[BORRADOR] Guardado",
+    borrador.items.length,
+    "ítems"
+  );
+}, [
+  cliente,
+  descripcionCorta,
+  descripcionLarga,
+  moneda,
+  validoHasta,
+  clienteSeleccionado,
+  items,
+]);
+React.useEffect(() => {
+  const guardado = localStorage.getItem(
+    "borrador_presupuesto"
+  );
+
+  if (!guardado) {
+  restaurandoBorradorRef.current = false;
+  return;
+}
+
+  try {
+    const borrador = JSON.parse(guardado);
+
+    console.log(
+      "[BORRADOR] Encontrado",
+      borrador
+    );
+
+    setCliente(
+      borrador.cliente ?? ""
+    );
+
+    setDescripcionCorta(
+      borrador.descripcionCorta ?? ""
+    );
+
+    setDescripcionLarga(
+      borrador.descripcionLarga ?? ""
+    );
+
+    setMoneda(
+      borrador.moneda ?? "ARS"
+    );
+
+    setValidoHasta(
+      borrador.validoHasta ?? ""
+    );
+
+    setClienteSeleccionado(
+      borrador.clienteSeleccionado ?? null
+    );
+console.log(
+  "[RESTAURAR]",
+  borrador.items?.length
+);
+
+setTimeout(() => {
+  setItems(
+    borrador.items ?? []
+  );
+
+  console.log(
+    "[setItems RESTAURAR ejecutado]"
+  );
+
+  console.log(
+    "[BORRADOR] Restaurado"
+  );
+
+  restaurandoBorradorRef.current = false;
+}, 0);
+
+  } catch (e) {
+    console.error(
+      "[BORRADOR] Error al restaurar",
+      e
+    );
+  }
+}, []);
+React.useEffect(() => {
+  console.log(
+    "[PRESUPUESTOS] Montado",
+    new Date().toLocaleTimeString()
+  );
+
+  return () => {
+    console.log(
+      "[PRESUPUESTOS] Desmontado",
+      new Date().toLocaleTimeString()
+    );
+  };
+}, []);
+
+React.useEffect(() => {
+  console.log(
+    "[ITEMS CAMBIÓ]",
+    items.length,
+    items.map((x) => x.descripcion)
+  );
+}, [items]);
 
   React.useEffect(() => {
     obtenerCategorias();
@@ -911,7 +1139,9 @@ export default function Presupuestos() {
             return;
           }
         }
-
+       localStorage.removeItem(
+  "borrador_presupuesto"
+);
         mostrarToast("Presupuesto actualizado", "ok");
       } else {
         const { data: presupuesto, error } = await supabase
@@ -966,6 +1196,9 @@ export default function Presupuestos() {
             return;
           }
         }
+localStorage.removeItem(
+  "borrador_presupuesto"
+);
 
         mostrarToast("Presupuesto guardado", "ok");
       }
@@ -1181,6 +1414,11 @@ export default function Presupuestos() {
 
         </div>
       </div>
+            <DialogoBorrador
+            visible={mostrarDialogoBorrador}
+            onContinuar={continuarBorrador}
+            onDescartar={descartarBorrador}
+            />
     </>
   );
 }

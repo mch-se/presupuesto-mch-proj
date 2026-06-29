@@ -60,6 +60,19 @@ export default function Articulos() {
 
   const formularioRef = React.useRef(null);
   const inputCsvRef = React.useRef(null);
+React.useEffect(() => {
+  console.log(
+    "[ARTICULOS] Montado",
+    new Date().toLocaleTimeString()
+  );
+
+  return () => {
+    console.log(
+      "[ARTICULOS] Desmontado",
+      new Date().toLocaleTimeString()
+    );
+  };
+}, []);
 
   React.useEffect(() => {
     obtenerCategorias();
