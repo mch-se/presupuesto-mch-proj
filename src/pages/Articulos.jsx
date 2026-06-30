@@ -46,10 +46,10 @@ export default function Articulos() {
   const [articuloVer, setArticuloVer] = React.useState(null);
 
   const [menuImportarAbierto, setMenuImportarAbierto] = React.useState(false);
-  const [previewImportacion, setPreviewImportacion] = React.useState([]);
-  const [mostrarPreviewImportacion, setMostrarPreviewImportacion] =
+  //const [previewImportacion, setPreviewImportacion] = React.useState([]);
+  //const [mostrarPreviewImportacion, setMostrarPreviewImportacion] =
     React.useState(false);
-  const [procesandoImportacion, setProcesandoImportacion] = React.useState(false);
+  //const [procesandoImportacion, setProcesandoImportacion] = React.useState(false);
 
   const [toastVisible, setToastVisible] = React.useState(false);
   const [toastMensaje, setToastMensaje] = React.useState("");
@@ -59,7 +59,7 @@ export default function Articulos() {
   const [articuloEliminar, setArticuloEliminar] = React.useState(null);
 
   const formularioRef = React.useRef(null);
-  const inputCsvRef = React.useRef(null);
+  //const inputCsvRef = React.useRef(null);
 React.useEffect(() => {
   console.log(
     "[ARTICULOS] Montado",
@@ -434,7 +434,7 @@ React.useEffect(() => {
       ) || null
     );
   }
-  function iniciarImportacionCsv() {
+  /* function iniciarImportacionCsv() {
     setPreviewImportacion([]);
     setMostrarPreviewImportacion(false);
     setMenuImportarAbierto(false);
@@ -683,9 +683,9 @@ React.useEffect(() => {
     if (previewImportacion.length === 0) {
       mostrarToast("No hay artículos para importar", "error");
       return;
-    }
+    }*/
 
-    const faltanCategorias = previewImportacion.some(
+    /* const faltanCategorias = previewImportacion.some(
       (item) => !item.categoria_id
     );
 
@@ -772,6 +772,7 @@ React.useEffect(() => {
       mostrarToast(error.message || "Error al importar artículos", "error");
     }
   }
+*/
 
   function detalleCorto(texto) {
     if (!texto) return "";
@@ -843,6 +844,7 @@ React.useEffect(() => {
       />
 
       <Toast mensaje={toastMensaje} tipo={toastTipo} visible={toastVisible} />
+{/*
 <input
         ref={inputCsvRef}
         type="file"
@@ -850,6 +852,7 @@ React.useEffect(() => {
         onChange={procesarArchivoCsv}
         className="hidden"
       />
+*/}
 
       {(menuAbierto || menuConfigAbierto || menuImportarAbierto) && (
         <div
@@ -892,7 +895,7 @@ React.useEffect(() => {
 
               <div className="relative flex gap-3 shrink-0">
               
-                <ImportadorUniversal
+               <ImportadorUniversal
                   contexto="articulos"
                   articulos={articulos}
                   categorias={categorias}
@@ -904,8 +907,7 @@ React.useEffect(() => {
                   }
                   mostrarBoton
                 />
-
-                <Link
+<Link
                   to="/"
                   className="bg-zinc-700 hover:bg-zinc-600 px-5 py-3 rounded-xl font-bold"
                 >

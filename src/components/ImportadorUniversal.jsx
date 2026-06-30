@@ -20,6 +20,62 @@ function persistirEstadoImportacion(contexto, estado) {
   });
 }
 
+function obtenerClaveImportacion(
+  contexto
+) {
+  return `borrador_importacion_${contexto}`;
+}
+
+function obtenerEstadoLocalStorage(
+  contexto
+) {
+  try {
+    const guardado =
+      localStorage.getItem(
+        obtenerClaveImportacion(
+          contexto
+        )
+      );
+
+    if (!guardado) {
+      return {
+        preview: [],
+        mostrarPreview: false,
+      };
+    }
+
+    return JSON.parse(
+      guardado
+    );
+  } catch {
+    return {
+      preview: [],
+      mostrarPreview: false,
+    };
+  }
+}
+
+function guardarEstadoLocalStorage(
+  contexto,
+  estado
+) {
+  localStorage.setItem(
+    obtenerClaveImportacion(
+      contexto
+    ),
+    JSON.stringify(estado)
+  );
+}
+
+function limpiarEstadoLocalStorage(
+  contexto
+) {
+  localStorage.removeItem(
+    obtenerClaveImportacion(
+      contexto
+    )
+  );
+}
 function normalizarSku(sku) {
   return `${sku || ""}`.trim().toUpperCase();
 }
@@ -252,24 +308,30 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   const inputCsvRef = React.useRef(null);
   const [menuAbierto, setMenuAbierto] = React.useState(false);
   const [procesando, setProcesando] = React.useState(false);
-  const [preview, setPreview] = React.useState(
-    () => obtenerEstadoPersistido(contexto).preview
+  const [preview, setPreview] =
+  React.useState(
+    () =>
+      obtenerEstadoLocalStorage(
+        contexto
+      ).preview
   );
-  const [mostrarPreview, setMostrarPreview] = React.useState(
-    () => obtenerEstadoPersistido(contexto).mostrarPreview
-  );
+
+const [
+  mostrarPreview,
+  setMostrarPreview,
+] = React.useState(
+  () =>
+    obtenerEstadoLocalStorage(
+      contexto
+    ).mostrarPreview
+);
   const esPresupuesto = contexto === "presupuesto";
 
   React.useEffect(() => {
-    console.info("[ImportadorUniversal] Montado", { contexto });
-
-    return () => {
-      console.warn("[ImportadorUniversal] Desmontado", { contexto });
-    };
-  }, [contexto]);
-
-  React.useEffect(() => {
-    const estadoPersistido = obtenerEstadoPersistido(contexto);
+   const estadoPersistido =
+  obtenerEstadoLocalStorage(
+    contexto
+  );
 
     if (estadoPersistido.mostrarPreview || estadoPersistido.preview.length > 0) {
       console.info("[ImportadorUniversal] Restaurando estado persistido", {
@@ -282,14 +344,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
       setMostrarPreview(estadoPersistido.mostrarPreview);
     }
   }, [contexto]);
-
-  React.useEffect(() => {
-    console.info("[ImportadorUniversal] Estado preview", {
-      contexto,
-      mostrarPreview,
-      previewLength: preview.length,
-    });
-  }, [contexto, mostrarPreview, preview.length]);
 
   React.useImperativeHandle(ref, () => ({
     abrir() {
@@ -325,18 +379,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
 
     console.info("[ImportadorUniversal] Abriendo selector manual de archivo");
 
-    if (typeof input.showPicker === "function") {
-      try {
-        input.showPicker();
-        return;
-      } catch (error) {
-        console.warn(
-          "[ImportadorUniversal] showPicker no disponible, usando click",
-          error
-        );
-      }
-    }
-
     input.click();
   }
 
@@ -349,7 +391,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
         articulos: await leerXlsx(archivo),
       };
     }
-
     return {
       origen: "CSV",
       articulos: parsearCsvTolerante(await archivo.text()),
@@ -357,15 +398,16 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
   }
 
   async function procesarArchivoCsv(evento) {
-  const archivo = evento.target.files?.[0];
+  const archivo =
+    evento.target.files?.[0];
+  if (!archivo) {
+    console.warn(
+      "[CSV] Sin archivo"
+    );
+    return;
+  }
 
-    console.info("[ImportadorUniversal] Cambio en selector manual", {
-      nombre: archivo?.name || null,
-      tipo: archivo?.type || null,
-      tamano: archivo?.size || 0,
-    });
-
-    if (archivo && !esArchivoImportacionSoportado(archivo.name)) {
+      if (archivo && !esArchivoImportacionSoportado(archivo.name)) {
       avisar("Selecciona un archivo CSV o XLSX", "error");
       return;
     }
@@ -373,8 +415,7 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     await procesarArchivoImportacion(archivo);
   }
 
-  async function procesarArchivoImportacion(archivo) {
-    if (!archivo || procesando) {
+  async function procesarArchivoImportacion(archivo) {    if (!archivo || procesando) {
       console.warn("[ImportadorUniversal] Importacion ignorada", {
         tieneArchivo: Boolean(archivo),
         procesando,
@@ -385,12 +426,6 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
     setProcesando(true);
 
     try {
-      console.info("[ImportadorUniversal] Procesando archivo", archivo.name);
-      console.info("[ImportadorUniversal] Entrada procesarArchivoImportacion", {
-        name: archivo.name,
-        size: archivo.size,
-        type: archivo.type,
-      });
 
       const { origen, articulos: articulosImportados } =
         await leerArchivoImportacion(archivo);
@@ -414,23 +449,13 @@ const ImportadorUniversal = React.forwardRef(function ImportadorUniversal(
           };
         });
 
-      console.info("[ImportadorUniversal] Preview creado", {
-        contexto,
-        origen,
-        cantidad: previewCreado.length,
+      persistirEstadoImportacion(contexto, {
+        preview: previewCreado,
+        mostrarPreview: true,
       });
-persistirEstadoImportacion(contexto, {
-  preview: previewCreado,
-  mostrarPreview: true,
-});
 
-setPreview(previewCreado);
-setMostrarPreview(true);
-
-console.info("[ImportadorUniversal] Mostrando preview", {
-  contexto,
-  cantidad: previewCreado.length,
-});
+      setPreview(previewCreado);
+      setMostrarPreview(true);
 
 
      
@@ -469,12 +494,11 @@ console.info("[ImportadorUniversal] Mostrando preview", {
   }
 
   function limpiarPreview(motivo) {
-    console.warn("[ImportadorUniversal] Limpiando preview", {
+    console.log("[ImportadorUniversal] Limpiando preview", {
       contexto,
       motivo,
       previewLength: preview.length,
       mostrarPreview,
-      stack: new Error().stack,
     });
 
     persistirEstadoImportacion(contexto, {
@@ -621,14 +645,12 @@ console.info("[ImportadorUniversal] Mostrando preview", {
   return (
     <>
       <input
-  ref={inputCsvRef}
-  type="file"
-  accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  onChange={procesarArchivoCsv}
-  className="fixed left-0 top-0 w-px h-px opacity-0 pointer-events-none"
-  tabIndex={-1}
-/>
-
+        ref={inputCsvRef}
+        type="file"
+        className="hidden"
+        accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        onChange={procesarArchivoCsv}
+      />
       {mostrarBoton && (
         <div className="relative">
           <button

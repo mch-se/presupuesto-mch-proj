@@ -28,6 +28,7 @@ import CategoriasArticulos from "./pages/CategoriasArticulos";
 import TiposArticulos from "./pages/TiposArticulos";
 import Estadisticas from "./pages/Estadisticas";
 import Liquidaciones from "./pages/Liquidaciones";
+import TestFile from "./pages/TestFile";
 
 export default function App() {
   const [session, setSession] = React.useState(null);
@@ -43,6 +44,7 @@ export default function App() {
 
   const temporizadorLogoutRef = React.useRef(null);
   const temporizadorAvisoRef = React.useRef(null);
+  const sessionRef = React.useRef(null);
 
   const TIEMPO_INACTIVIDAD_MS = 40 * 60 * 1000;
   const TIEMPO_AVISO_MS = 38 * 60 * 1000;
@@ -54,9 +56,41 @@ export default function App() {
       data: { subscription },
     } =
       supabase.auth.onAuthStateChange(
-        async (_event, sessionNueva) => {
+        async (event, sessionNueva) => {
 
-          setSession(sessionNueva);
+          console.log(
+            "[AUTH]",
+            event,
+            {
+              session: !!sessionNueva,
+              hora: new Date().toLocaleTimeString(),
+            }
+          );
+
+          const tokenActual =
+            sessionRef.current?.access_token;
+
+          const tokenNuevo =
+            sessionNueva?.access_token;
+
+          if (
+            event === "SIGNED_IN" &&
+            tokenActual &&
+            tokenActual === tokenNuevo
+          ) {
+            console.log(
+              "[AUTH] SIGNED_IN ignorado"
+            );
+
+            return;
+          }
+
+          sessionRef.current =
+            sessionNueva;
+
+          setSession(
+            sessionNueva
+          );
 
           if (sessionNueva?.user) {
 
@@ -116,6 +150,11 @@ export default function App() {
     };
   }, [session]);
 
+  React.useEffect(() => {
+    sessionRef.current =
+      session;
+  }, [session]);
+
   function limpiarTemporizadoresInactividad() {
     if (temporizadorLogoutRef.current) {
       clearTimeout(temporizadorLogoutRef.current);
@@ -163,6 +202,17 @@ export default function App() {
         data: { session },
       } =
         await supabase.auth.getSession();
+
+      console.log(
+        "[APP] getSession",
+        {
+          session: !!session,
+          hora: new Date().toLocaleTimeString(),
+        }
+      );
+
+      sessionRef.current =
+        session || null;
 
       setSession(
         session || null
@@ -291,6 +341,16 @@ export default function App() {
 
     return children;
   }
+
+  console.log(
+    "[APP] Render",
+    {
+      session: !!session,
+      rol,
+      loading,
+      hora: new Date().toLocaleTimeString(),
+    }
+  );
 
   if (loading) {
 
@@ -524,6 +584,10 @@ export default function App() {
               </RutaAdmin>
             }
           />
+<Route
+  path="/test-file"
+  element={<TestFile />}
+/>
 
         </Routes>
 

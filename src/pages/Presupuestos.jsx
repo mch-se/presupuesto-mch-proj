@@ -12,6 +12,7 @@ import ResumenTotal from "../components/ResumenTotal";
 import ImportadorUniversal from "../components/ImportadorUniversal";
 import DialogoBorrador from "../components/DialogoBorrador";
 import ClienteFormulario from "../components/ClienteFormulario";
+import useModoBorrador from "../hooks/useModoBorrador";
 import { seleccionarContacto } from "../lib/contactosPermisos";
 
 
@@ -19,6 +20,11 @@ export default function Presupuestos() {
   const navigate = useNavigate();
   const { id } = useParams();
   const modoEdicion = !!id;
+  const {
+  modoBorrador,
+  activarManual,
+  activarImportacion,
+} = useModoBorrador();
 
   const [cliente, setCliente] = React.useState("");
   const [descripcionCorta, setDescripcionCorta] = React.useState("");
@@ -1415,6 +1421,7 @@ localStorage.removeItem(
         </div>
       </div>
             <DialogoBorrador
+            tipo={modoBorrador}
             visible={mostrarDialogoBorrador}
             onContinuar={continuarBorrador}
             onDescartar={descartarBorrador}
